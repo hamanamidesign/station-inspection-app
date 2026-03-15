@@ -85,6 +85,7 @@ export default function InspectorApp() {
   const [locationDetail, setLocationDetail] = useState('');
   const [remarks, setRemarks] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(8).fill(null));
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
@@ -234,36 +235,72 @@ try {
   
 
   // 写真撮影ハンドラ
-  const handleCapture = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const newPhotos = [...photos];
-        newPhotos[index] = ev.target?.result as string;
-        setPhotos(newPhotos);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = async (ev) => {
+
+    const compressed = await resizeImage(ev.target?.result as string);
+
+    const newPhotos = [...photos];
+    newPhotos[index] = compressed;
+    setPhotos(newPhotos);
   };
 
+  reader.readAsDataURL(file);
+};
+
   const resizeImage = async (base64Str: string): Promise<string> => {
-    if (!base64Str.startsWith("data:image")) return base64Str; // すでにリサイズ済みかURLの場合はスルー
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = base64Str;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1000;
-        let width = img.width; let height = img.height;
-        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) { ctx.imageSmoothingEnabled = true; ctx.drawImage(img, 0, 0, width, height); }
-        resolve(canvas.toDataURL('image/jpeg', 0.35));
-      };
-    });
-  };
+
+  return new Promise((resolve) => {
+
+    const img = new Image();
+    img.src = base64Str;
+
+    img.onload = () => {
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const MAX_WIDTH = 1600;
+
+      let width = img.width;
+      let height = img.height;
+
+      if (width > MAX_WIDTH) {
+        height = height * (MAX_WIDTH / width);
+        width = MAX_WIDTH;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      ctx?.drawImage(img, 0, 0, width, height);
+
+      const compressed = canvas.toDataURL("image/jpeg", 0.9);
+
+      resolve(compressed);
+    };
+
+  });
+
+};
+
+let pressTimer: NodeJS.Timeout;
+
+const handlePressStart = (photo: string) => {
+  pressTimer = setTimeout(() => {
+    setPreviewPhoto(photo);
+  }, 500); // 0.5秒長押し
+};
+
+const handlePressEnd = () => {
+  clearTimeout(pressTimer);
+};
+
   // --- 写真削除用関数を追加 ---
   const removePhoto = (index: number) => {
     const newPhotos = [...photos];
@@ -857,7 +894,17 @@ const resetKarteFields = () => {
                 {photos.map((p, i) => (
                   <div key={i} className="relative aspect-[4/3]">
                     <label className="block w-full h-full bg-white rounded border border-blue-200 relative overflow-hidden cursor-pointer shadow-sm hover:border-blue-500 transition-colors">
-                      {p ? <img src={p} className="w-full h-full object-cover" /> : <div className="flex flex-col items-center justify-center h-full text-[10px] text-blue-300 font-bold">No.{i+1} 写真・カメラ</div>}
+                      {p ? (
+              <img
+              src={p}
+              className="w-full h-full object-cover"
+              onMouseDown={() => handlePressStart(p)}
+              onMouseUp={handlePressEnd}
+              onMouseLeave={handlePressEnd}
+              onTouchStart={() => handlePressStart(p)}
+              onTouchEnd={handlePressEnd}
+             />
+            ) : ( <div className="flex flex-col items-center justify-center h-full text-[10px] text-blue-300 font-bold">No.{i+1} 写真・カメラ</div>)}
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleCapture(e, i)} />
                     </label>
                     {!!p && (
@@ -869,6 +916,18 @@ const resetKarteFields = () => {
             </div>
           </div>
         </div>
+
+        {previewPhoto && (
+        <div
+    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[999]"
+    onClick={() => setPreviewPhoto(null)}
+       >
+      <img
+      src={previewPhoto}
+      className="max-w-[95%] max-h-[95%] object-contain rounded"
+       />
+      </div>
+    )}
 
         {/* --- 保存ボタン --- */}
         <div className="w-full bg-slate-800 p-3 flex justify-center sticky bottom-0 border-t border-slate-600">
