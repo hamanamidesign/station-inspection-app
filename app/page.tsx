@@ -267,7 +267,7 @@ try {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      const MAX_WIDTH = 1600;
+      const MAX_WIDTH = 1200;
 
       let width = img.width;
       let height = img.height;
