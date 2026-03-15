@@ -267,7 +267,7 @@ try {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      const MAX_WIDTH = 1200;
+      const MAX_WIDTH = 1600;
 
       let width = img.width;
       let height = img.height;
@@ -282,7 +282,7 @@ try {
 
       ctx?.drawImage(img, 0, 0, width, height);
 
-      const compressed = canvas.toDataURL("image/jpeg", 0.6);
+      const compressed = canvas.toDataURL("image/jpeg", 0.9);
 
       resolve(compressed);
     };
@@ -383,7 +383,7 @@ const handlePressEnd = () => {
 
   // --- 2. 送信ロジック（独立した関数として定義） ---
   const sendGenericKarte = async (actionType: "uploadKarte" | "uploadInclination") => {
-    if (!karteNo || isSending) return;
+    if (karteNo === "" || isSending) return;
     setIsSending(true);
 
     try {
@@ -401,7 +401,9 @@ const handlePressEnd = () => {
         })
       );
 
-      const validPhotos = photoDataList.filter(Boolean);
+      const validPhotos = photoDataList.filter(
+  (p): p is { fileName: string; base64: string } => Boolean(p)
+);
 
       const payload = {
   isUpdate: isEditMode,
@@ -853,7 +855,7 @@ const resetKarteFields = () => {
     今回の点検写真
   </div>
 
-  {/* 1〜4 */}
+  {/* 写真枠1〜4 */}
   <div className="border border-black rounded p-2 mb-3">
     <div className="grid grid-cols-2 gap-3">
 
@@ -916,7 +918,7 @@ const resetKarteFields = () => {
     </div>
   </div>
 
-  {/* 5〜8 */}
+  {/* 写真枠5〜8 */}
   <div className="border border-black rounded p-2">
     <div className="grid grid-cols-2 gap-3">
 
@@ -956,7 +958,20 @@ const resetKarteFields = () => {
               ref={(el) => { fileInputs.current[index] = el }}
               onChange={(e) => handleCapture(e, index)}
             />
-
+{!!p && (
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const n = [...photos];
+      n[index] = null;
+      setPhotos(n);
+    }}
+    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+  >
+    ✕
+  </button>
+)}
           </div>
         );
       })}
