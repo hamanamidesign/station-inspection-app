@@ -909,7 +909,12 @@ const resetKarteFields = () => {
               onTouchEnd={handlePressEnd}
               />
             ) : ( <div className="flex flex-col items-center justify-center h-full text-[10px] text-blue-300 font-bold">No.{i+1} 写真・カメラ</div>)}
-                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleCapture(e, i)} />
+                      <input
+                     type="file"
+                      accept="image/*"
+                      className="hidden"
+                     onChange={e => handleCapture(e, i)}
+                      />
                     </label>
                     {!!p && (
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); const n=[...photos]; n[i]=null; setPhotos(n); }} className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-[50]">✕</button>
