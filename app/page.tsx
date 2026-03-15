@@ -4,6 +4,7 @@ import { gasApi } from "./lib/gasApi";
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import TaskSelect from "./components/TaskSelect";
+const fileInputs = useRef<(HTMLInputElement | null)[]>([]);
 
 interface Marker {
   id: number; x: number; y: number; label: string;
@@ -450,13 +451,13 @@ const result = await gasApi(actionType, payload);
    <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
    </div>
    )}
-   <input 
-   type="file" 
-    accept="image/*" 
-   capture="environment" 
-   className="hidden" 
-    onChange={e => handleCapture(e, i)} 
-   />
+   <input
+  type="file"
+  accept="image/*"
+  className="hidden"
+  ref={(el) => (fileInputs.current[i] = el)}
+  onChange={(e) => handleCapture(e, i)}
+/>
    </label>
       
       {/* ★ 削除ボタン（!!p でより確実に判定、z-50で最前面へ） */}
@@ -898,12 +899,13 @@ const resetKarteFields = () => {
               <img
               src={p}
               className="w-full h-full object-cover"
+              onClick={() => fileInputs.current[i]?.click()}
               onMouseDown={() => handlePressStart(p)}
               onMouseUp={handlePressEnd}
               onMouseLeave={handlePressEnd}
               onTouchStart={() => handlePressStart(p)}
               onTouchEnd={handlePressEnd}
-             />
+              />
             ) : ( <div className="flex flex-col items-center justify-center h-full text-[10px] text-blue-300 font-bold">No.{i+1} 写真・カメラ</div>)}
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleCapture(e, i)} />
                     </label>
