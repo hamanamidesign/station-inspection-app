@@ -455,7 +455,9 @@ const result = await gasApi(actionType, payload);
   type="file"
   accept="image/*"
   className="hidden"
-  ref={(el) => (fileInputs.current[i] = el)}
+  ref={(el) => {
+    fileInputs.current[i] = el;
+  }}
   onChange={(e) => handleCapture(e, i)}
 />
    </label>
