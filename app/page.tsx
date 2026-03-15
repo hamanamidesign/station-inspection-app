@@ -282,7 +282,7 @@ try {
 
       ctx?.drawImage(img, 0, 0, width, height);
 
-      const compressed = canvas.toDataURL("image/jpeg", 0.9);
+      const compressed = canvas.toDataURL("image/jpeg", 0.6);
 
       resolve(compressed);
     };
