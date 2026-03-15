@@ -861,9 +861,10 @@ const resetKarteFields = () => {
   )}
 
         <div
-          className="w-full h-full bg-white rounded border border-blue-200 relative overflow-hidden cursor-pointer shadow-sm hover:border-blue-500 transition-colors"
-          onClick={() => fileInputs.current[i]?.click()}
-        >
+className={`w-full h-full bg-white rounded border relative overflow-hidden cursor-pointer shadow-sm hover:border-blue-500 transition-colors
+${i === 4 || i === 5 ? "border-t-2 border-t-black border-blue-200" : "border-blue-200"}
+`}
+>
 
           {p ? (
             <img
