@@ -847,39 +847,67 @@ const resetKarteFields = () => {
             </div>
 
             {/* 今回の写真撮影エリア */}
-            <div className="flex-1 p-2 overflow-y-auto bg-blue-50/10">
-              <div className="text-center text-[10px] font-black text-blue-700 mb-2 border-b border-blue-200">今回の点検写真</div>
-              <div className="grid grid-cols-2 gap-3 p-1">
-                {photos.map((p, i) => (
-                  <div key={i} className="relative aspect-[4/3]">
-                    <label className="block w-full h-full bg-white rounded border border-blue-200 relative overflow-hidden cursor-pointer shadow-sm hover:border-blue-500 transition-colors">
-                      {p ? (
-              <img
+<div className="flex-1 p-2 overflow-y-auto bg-blue-50/10">
+  <div className="text-center text-[10px] font-black text-blue-700 mb-2 border-b border-blue-200">
+    今回の点検写真
+  </div>
+
+  <div className="grid grid-cols-2 gap-3 p-1">
+    {photos.map((p, i) => (
+      <div key={i} className="relative aspect-[4/3]">
+
+        <div
+          className="w-full h-full bg-white rounded border border-blue-200 relative overflow-hidden cursor-pointer shadow-sm hover:border-blue-500 transition-colors"
+          onClick={() => fileInputs.current[i]?.click()}
+        >
+
+          {p ? (
+            <img
               src={p}
               className="w-full h-full object-cover"
-              onClick={() => fileInputs.current[i]?.click()}
               onMouseDown={() => handlePressStart(p)}
               onMouseUp={handlePressEnd}
               onMouseLeave={handlePressEnd}
               onTouchStart={() => handlePressStart(p)}
               onTouchEnd={handlePressEnd}
-              />
-            ) : ( <div className="flex flex-col items-center justify-center h-full text-[10px] text-blue-300 font-bold">No.{i+1} 写真・カメラ</div>)}
-                    <input
-type="file"
-accept="image/*"
-capture="environment"
-className="hidden"
-onChange={e => handleCapture(e, i)}
-/>
-                    </label>
-                    {!!p && (
-                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); const n=[...photos]; n[i]=null; setPhotos(n); }} className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-[50]">✕</button>
-                    )}
-                  </div>
-                ))}
-              </div>
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-[10px] text-blue-300 font-bold">
+              No.{i + 1} 写真・カメラ
             </div>
+          )}
+
+        </div>
+
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          ref={(el) => {
+            fileInputs.current[i] = el;
+          }}
+          onChange={(e) => handleCapture(e, i)}
+        />
+
+        {!!p && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const n = [...photos];
+              n[i] = null;
+              setPhotos(n);
+            }}
+            className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-[50]"
+          >
+            ✕
+          </button>
+        )}
+
+      </div>
+    ))}
+  </div>
+</div>
           </div>
         </div>
 
