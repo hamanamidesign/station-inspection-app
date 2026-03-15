@@ -894,6 +894,21 @@ const resetKarteFields = () => {
               onChange={(e) => handleCapture(e, index)}
             />
 
+ {!!p && (
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const n = [...photos];
+      n[index] = null;
+      setPhotos(n);
+    }}
+    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+  >
+    ✕
+  </button>
+)}
+
           </div>
         );
       })}
