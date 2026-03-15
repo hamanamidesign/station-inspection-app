@@ -1,10 +1,10 @@
 "use client";
 
-import { gasApi } from "./lib/gasApi";
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { gasApi } from "./lib/gasApi";
 import Cropper from 'react-easy-crop';
 import TaskSelect from "./components/TaskSelect";
-const fileInputs = useRef<(HTMLInputElement | null)[]>([]);
+
 
 interface Marker {
   id: number; x: number; y: number; label: string;
@@ -26,6 +26,7 @@ type AppMode =
   | 'editor';
 
 export default function InspectorApp() {
+  const fileInputs = useRef<(HTMLInputElement | null)[]>([]);
 
   // 追加の入力項目用ステート
   const [structEval, setStructEval] = useState('');    // ① 構造度評価 (F3)
@@ -439,52 +440,7 @@ const result = await gasApi(actionType, payload);
     }
   };
 
-
-   {photos.map((p, i) => (
-   <div key={i} className="relative aspect-square">
-   <label className="block w-full h-full bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 relative overflow-hidden cursor-pointer z-0">
-   {p ? (
-   <img src={p} className="w-full h-full object-cover" alt="" />
-   ) : (
-   <div className="flex flex-col items-center justify-center h-full pointer-events-none">
-   <span className="text-xl">📷</span>
-   <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
-   </div>
-   )}
-   <input
-  type="file"
-  accept="image/*"
-  className="hidden"
-  ref={(el) => {
-    fileInputs.current[i] = el;
-  }}
-  onChange={(e) => handleCapture(e, i)}
-/>
-   </label>
-      
-      {/* ★ 削除ボタン（!!p でより確実に判定、z-50で最前面へ） */}
-      {!!p && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation(); // カメラ起動を阻止
-            const newPhotos = [...photos];
-            newPhotos[i] = null;
-            setPhotos(newPhotos);
-          }}
-          className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-xl border-2 border-white z-[100] hover:bg-red-700 active:scale-90"
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-        >
-          ✕
-        </button>
-      )}
-    </div>
-  ))}
-
-{/* 写真エリア：ここまで */}
-
-  const handleMarkerDrag = (touchX: number, touchY: number) => {
+     const handleMarkerDrag = (touchX: number, touchY: number) => {
     if (draggingMarkerId === null || !imageRef.current) return;
     const rect = imageRef.current.getBoundingClientRect();
     const x = ((touchX - rect.left) / rect.width) * 100;
@@ -909,12 +865,13 @@ const resetKarteFields = () => {
               onTouchEnd={handlePressEnd}
               />
             ) : ( <div className="flex flex-col items-center justify-center h-full text-[10px] text-blue-300 font-bold">No.{i+1} 写真・カメラ</div>)}
-                      <input
-                     type="file"
-                      accept="image/*"
-                      className="hidden"
-                     onChange={e => handleCapture(e, i)}
-                      />
+                    <input
+type="file"
+accept="image/*"
+capture="environment"
+className="hidden"
+onChange={e => handleCapture(e, i)}
+/>
                     </label>
                     {!!p && (
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); const n=[...photos]; n[i]=null; setPhotos(n); }} className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-[50]">✕</button>
