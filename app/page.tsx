@@ -856,6 +856,10 @@ const resetKarteFields = () => {
     {photos.map((p, i) => (
       <div key={i} className="relative aspect-[4/3]">
 
+  {(i === 4 || i === 5) && (
+    <div className="absolute -top-1 left-0 w-full border-t border-black"></div>
+  )}
+
         <div
           className="w-full h-full bg-white rounded border border-blue-200 relative overflow-hidden cursor-pointer shadow-sm hover:border-blue-500 transition-colors"
           onClick={() => fileInputs.current[i]?.click()}
