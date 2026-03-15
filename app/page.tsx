@@ -849,7 +849,7 @@ const resetKarteFields = () => {
 {/* 今回の写真撮影エリア */}
 <div className="flex-1 p-2 overflow-y-auto bg-blue-50/10">
 
-  <div className="text-center text-[10px] font-black text-blue-700 mb-2 border-b border-blue-200">
+  <div className="text-center text-[10px] font-black text-blue-700 mb-2 border-b">
     今回の点検写真
   </div>
 
