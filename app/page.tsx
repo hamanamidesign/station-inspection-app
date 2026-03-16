@@ -233,8 +233,7 @@ try {
     }
   };
 
-  
-
+ 
   // 写真撮影ハンドラ
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
   const file = e.target.files?.[0];
@@ -253,6 +252,9 @@ try {
 
   reader.readAsDataURL(file);
 };
+
+
+
 
 const resizeImage = async (base64Str: string): Promise<string> => {
 
