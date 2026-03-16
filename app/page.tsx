@@ -263,27 +263,37 @@ try {
 
     img.onload = () => {
 
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      const MAX_WIDTH = 1600;
+      const MAX_SIZE = 900;
 
       let width = img.width;
       let height = img.height;
 
-      if (width > MAX_WIDTH) {
-        height = height * (MAX_WIDTH / width);
-        width = MAX_WIDTH;
+      if (width > height && width > MAX_SIZE) {
+        height = height * (MAX_SIZE / width);
+        width = MAX_SIZE;
+      } 
+      else if (height > MAX_SIZE) {
+        width = width * (MAX_SIZE / height);
+        height = MAX_SIZE;
       }
 
+      const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
 
+      const ctx = canvas.getContext("2d");
       ctx?.drawImage(img, 0, 0, width, height);
 
-      const compressed = canvas.toDataURL("image/jpeg", 0.9);
+      let quality = 0.6;
+      let result = canvas.toDataURL("image/jpeg", quality);
 
-      resolve(compressed);
+      // 1MB以下になるまで圧縮
+      while (result.length > 1000000 && quality > 0.3) {
+        quality -= 0.05;
+        result = canvas.toDataURL("image/jpeg", quality);
+      }
+
+      resolve(result);
     };
 
   });
