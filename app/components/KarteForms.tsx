@@ -93,148 +93,161 @@ export default function KarteForms({
 }: Props) {
 
   return (
-    <div className="w-full max-w-[95%] bg-white p-4 rounded-xl shadow">
 
-      {/* カルテNo */}
-      <div className="mb-4">
-        <label className="text-xs font-bold text-slate-600">カルテNo</label>
-        <input
-          className="w-full border p-2 rounded"
-          value={karteNo}
-          onChange={(e) => setKarteNo(e.target.value)}
-        />
-      </div>
+<div className="w-full max-w-[1400px] bg-white p-4 rounded shadow">
 
-      {/* 評価 */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
+{/* タイトル */}
+<div className="flex items-center mb-2">
+  <div className="font-bold text-lg mr-4">写真カルテ</div>
 
-        <input
-          className="border p-2 rounded text-center"
-          placeholder="構造"
-          value={structEval}
-          onChange={(e) => setStructEval(e.target.value)}
-        />
+  <input
+    className="border p-1 w-24"
+    value={karteNo}
+    onChange={(e)=>setKarteNo(e.target.value)}
+  />
 
-        <input
-          className="border p-2 rounded text-center"
-          placeholder="影響"
-          value={impactEval}
-          onChange={(e) => setImpactEval(e.target.value)}
-        />
+  <div className="ml-4 text-sm">駅</div>
+</div>
 
-        <input
-          className="border p-2 rounded text-center"
-          placeholder="総合"
-          value={totalEval}
-          onChange={(e) => setTotalEval(e.target.value)}
-        />
 
-        <input
-          className="border p-2 rounded text-center"
-          placeholder="前年度"
-          value={prevYearEval}
-          onChange={(e) => setPrevYearEval(e.target.value)}
-        />
-      </div>
+{/* 評価 */}
+<div className="grid grid-cols-5 gap-2 mb-3">
 
-      {/* 初回点検 */}
-      <div className="mb-4">
+<div className="text-xs text-center">①構造</div>
+<div className="text-xs text-center">②影響</div>
+<div className="text-xs text-center">総合</div>
+<div className="text-xs text-center">前年度</div>
 
-        <div className="grid grid-cols-2 gap-2">
+</div>
 
-          <input
-            type="text"
-            placeholder="初回点検日"
-            className="border p-2 rounded"
-            value={firstDate}
-            onChange={(e) => setFirstDate(e.target.value)}
-          />
+<div className="grid grid-cols-4 gap-2 mb-4">
 
-          <input
-            type="text"
-            placeholder="初回点検者"
-            className="border p-2 rounded"
-            value={firstInspector}
-            onChange={(e) => setFirstInspector(e.target.value)}
-          />
+<input className="border p-1 text-center"
+value={structEval}
+onChange={(e)=>setStructEval(e.target.value)}
+/>
 
-        </div>
+<input className="border p-1 text-center"
+value={impactEval}
+onChange={(e)=>setImpactEval(e.target.value)}
+/>
 
-        <textarea
-          className="border p-2 rounded w-full mt-2"
-          placeholder="初回備考"
-          value={firstRemarks}
-          onChange={(e) => setFirstRemarks(e.target.value)}
-        />
+<input className="border p-1 text-center"
+value={totalEval}
+onChange={(e)=>setTotalEval(e.target.value)}
+/>
 
-      </div>
+<input className="border p-1 text-center"
+value={prevYearEval}
+onChange={(e)=>setPrevYearEval(e.target.value)}
+/>
 
-      {/* 今回点検 */}
-      <div className="mb-4">
+</div>
 
-        <div className="grid grid-cols-2 gap-2">
 
-          <input
-            type="date"
-            className="border p-2 rounded"
-            value={inspectDate}
-            onChange={(e) => setInspectDate(e.target.value)}
-          />
+{/* 2カラム */}
+<div className="grid grid-cols-2 gap-4">
 
-          <input
-            type="text"
-            placeholder="施工者"
-            className="border p-2 rounded"
-            value={contractor}
-            onChange={(e) => setContractor(e.target.value)}
-          />
+{/* 左：初回点検 */}
+<div className="border p-2">
 
-        </div>
+<div className="text-xs font-bold mb-2">初回点検</div>
 
-        <div className="grid grid-cols-2 gap-2 mt-2">
+<div className="grid grid-cols-2 gap-2 mb-2">
 
-          <input
-            type="text"
-            placeholder="場所詳細"
-            className="border p-2 rounded"
-            value={locationDetail}
-            onChange={(e) => setLocationDetail(e.target.value)}
-          />
+<input
+placeholder="初回点検日"
+className="border p-1"
+value={firstDate}
+onChange={(e)=>setFirstDate(e.target.value)}
+/>
 
-          <input
-            type="text"
-            placeholder="点検者"
-            className="border p-2 rounded"
-            value={inspector}
-            onChange={(e) => setInspector(e.target.value)}
-          />
+<input
+placeholder="点検者"
+className="border p-1"
+value={firstInspector}
+onChange={(e)=>setFirstInspector(e.target.value)}
+/>
 
-        </div>
+</div>
 
-        <textarea
-          className="border p-2 rounded w-full mt-2"
-          placeholder="備考"
-          value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
-        />
+<textarea
+className="border p-1 w-full mb-2"
+placeholder="状況（備考）"
+value={firstRemarks}
+onChange={(e)=>setFirstRemarks(e.target.value)}
+/>
 
-      </div>
+<div className="border h-[350px] flex items-center justify-center text-xs">
+初回点検写真
+</div>
 
-      {/* 写真グリッド */}
-      <div className="mt-6">
+</div>
 
-        <PhotoGrid
-          photos={photos}
-          setPhotos={setPhotos}
-          fileInputs={fileInputs}
-          handleCapture={handleCapture}
-          handlePressStart={handlePressStart}
-          handlePressEnd={handlePressEnd}
-          setPreviewPhoto={setPreviewPhoto}
-        />
 
-      </div>
 
-    </div>
+{/* 右：今回点検 */}
+<div className="border p-2">
+
+<div className="text-xs font-bold mb-2">今回点検</div>
+
+<div className="grid grid-cols-2 gap-2 mb-2">
+
+<input
+type="date"
+className="border p-1"
+value={inspectDate}
+onChange={(e)=>setInspectDate(e.target.value)}
+/>
+
+<input
+placeholder="施工者"
+className="border p-1"
+value={contractor}
+onChange={(e)=>setContractor(e.target.value)}
+/>
+
+</div>
+
+<div className="grid grid-cols-2 gap-2 mb-2">
+
+<input
+placeholder="場所詳細"
+className="border p-1"
+value={locationDetail}
+onChange={(e)=>setLocationDetail(e.target.value)}
+/>
+
+<input
+placeholder="点検者"
+className="border p-1"
+value={inspector}
+onChange={(e)=>setInspector(e.target.value)}
+/>
+
+</div>
+
+<textarea
+className="border p-1 w-full mb-2"
+placeholder="状況（備考）"
+value={remarks}
+onChange={(e)=>setRemarks(e.target.value)}
+/>
+
+<PhotoGrid
+photos={photos}
+setPhotos={setPhotos}
+fileInputs={fileInputs}
+handleCapture={handleCapture}
+handlePressStart={handlePressStart}
+handlePressEnd={handlePressEnd}
+setPreviewPhoto={setPreviewPhoto}
+/>
+
+</div>
+
+</div>
+
+</div>
   );
 }
