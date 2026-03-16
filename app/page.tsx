@@ -181,78 +181,6 @@ try {
 }
 };
 
-// ★★★ ここに handleSaveMap を貼り付けます ★★★
-  const handleSaveMap = async () => {
-    if (!finalImage || isSending) return;
-    setIsSending(true);
-    try {
-      const canvas = document.createElement('canvas');
-      const img = imageRef.current;
-      if (!img) return;
-
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.drawImage(img, 0, 0);
-
-      markers.forEach(m => {
-        const x = (m.x / 100) * canvas.width;
-        const y = (m.y / 100) * canvas.height;
-        const size = 30; 
-        ctx.beginPath();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = m.color;
-        ctx.fillStyle = "white";
-        if (m.shape === 'circle') { ctx.arc(x, y, size/2, 0, Math.PI * 2); } 
-        else { ctx.rect(x - size/2, y - size/2, size, size); }
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = m.color;
-        ctx.font = `bold ${size * 0.6}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(m.label, x, y);
-      });
-
-      const combinedBase64 = canvas.toDataURL('image/png').split(',')[1];
-      const payload = {
-        action: "uploadPhotos",
-        spreadsheetId,
-        imageData: combinedBase64,
-        stationNo: stationNo
-      };
-
-      await gasApi("saveMarkers", payload);
-      alert("位置図を保存しました。");
-    } catch (e) {
-      alert("保存に失敗しました");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  {showMapPicker && (
-  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50">
-    <div className="bg-white p-4 rounded-3xl shadow-lg max-w-2xl w-full flex flex-wrap gap-2">
-      {driveMaps.map((map) => (
-        <div key={map.id} className="cursor-pointer flex flex-col items-center">
-          <img
-            src={map.thumbUrl}
-            alt={map.name}
-            className="w-24 h-24 object-cover rounded-xl border-2 border-slate-200 hover:border-indigo-500"
-            onClick={() => {
-              setSourceImage(`https://drive.google.com/uc?id=${map.id}`);
-              setShowMapPicker(false); // モーダルを閉じる
-            }}
-          />
-          <span className="text-xs text-slate-700 mt-1">{map.name}</span>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
 
   // 写真撮影ハンドラ
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -1036,6 +964,79 @@ const resetKarteFields = () => {
   }
 
   // --- 次のモード（editorなど）がここから始まる ---
+
+// ★★★ ここに handleSaveMap を貼り付けます ★★★
+  const handleSaveMap = async () => {
+    if (!finalImage || isSending) return;
+    setIsSending(true);
+    try {
+      const canvas = document.createElement('canvas');
+      const img = imageRef.current;
+      if (!img) return;
+
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0);
+
+      markers.forEach(m => {
+        const x = (m.x / 100) * canvas.width;
+        const y = (m.y / 100) * canvas.height;
+        const size = 30; 
+        ctx.beginPath();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = m.color;
+        ctx.fillStyle = "white";
+        if (m.shape === 'circle') { ctx.arc(x, y, size/2, 0, Math.PI * 2); } 
+        else { ctx.rect(x - size/2, y - size/2, size, size); }
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = m.color;
+        ctx.font = `bold ${size * 0.6}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(m.label, x, y);
+      });
+
+      const combinedBase64 = canvas.toDataURL('image/png').split(',')[1];
+      const payload = {
+        action: "uploadPhotos",
+        spreadsheetId,
+        imageData: combinedBase64,
+        stationNo: stationNo
+      };
+
+      await gasApi("saveMarkers", payload);
+      alert("位置図を保存しました。");
+    } catch (e) {
+      alert("保存に失敗しました");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  {showMapPicker && (
+  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50">
+    <div className="bg-white p-4 rounded-3xl shadow-lg max-w-2xl w-full flex flex-wrap gap-2">
+      {driveMaps.map((map) => (
+        <div key={map.id} className="cursor-pointer flex flex-col items-center">
+          <img
+            src={map.thumbUrl}
+            alt={map.name}
+            className="w-24 h-24 object-cover rounded-xl border-2 border-slate-200 hover:border-indigo-500"
+            onClick={() => {
+              setSourceImage(`https://drive.google.com/uc?id=${map.id}`);
+              setShowMapPicker(false); // モーダルを閉じる
+            }}
+          />
+          <span className="text-xs text-slate-700 mt-1">{map.name}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
 // --- 2. エディタ画面のUI部分 ---
 if (mode === 'editor') {
