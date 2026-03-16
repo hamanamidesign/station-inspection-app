@@ -1017,22 +1017,36 @@ const resetKarteFields = () => {
     }
   };
 
-  {showMapPicker && (
-  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50">
-    <div className="bg-white p-4 rounded-3xl shadow-lg max-w-2xl w-full flex flex-wrap gap-2">
-      {driveMaps.map((map) => (
-        <div key={map.id} className="cursor-pointer flex flex-col items-center">
-          <img
-            src={map.thumbUrl}
-            alt={map.name}
-            className="w-24 h-24 object-cover rounded-xl border-2 border-slate-200 hover:border-indigo-500"
-            onClick={() => {
-              setSourceImage(`https://drive.google.com/uc?id=${map.id}`);
-              setShowMapPicker(false); // モーダルを閉じる
-            }}
-          />
-          <span className="text-xs text-slate-700 mt-1">{map.name}</span>
-        </div>
+{showMapPicker && (
+  <div className="fixed inset-0 bg-white z-[110] flex flex-col p-6 animate-slide-up">
+    <div className="flex justify-between items-center mb-6">
+      <h3 className="text-xl font-bold">ドライブから位置図を選択</h3>
+      <button onClick={() => setShowMapPicker(false)} className="transition-all active:scale-95 active:brightness-90 text-2xl">✕</button>
+    </div>
+    <div className="grid grid-cols-2 gap-4 overflow-y-auto pb-10">
+      {driveMaps.map(m => (
+        <button key={m.id} onClick={async () => {
+          setIsLoading(true);
+          try {
+            // --- POST で Base64 を取得 ---
+            const res = await fetch(GAS_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "getMapBase64", id: m.id })
+            });
+            const base64 = await res.text();
+            setSourceImage(`data:image/png;base64,${base64}`);
+            setShowMapPicker(false);
+          } catch (e) {
+            alert("読込失敗");
+            console.error(e);
+          } finally {
+            setIsLoading(false);
+          }
+        }} className="transition-all active:scale-95 active:brightness-90 flex flex-col gap-2 p-2 bg-slate-50 rounded-xl active:bg-slate-200">
+          <img src={m.thumbUrl} className="w-full aspect-video object-cover rounded-lg shadow-sm" alt={m.name} />
+          <span className="text-[10px] font-bold text-slate-600 truncate w-full text-left">{m.name}</span>
+        </button>
       ))}
     </div>
   </div>
