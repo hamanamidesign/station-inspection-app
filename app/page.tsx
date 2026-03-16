@@ -233,7 +233,26 @@ try {
     }
   };
 
-  
+  {showMapPicker && (
+  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50">
+    <div className="bg-white p-4 rounded-3xl shadow-lg max-w-2xl w-full flex flex-wrap gap-2">
+      {driveMaps.map((map) => (
+        <div key={map.id} className="cursor-pointer flex flex-col items-center">
+          <img
+            src={map.thumbUrl}
+            alt={map.name}
+            className="w-24 h-24 object-cover rounded-xl border-2 border-slate-200 hover:border-indigo-500"
+            onClick={() => {
+              setSourceImage(`https://drive.google.com/uc?id=${map.id}`);
+              setShowMapPicker(false); // モーダルを閉じる
+            }}
+          />
+          <span className="text-xs text-slate-700 mt-1">{map.name}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
   // 写真撮影ハンドラ
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
