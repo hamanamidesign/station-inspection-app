@@ -242,20 +242,27 @@ try {
   
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-
   const file = e.target.files?.[0];
   if (!file) return;
 
   const reader = new FileReader();
-
   reader.onload = async (ev) => {
-
     const compressed = await resizeImage(ev.target?.result as string);
 
+    // 1. state 更新
     const newPhotos = [...photos];
     newPhotos[index] = compressed;
-
     setPhotos(newPhotos);
+
+    // 2. GAS 送信
+    try {
+      const res = await gasApi("/uploadPhotos", {
+        imageData: compressed // data URL 形式
+      });
+      console.log("Upload response:", res);
+    } catch (err) {
+      console.error("写真アップロード失敗", err);
+    }
   };
 
   reader.readAsDataURL(file);
