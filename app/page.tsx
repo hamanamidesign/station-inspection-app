@@ -680,58 +680,59 @@ if (mode === 'karte_edit' || mode === 'inclination_edit') {
 <LoadingOverlay />
 
 <KarteForms
+  karteNo={karteNo}
+  setKarteNo={setKarteNo}
 
-karteNo={karteNo}
-setKarteNo={setKarteNo}
+  stationName={stationName}
+  selectedYear={selectedYear}
 
-structEval={structEval}
-setStructEval={setStructEval}
+  structEval={structEval}
+  setStructEval={setStructEval}
 
-impactEval={impactEval}
-setImpactEval={setImpactEval}
+  impactEval={impactEval}
+  setImpactEval={setImpactEval}
 
-totalEval={totalEval}
-setTotalEval={setTotalEval}
+  totalEval={totalEval}
+  setTotalEval={setTotalEval}
 
-prevYearEval={prevYearEval}
-setPrevYearEval={setPrevYearEval}
+  prevYearEval={prevYearEval}
+  setPrevYearEval={setPrevYearEval}
 
-firstDate={firstDate}
-setFirstDate={setFirstDate}
+  firstDate={firstDate}
+  setFirstDate={setFirstDate}
 
-firstInspector={firstInspector}
-setFirstInspector={setFirstInspector}
+  firstInspector={firstInspector}
+  setFirstInspector={setFirstInspector}
 
-firstRemarks={firstRemarks}
-setFirstRemarks={setFirstRemarks}
+  firstRemarks={firstRemarks}
+  setFirstRemarks={setFirstRemarks}
 
-inspectDate={inspectDate}
-setInspectDate={setInspectDate}
+  inspectDate={inspectDate}
+  setInspectDate={setInspectDate}
 
-contractor={contractor}
-setContractor={setContractor}
+  contractor={contractor}
+  setContractor={setContractor}
 
-locationDetail={locationDetail}
-setLocationDetail={setLocationDetail}
+  locationDetail={locationDetail}
+  setLocationDetail={setLocationDetail}
 
-inspector={inspector}
-setInspector={setInspector}
+  inspector={inspector}
+  setInspector={setInspector}
 
-remarks={remarks}
-setRemarks={setRemarks}
+  remarks={remarks}
+  setRemarks={setRemarks}
 
-photos={photos}
-setPhotos={setPhotos}
+  photos={photos}
+  setPhotos={setPhotos}
 
-fileInputs={fileInputs}
-handleCapture={handleCapture}
+  fileInputs={fileInputs}
+  handleCapture={handleCapture}
 
-handlePressStart={handlePressStart}
-handlePressEnd={handlePressEnd}
+  handlePressStart={handlePressStart}
+  handlePressEnd={handlePressEnd}
 
-previewPhoto={previewPhoto}
-setPreviewPhoto={setPreviewPhoto}
-
+  previewPhoto={previewPhoto}
+  setPreviewPhoto={setPreviewPhoto}
 />
 
 <ImageViewer
