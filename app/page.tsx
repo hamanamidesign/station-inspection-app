@@ -263,7 +263,7 @@ try {
 
     img.onload = () => {
 
-      const MAX_SIZE = 800;
+      const MAX_SIZE = 900;
 
       let width = img.width;
       let height = img.height;
@@ -284,7 +284,7 @@ try {
       const ctx = canvas.getContext("2d");
       ctx?.drawImage(img, 0, 0, width, height);
 
-      let quality = 0.5;
+      let quality = 0.6;
       let result = canvas.toDataURL("image/jpeg", quality);
 
       // 1MB以下になるまで圧縮
@@ -399,7 +399,7 @@ const handlePressEnd = () => {
       // 画像のリサイズ処理
       const photoDataList = await Promise.all(
         photos.map(async (p, index) => {
-          if (p && p.startsWith("data:image") && p.length > 300000) {
+          if (p && p.startsWith("data:image")) {
             const resized = await resizeImage(p);
             return {
               fileName: `${index + 1}.jpg`,
