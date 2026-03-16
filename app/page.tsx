@@ -264,7 +264,7 @@ const resizeImage = async (base64Str: string): Promise<string> => {
 
     img.onload = () => {
 
-      const MAX_SIZE = 900;
+      const MAX_SIZE = 800;
 
       let width = img.width;
       let height = img.height;
@@ -285,7 +285,7 @@ const resizeImage = async (base64Str: string): Promise<string> => {
       const ctx = canvas.getContext("2d");
       ctx?.drawImage(img, 0, 0, width, height);
 
-      let quality = 0.6;
+      let quality = 0.5;
       let result = canvas.toDataURL("image/jpeg", quality);
 
       // 1MB以下になるまで圧縮
@@ -380,7 +380,10 @@ const handlePressEnd = () => {
       setLocationDetail(String(d.locationDetail || ''));
       setInspector(String(d.inspector || ''));
       setRemarks(String(d.remarks || ''));
-
+      // ★ここを追加（写真読み込み）
+      if (d.photos) {
+     setPhotos(d.photos);
+      }
       setIsEditMode(true);
       setMode('karte_edit');
     }
@@ -400,7 +403,7 @@ const handlePressEnd = () => {
       // 画像のリサイズ処理
       const photoDataList = await Promise.all(
         photos.map(async (p, index) => {
-          if (p && p.startsWith("data:image")) {
+          if (p && p.startsWith("data:image") && p.length > 300000) {
             const resized = await resizeImage(p);
             return {
               fileName: `${index + 1}.jpg`,
