@@ -263,7 +263,7 @@ const resizeImage = async (base64Str: string): Promise<string> => {
 
     img.onload = () => {
 
-      const MAX_SIZE = 800;
+      const MAX_SIZE = 300;
 
       let width = img.width;
       let height = img.height;
@@ -288,7 +288,7 @@ const resizeImage = async (base64Str: string): Promise<string> => {
       let result = canvas.toDataURL("image/jpeg", quality);
 
       // 1MB以下になるまで圧縮
-      while (result.length > 1000000 && quality > 0.3) {
+      while (result.length > 1000000 && quality > 0.2) {
         quality -= 0.05;
         result = canvas.toDataURL("image/jpeg", quality);
       }
