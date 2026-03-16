@@ -263,7 +263,7 @@ try {
 
     img.onload = () => {
 
-      const MAX_SIZE = 900;
+      const MAX_SIZE = 800;
 
       let width = img.width;
       let height = img.height;
@@ -284,7 +284,7 @@ try {
       const ctx = canvas.getContext("2d");
       ctx?.drawImage(img, 0, 0, width, height);
 
-      let quality = 0.6;
+      let quality = 0.5;
       let result = canvas.toDataURL("image/jpeg", quality);
 
       // 1MB以下になるまで圧縮
@@ -399,7 +399,7 @@ const handlePressEnd = () => {
       // 画像のリサイズ処理
       const photoDataList = await Promise.all(
         photos.map(async (p, index) => {
-          if (p && p.startsWith("data:image")) {
+          if (p && p.startsWith("data:image") && p.length > 300000) {
             const resized = await resizeImage(p);
             return {
               fileName: `${index + 1}.jpg`,
@@ -965,7 +965,20 @@ const resetKarteFields = () => {
               ref={(el) => { fileInputs.current[index] = el }}
               onChange={(e) => handleCapture(e, index)}
             />
-
+{!!p && (
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const n = [...photos];
+      n[index] = null;
+      setPhotos(n);
+    }}
+    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+  >
+    ✕
+  </button>
+)}
           </div>
         );
       })}
