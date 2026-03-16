@@ -254,7 +254,7 @@ try {
   reader.readAsDataURL(file);
 };
 
-const resizeImage = async (base64Str: string): Promise<string> => {
+  const resizeImage = async (base64Str: string): Promise<string> => {
 
   return new Promise((resolve) => {
 
@@ -263,37 +263,27 @@ const resizeImage = async (base64Str: string): Promise<string> => {
 
     img.onload = () => {
 
-      const MAX_SIZE = 300;
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const MAX_WIDTH = 1600;
 
       let width = img.width;
       let height = img.height;
 
-      if (width > height && width > MAX_SIZE) {
-        height = height * (MAX_SIZE / width);
-        width = MAX_SIZE;
-      } 
-      else if (height > MAX_SIZE) {
-        width = width * (MAX_SIZE / height);
-        height = MAX_SIZE;
+      if (width > MAX_WIDTH) {
+        height = height * (MAX_WIDTH / width);
+        width = MAX_WIDTH;
       }
 
-      const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
 
-      const ctx = canvas.getContext("2d");
       ctx?.drawImage(img, 0, 0, width, height);
 
-      let quality = 0.5;
-      let result = canvas.toDataURL("image/jpeg", quality);
+      const compressed = canvas.toDataURL("image/jpeg", 0.9);
 
-      // 1MB以下になるまで圧縮
-      while (result.length > 1000000 && quality > 0.2) {
-        quality -= 0.05;
-        result = canvas.toDataURL("image/jpeg", quality);
-      }
-
-      resolve(result);
+      resolve(compressed);
     };
 
   });
@@ -379,10 +369,7 @@ const handlePressEnd = () => {
       setLocationDetail(String(d.locationDetail || ''));
       setInspector(String(d.inspector || ''));
       setRemarks(String(d.remarks || ''));
-      // ★ここを追加（写真読み込み）
-      if (d.photos) {
-     setPhotos(d.photos);
-      }
+
       setIsEditMode(true);
       setMode('karte_edit');
     }
@@ -395,14 +382,14 @@ const handlePressEnd = () => {
 
   // --- 2. 送信ロジック（独立した関数として定義） ---
   const sendGenericKarte = async (actionType: "uploadKarte" | "uploadInclination") => {
-    if (karteNo === "" || isSending) return;
+    if (!karteNo || isSending) return;
     setIsSending(true);
 
     try {
       // 画像のリサイズ処理
       const photoDataList = await Promise.all(
         photos.map(async (p, index) => {
-          if (p && p.startsWith("data:image") && p.length > 300000) {
+          if (p && p.startsWith("data:image")) {
             const resized = await resizeImage(p);
             return {
               fileName: `${index + 1}.jpg`,
@@ -413,9 +400,7 @@ const handlePressEnd = () => {
         })
       );
 
-      const validPhotos = photoDataList.filter(
-  (p): p is { fileName: string; base64: string } => Boolean(p)
-);
+      const validPhotos = photoDataList.filter(Boolean);
 
       const payload = {
   isUpdate: isEditMode,
@@ -863,11 +848,11 @@ const resetKarteFields = () => {
 {/* 今回の写真撮影エリア */}
 <div className="flex-1 p-2 overflow-y-auto bg-blue-50/10">
 
-  <div className="text-center text-[10px] font-black text-blue-700 mb-2">
+  <div className="text-center text-[10px] font-black text-blue-700 mb-2 border-b border-blue-200">
     今回の点検写真
   </div>
 
-  {/* 写真枠1〜4 */}
+  {/* 1〜4 */}
   <div className="border border-black rounded p-2 mb-3">
     <div className="grid grid-cols-2 gap-3">
 
@@ -930,7 +915,7 @@ const resetKarteFields = () => {
     </div>
   </div>
 
-  {/* 写真枠5〜8 */}
+  {/* 5〜8 */}
   <div className="border border-black rounded p-2">
     <div className="grid grid-cols-2 gap-3">
 
@@ -970,20 +955,7 @@ const resetKarteFields = () => {
               ref={(el) => { fileInputs.current[index] = el }}
               onChange={(e) => handleCapture(e, index)}
             />
-{!!p && (
-  <button
-    onClick={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const n = [...photos];
-      n[index] = null;
-      setPhotos(n);
-    }}
-    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
-  >
-    ✕
-  </button>
-)}
+
           </div>
         );
       })}
