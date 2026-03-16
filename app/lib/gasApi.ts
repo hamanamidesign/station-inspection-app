@@ -4,10 +4,6 @@ export async function gasApi(action: string, data: any = {}) {
 
     method: "POST",
 
-    headers: {
-      "Content-Type": "application/json"
-    },
-
     body: JSON.stringify({
       action,
       ...data
@@ -23,3 +19,4 @@ export async function gasApi(action: string, data: any = {}) {
 
   return json;
 }
+
