@@ -1030,12 +1030,12 @@ const resetKarteFields = () => {
           try {
             // --- POST で Base64 を取得 ---
             const res = await fetch(GAS_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "getMapBase64", id: m.id })
-            });
-            const base64 = await res.text();
-            setSourceImage(`data:image/png;base64,${base64}`);
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ action: "getMapBase64", id: m.id })
+});
+const base64 = await res.text();
+setSourceImage(`data:image/png;base64,${base64}`);
             setShowMapPicker(false);
           } catch (e) {
             alert("読込失敗");
