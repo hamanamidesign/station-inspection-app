@@ -44,6 +44,7 @@ export default function InspectorApp() {
 
   // --- 共通ステート ---
   const [mode, setMode] = useState<AppMode>('menu');
+  const [history, setHistory] = useState<AppMode[]>([]);
   const [isLoading, setIsLoading] = useState(false); // ★ これを関数の上に持ってくる
   const [stationNo, setStationNo] = useState("");
   const [stationName, setStationName] = useState('');
@@ -59,6 +60,13 @@ export default function InspectorApp() {
   startX: number;
   startY: number;
 }>({ timer: null, isMoved: false, startX: 0, startY: 0 });
+
+//新規駅登録画面に入った瞬間にリセット
+useEffect(() => {
+  if (mode === 'new_entry') {
+    resetAllState();
+  }
+}, [mode]);
 
   // --- 修正・編集用ステート ---
   const [existingKartes, setExistingKartes] = useState<string[]>([]);
@@ -152,7 +160,7 @@ const handleCreateNewSheet = async () => {
     if (confirm(`「${stationName}」の${selectedYear}年度は既に存在します。既存のデータを編集しますか？`)) {
       setSpreadsheetId(duplicate.spreadsheetId);
       setFolderId(duplicate.folderId || '');
-      setMode('task_select'); 
+      goTo('task_select'); 
       return;
     } else {
       return;
@@ -173,7 +181,7 @@ try {
   if (result.success) {
     setSpreadsheetId(result.spreadsheetId);
     setFolderId(result.folderId);
-    setMode('task_select');
+    goTo('task_select');
   }
 
 } catch (e) {
@@ -424,11 +432,30 @@ const resetAllState = () => {
   setExistingKartes([]);
   setIsEditMode(false);
 };
-  const Nav = ({ back }: { back: AppMode }) => (
+
+const goTo = (next: AppMode) => {
+  setHistory(prev => [...prev, mode]); // 今の画面を保存
+  setMode(next);
+};
+
+const goBack = () => {
+  setHistory(prev => {
+    if (prev.length === 0) return prev;
+
+    const newHistory = [...prev];
+    const last = newHistory.pop();
+
+    if (last) setMode(last);
+
+    return newHistory;
+  });
+};
+
+  const Nav = () => (
     <div className="w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
-        <button onClick={() => setMode(back)} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm">← 戻る</button>
-        <button onClick={() => {  resetAllState(); setMode('menu'); setIsEditMode(false); }} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
+        <button onClick={goBack} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm">← 戻る</button>
+        <button onClick={() => { resetAllState(); setHistory([]); setMode('menu'); }}className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
       </div>
       
       {/* 駅名と年度を表示するヘッダー */}
@@ -472,7 +499,7 @@ const LoadingSpinner = () => isLoading ? (
   if (mode === 'menu') return (
     <div className="flex flex-col items-center justify-start h-screen gap-8 bg-slate-50 text-black p-6">
       <h1 className="text-3xl font-black mb-4 text-center">施設点検システム</h1>
-      <button onClick={() => setMode('new_entry')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-indigo-600 text-white rounded-3xl shadow-xl text-xl font-bold">➕ 新規駅を開始</button>
+      <button onClick={() => goTo('new_entry')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-indigo-600 text-white rounded-3xl shadow-xl text-xl font-bold">➕ 新規駅を開始</button>
       <button onClick={() => setMode('exist_select')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold">📂 既存駅を編集</button>
     </div>
   );
@@ -481,7 +508,7 @@ const LoadingSpinner = () => isLoading ? (
   // --- 画面表示 (edit_list部分) ---
 if (mode === 'edit_list') return (
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black">
-    <Nav back="menu" />
+    <Nav />
     <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl">
       <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">修正するカルテを選択</h2>
       
@@ -497,12 +524,6 @@ if (mode === 'edit_list') return (
           </button>
         ))}
       </div>
-      
-      {isLoading && (
-        <div className="mt-4 text-center text-blue-600 font-bold animate-pulse">
-          データを読み込んでいます...
-        </div>
-      )}
 
       <button onClick={() => setMode('menu')} className="w-full mt-8 py-3 bg-slate-200 rounded-xl font-bold text-slate-600">戻る</button>
     </div>
@@ -512,7 +533,7 @@ if (mode === 'edit_list') return (
   // ① 新規駅登録画面
 if (mode === 'new_entry') return (
   <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
-    <LoadingSpinner /> <Nav back="menu" />
+    <LoadingSpinner /> <Nav />
     <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
 
       <h2 className="text-2xl font-bold mb-6 text-indigo-700">
@@ -564,7 +585,7 @@ if (mode === 'new_entry') return (
 // ② 既存駅編集画面（←完全に別にする）
 if (mode === 'exist_select') return (
   <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
-    <Nav back="menu" />
+    <Nav />
 
     <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
 
@@ -617,7 +638,7 @@ if (mode === 'exist_select') return (
       </select>
 
       <button
-        onClick={() => setMode('task_select')}
+        onClick={() => goTo('task_select')}
         disabled={!stationName || !selectedYear}
         className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold"
       >
