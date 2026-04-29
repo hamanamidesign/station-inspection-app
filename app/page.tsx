@@ -297,7 +297,7 @@ const handlePressEnd = () => {
     if (result.success) {
 
       setExistingKartes(result.list);
-      setMode("edit_list");
+      goTo("edit_list");
 
     }
 
@@ -500,7 +500,7 @@ const LoadingSpinner = () => isLoading ? (
     <div className="flex flex-col items-center justify-start h-screen gap-8 bg-slate-50 text-black p-6">
       <h1 className="text-3xl font-black mb-4 text-center">施設点検システム</h1>
       <button onClick={() => goTo('new_entry')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-indigo-600 text-white rounded-3xl shadow-xl text-xl font-bold">➕ 新規駅を開始</button>
-      <button onClick={() => setMode('exist_select')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold">📂 既存駅を編集</button>
+      <button onClick={() => goTo('exist_select')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold">📂 既存駅を編集</button>
     </div>
   );
 
@@ -525,7 +525,7 @@ if (mode === 'edit_list') return (
         ))}
       </div>
 
-      <button onClick={() => setMode('menu')} className="w-full mt-8 py-3 bg-slate-200 rounded-xl font-bold text-slate-600">戻る</button>
+      <button onClick={goBack} className="w-full mt-8 py-3 bg-slate-200 rounded-xl font-bold text-slate-600">戻る</button>
     </div>
   </div>
 );
@@ -689,7 +689,7 @@ const resetKarteFields = () => {
 });
     if (result.success) {
       setExistingKartes(result.list);
-      setMode('edit_list'); // 一旦リスト画面へ飛ばすのが親切です
+      goTo("edit_list"); // 一旦リスト画面へ飛ばすのが親切です
     }
   } catch (e) {
     alert("通信エラーが発生しました");
