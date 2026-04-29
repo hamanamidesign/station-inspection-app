@@ -523,11 +523,16 @@ if (mode === 'new_entry') return (
       />
 
       <button
-        onClick={handleCreateNewSheet}
-        className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold"
-      >
-        新規作成して開始
-      </button>
+  onClick={handleCreateNewSheet}
+  disabled={isLoading}
+  className={`w-full py-5 rounded-2xl font-bold transition-all ${
+    isLoading 
+      ? "bg-indigo-300 text-white" 
+      : "bg-indigo-600 text-white active:scale-95"
+  }`}
+>
+  {isLoading ? "作成中..." : "新規作成して開始"}
+</button>
 
     </div>
   </div>
