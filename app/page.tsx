@@ -446,7 +446,7 @@ const result = await gasApi(actionType, payload);
     <div className="flex flex-col items-center justify-start h-screen gap-8 bg-slate-50 text-black p-6">
       <h1 className="text-3xl font-black mb-4 text-center">施設点検システム</h1>
       <button onClick={() => setMode('new_entry')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-indigo-600 text-white rounded-3xl shadow-xl text-xl font-bold">➕ 新規駅を開始</button>
-      <button onClick={() => setMode('exist_select')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold">📂 既存駅を編集</button>
+      <button onClick={() => setMode('edit_list')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold">📂 既存駅を編集</button>
     </div>
   );
 
@@ -454,7 +454,7 @@ const result = await gasApi(actionType, payload);
   // --- 画面表示 (edit_list部分) ---
 if (mode === 'edit_list') return (
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black">
-    <Nav back="karte_menu" />
+    <Nav back="menu" />
     <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl">
       <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">修正するカルテを選択</h2>
       
@@ -477,7 +477,7 @@ if (mode === 'edit_list') return (
         </div>
       )}
 
-      <button onClick={() => setMode('karte_menu')} className="w-full mt-8 py-3 bg-slate-200 rounded-xl font-bold text-slate-600">戻る</button>
+      <button onClick={() => setMode('menu')} className="w-full mt-8 py-3 bg-slate-200 rounded-xl font-bold text-slate-600">戻る</button>
     </div>
   </div>
 );
