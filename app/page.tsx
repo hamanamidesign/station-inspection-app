@@ -654,7 +654,7 @@ const resetKarteFields = () => {
         <LoadingOverlay />
 
         {/* --- スプレッドシート再現ヘッダー (線の色を slate-800 で統一) --- */}
-        <div className="w-full max-w-[99%] bg-white shadow-sm border-2 border-slate-800 mt-2 text-[11px]">
+        <div className="w-full max-w-[99%] bg-white shadow-sm border-2 border-slate-800 mt-2 text-[15px]">
           {/* 1-2行目：タイトルと駅名 */}
           <div className="grid grid-cols-12 border-b-2 border-slate-800">
             <div className="col-span-2 border-r-2 border-slate-800 p-2 bg-slate-100 flex items-center justify-center font-bold">写真カルテ</div>
