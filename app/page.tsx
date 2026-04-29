@@ -29,7 +29,10 @@ type AppMode =
   | 'edit_list' 
   | 'editor';
 
+// components/TaskSelect.tsx
+
 export default function InspectorApp() {
+
   const fileInputs = useRef<(HTMLInputElement | null)[]>([]);
 
   // 追加の入力項目用ステート
@@ -650,7 +653,7 @@ if (mode === 'exist_select') return (
 );
 
   if (mode === 'task_select') {
-  return <TaskSelect setMode={setMode} Nav={Nav} />;
+return <TaskSelect setMode={setMode} Nav={Nav} />;
 }
       
 // 入力内容をすべて空にする関数
