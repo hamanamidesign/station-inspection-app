@@ -9,7 +9,12 @@ interface Marker {
   id: number; x: number; y: number; label: string;
   color: 'red' | 'black' | '#5372fc'; shape: 'circle' | 'square';
 }
-interface ExistingStation { stationName: string; year: string; spreadsheetId?: string; }
+interface ExistingStation { 
+  stationName: string; 
+  year: string; 
+  spreadsheetId?: string;
+  folderId?: string; // ← これ追加！！
+}
 
 // 赤い波線を消すために、使用するすべてのモード名をここで定義します
 type AppMode = 
@@ -482,112 +487,119 @@ if (mode === 'edit_list') return (
   </div>
 );
 
-  // 3. 駅名入力 / 選択画面
-  if (mode === 'new_entry' || mode === 'exist_select') return (
-    <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
-      <Nav back="menu" />
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md text-black">
-        <h2 className={`text-2xl font-bold mb-6 ${mode === 'new_entry' ? 'text-indigo-700' : 'text-emerald-700'}`}>
-          {mode === 'new_entry' ? '新規駅登録' : '既存駅を選択'}
-        </h2>
+  // ① 新規駅登録画面
+if (mode === 'new_entry') return (
+  <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
+    <Nav back="menu" />
+    <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
 
-        {/* --- 駅名入力/選択エリア --- */}
-        <div className="mb-4">
-          <label className="block text-xs font-bold text-slate-500 mb-1 ml-2">駅番号</label>
-          <input 
-           type="number"
-            className="w-full p-4 bg-white rounded-xl border-2 border-slate-200"
-            placeholder="例: 101"
-            value={stationNo}
-            onChange={e => setStationNo(e.target.value)}
-            />
-          <label className="block text-xs font-bold text-slate-500 mb-1 ml-2">駅名</label>
-          {mode === 'new_entry' ? (
-            <input 
-              className="w-full p-4 bg-white rounded-xl border-2 border-slate-200 outline-none focus:border-indigo-500 transition-all shadow-sm" 
-              placeholder="新しい駅名を入力" 
-              value={stationName} 
-              onChange={e => setStationName(e.target.value)} 
-            />
-          ) : (
-            <select 
-              className="w-full p-4 bg-white rounded-xl border-2 border-slate-200 outline-none focus:border-emerald-500 transition-all cursor-pointer shadow-sm"
-              value={stationName}
-              onChange={(e) => {
-                setStationName(e.target.value);
-                setSelectedYear(''); 
-              }}
-            >
-              <option value="">-- 駅を選択 --</option>
-              {Array.from(new Set(existingData.map(d => d.stationName))).filter(Boolean).sort().map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-          )}
-        </div>
+      <h2 className="text-2xl font-bold mb-6 text-indigo-700">
+        新規駅登録
+      </h2>
 
-        {/* --- 年度入力/選択エリア --- */}
-        <div className="mb-8">
-          <label className="block text-xs font-bold text-slate-500 mb-1 ml-2">年度</label>
-          {mode === 'new_entry' ? (
-            <input 
-              className="w-full p-4 bg-white rounded-xl border-2 border-slate-200" 
-              placeholder="例: 2026" 
-              value={selectedYear} 
-              onChange={e => setSelectedYear(e.target.value)} 
-            />
-          ) : (
-            <select 
-              className="w-full p-4 bg-white rounded-xl border-2 border-slate-200"
-              value={selectedYear}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedYear(val);
-                // 選択した駅名と年度に一致するspreadsheetIdをセット
-                const target = existingData.find(d => d.stationName === stationName && String(d.year) === val);
-                if (target?.spreadsheetId) setSpreadsheetId(target.spreadsheetId);
-              }}
-              disabled={!stationName}
-            >
-              <option value="">-- 年度を選択 --</option>
-              {existingData
-                .filter(d => d.stationName === stationName)
-                .map((d, i) => (
-                  <option key={i} value={String(d.year)}>{d.year}年度</option>
-                ))}
-            </select>
-          )}
-        </div>
+      {/* 駅番号 */}
+      <input
+        type="number"
+        value={stationNo}
+        onChange={(e) => setStationNo(e.target.value)}
+        className="w-full p-4 border-2 rounded-xl mb-4"
+        placeholder="駅番号"
+      />
 
-        {/* --- 実行ボタン --- */}
-        <button 
-          onClick={() => {
-            if (mode === 'new_entry') {
-              handleCreateNewSheet();
-            } else {
-              // 既存駅選択時はそのままタスク選択画面へ
-              setMode('task_select'); 
-            }
-          }} 
-          disabled={isLoading || !stationName || !selectedYear}
-          className={`transition-all active:scale-95 w-full py-5 rounded-2xl font-bold text-xl text-white shadow-lg ${
-            isLoading || !stationName || !selectedYear
-              ? 'bg-slate-400 cursor-not-allowed' 
-              : mode === 'new_entry' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'
-          }`}
-        >
-          {isLoading ? (
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>通信中...</span>
-            </div>
-          ) : (
-            mode === 'new_entry' ? '新規作成して開始' : 'この駅を編集'
-          )}
-        </button>
-      </div>
+      {/* 駅名（手入力） */}
+      <input
+        value={stationName}
+        onChange={(e) => setStationName(e.target.value)}
+        className="w-full p-4 border-2 rounded-xl mb-4"
+        placeholder="駅名"
+      />
+
+      {/* 年度（手入力） */}
+      <input
+        value={selectedYear}
+        onChange={(e) => setSelectedYear(e.target.value)}
+        className="w-full p-4 border-2 rounded-xl mb-6"
+        placeholder="年度"
+      />
+
+      <button
+        onClick={handleCreateNewSheet}
+        className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold"
+      >
+        新規作成して開始
+      </button>
+
     </div>
-  );
+  </div>
+);
+
+
+// ② 既存駅編集画面（←完全に別にする）
+if (mode === 'exist_select') return (
+  <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
+    <Nav back="menu" />
+
+    <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
+
+      <h2 className="text-2xl font-bold mb-6 text-emerald-700">
+        既存駅を編集
+      </h2>
+
+      {/* 駅名 */}
+      <select
+        value={stationName}
+        onChange={(e) => {
+          setStationName(e.target.value);
+          setSelectedYear('');
+        }}
+        className="w-full p-4 border-2 rounded-xl mb-4"
+      >
+        <option value="">駅を選択</option>
+        {Array.from(new Set(existingData.map(d => d.stationName))).map(name => (
+          <option key={name} value={name}>{name}</option>
+        ))}
+      </select>
+
+      {/* 年度 */}
+      <select
+        value={selectedYear}
+        onChange={(e) => {
+          const val = e.target.value;
+          setSelectedYear(val);
+
+          const target = existingData.find(
+            d => d.stationName === stationName && String(d.year) === val
+          );
+
+          if (target?.spreadsheetId) {
+  setSpreadsheetId(target.spreadsheetId);
+  setFolderId(target.folderId || '');
+}
+        }}
+        disabled={!stationName}
+        className="w-full p-4 border-2 rounded-xl mb-6"
+      >
+        <option value="">年度を選択</option>
+        {existingData
+          .filter(d => d.stationName === stationName)
+          .map((d, i) => (
+            <option key={i} value={String(d.year)}>
+              {d.year}年度
+            </option>
+          ))}
+      </select>
+
+      <button
+        onClick={() => setMode('task_select')}
+        disabled={!stationName || !selectedYear}
+        className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold"
+      >
+        この駅を編集
+      </button>
+
+    </div>
+  </div>
+);
 
   if (mode === 'task_select') {
   return <TaskSelect setMode={setMode} Nav={Nav} />;
@@ -1026,41 +1038,6 @@ const resetKarteFields = () => {
     }
   };
 
-{showMapPicker && (
-  <div className="fixed inset-0 bg-white z-[110] flex flex-col p-6 animate-slide-up">
-    <div className="flex justify-between items-center mb-6">
-      <h3 className="text-xl font-bold">ドライブから位置図を選択</h3>
-      <button onClick={() => setShowMapPicker(false)} className="transition-all active:scale-95 active:brightness-90 text-2xl">✕</button>
-    </div>
-    <div className="grid grid-cols-2 gap-4 overflow-y-auto pb-10">
-      {driveMaps.map(m => (
-        <button key={m.id} onClick={async () => {
-          setIsLoading(true);
-          try {
-            // --- POST で Base64 を取得 ---
-            const res = await fetch(GAS_URL, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ action: "getMapBase64", id: m.id })
-});
-const base64 = await res.text();
-setSourceImage(`data:image/png;base64,${base64}`);
-            setShowMapPicker(false);
-          } catch (e) {
-            alert("読込失敗");
-            console.error(e);
-          } finally {
-            setIsLoading(false);
-          }
-        }} className="transition-all active:scale-95 active:brightness-90 flex flex-col gap-2 p-2 bg-slate-50 rounded-xl active:bg-slate-200">
-          <img src={m.thumbUrl} className="w-full aspect-video object-cover rounded-lg shadow-sm" alt={m.name} />
-          <span className="text-[10px] font-bold text-slate-600 truncate w-full text-left">{m.name}</span>
-        </button>
-      ))}
-    </div>
-  </div>
-)}
-
 // --- 2. エディタ画面のUI部分 ---
 if (mode === 'editor') {
   return (
@@ -1350,10 +1327,24 @@ if (mode === 'editor') {
                 <button key={m.id} onClick={async () => {
                   setIsLoading(true);
                   try {
-                    const res = await fetch(`${GAS_URL}?action=getMapBase64&id=${m.id}`);
-                    const base64 = await res.text();
-                    setSourceImage(`data:image/png;base64,${base64}`);
-                    setShowMapPicker(false);
+                    const res = await fetch(GAS_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "getMapBase64",
+    id: m.id
+  })
+});
+
+const base64 = await res.text();
+// ★ここに追加！！
+if (!base64 || base64.startsWith("{")) {
+  throw new Error("Base64取得失敗");
+}
+
+setSourceImage(`data:image/png;base64,${base64}`);
+setShowMapPicker(false);
+
                   } catch (e) { alert("読込失敗"); } finally { setIsLoading(false); }
                 }} className="transition-all active:scale-95 active:brightness-90 flex flex-col gap-2 p-2 bg-slate-50 rounded-xl active:bg-slate-200">
                   <img src={m.thumbUrl} className="w-full aspect-video object-cover rounded-lg shadow-sm" alt="" />
