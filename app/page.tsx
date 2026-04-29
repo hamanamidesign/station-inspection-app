@@ -663,7 +663,7 @@ const resetKarteFields = () => {
     const isPhoto = mode === 'karte_menu';
     return (
       <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
-        <Nav back="task_select" />
+        <Nav />
         <h2 className="text-2xl font-black mb-8">{isPhoto ? '写真カルテ' : '傾斜測定カルテ'}</h2>
         <div className="flex flex-col gap-6 w-full max-w-sm">
           {/* ① 新規作成ボタン */}
@@ -719,7 +719,7 @@ const resetKarteFields = () => {
     const isPhoto = mode === 'karte_edit';
     return (
       <div className="flex flex-col items-center justify-start min-h-screen bg-slate-300 text-black">
-        <Nav back={isPhoto ? "karte_menu" : "inclination_menu"} />
+        <Nav />
         <LoadingOverlay />
 
         {/* --- スプレッドシート再現ヘッダー (線の色を slate-800 で統一) --- */}
@@ -1103,7 +1103,7 @@ if (mode === 'editor') {
         </div>
       )}
       <div className="p-4 flex flex-col items-center">
-        <Nav back="task_select" />
+        <Nav />
         <div className="text-center mb-6">
           <h2 className="text-2xl font-black">{stationName}</h2>
           <p className="text-sm font-bold text-indigo-600 mt-1">写真カルテ番号位置図 編集</p>
