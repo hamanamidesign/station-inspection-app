@@ -160,9 +160,10 @@ setIsLoading(true);
 try {
 
   const result = await gasApi("createNew", {
-    station: stationName,
-    year: selectedYear
-  });
+  stationNo: stationNo, // ★追加
+  station: stationName,
+  year: selectedYear
+});
 
   if (result.success) {
     setSpreadsheetId(result.spreadsheetId);
@@ -444,8 +445,8 @@ const result = await gasApi(actionType, payload);
   if (mode === 'menu') return (
     <div className="flex flex-col items-center justify-start h-screen gap-8 bg-slate-50 text-black p-6">
       <h1 className="text-3xl font-black mb-4 text-center">施設点検システム</h1>
-      <button onClick={() => setMode('new_entry')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-indigo-600 text-white rounded-3xl shadow-xl text-xl font-bold">➕ 新規現場を開始</button>
-      <button onClick={() => setMode('exist_select')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold">📂 既存現場を編集</button>
+      <button onClick={() => setMode('new_entry')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-indigo-600 text-white rounded-3xl shadow-xl text-xl font-bold">➕ 新規駅を開始</button>
+      <button onClick={() => setMode('exist_select')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold">📂 既存駅を編集</button>
     </div>
   );
 
@@ -492,6 +493,14 @@ if (mode === 'edit_list') return (
 
         {/* --- 駅名入力/選択エリア --- */}
         <div className="mb-4">
+          <label className="block text-xs font-bold text-slate-500 mb-1 ml-2">駅番号</label>
+          <input 
+           type="number"
+            className="w-full p-4 bg-white rounded-xl border-2 border-slate-200"
+            placeholder="例: 101"
+            value={stationNo}
+            onChange={e => setStationNo(e.target.value)}
+            />
           <label className="block text-xs font-bold text-slate-500 mb-1 ml-2">駅名</label>
           {mode === 'new_entry' ? (
             <input 
