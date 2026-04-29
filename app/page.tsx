@@ -413,11 +413,11 @@ const result = await gasApi(actionType, payload);
         <button onClick={() => { setMode('menu'); setIsEditMode(false); }} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
       </div>
       
-      {/* 現場名と年度を表示するヘッダー */}
+      {/* 駅名と年度を表示するヘッダー */}
       {(stationName || selectedYear) && (
         <div className="bg-indigo-50 border-l-4 border-indigo-500 p-2 rounded-r-lg shadow-sm mb-2">
           <div className="flex items-baseline gap-2">
-            <span className="text-[10px] font-bold text-indigo-400">現場:</span>
+            <span className="text-[10px] font-bold text-indigo-400">駅名:</span>
             <span className="text-sm font-black text-indigo-900">{stationName || "---"}</span>
             <span className="text-[10px] font-bold text-indigo-400 ml-2">年度:</span>
             <span className="text-sm font-black text-indigo-900">{selectedYear || "---"}</span>
@@ -481,13 +481,13 @@ if (mode === 'edit_list') return (
   </div>
 );
 
-  // 3. 現場名入力 / 選択画面
+  // 3. 駅名入力 / 選択画面
   if (mode === 'new_entry' || mode === 'exist_select') return (
     <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
       <Nav back="menu" />
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md text-black">
         <h2 className={`text-2xl font-bold mb-6 ${mode === 'new_entry' ? 'text-indigo-700' : 'text-emerald-700'}`}>
-          {mode === 'new_entry' ? '新規現場登録' : '既存現場を選択'}
+          {mode === 'new_entry' ? '新規駅登録' : '既存駅を選択'}
         </h2>
 
         {/* --- 駅名入力/選択エリア --- */}
@@ -556,7 +556,7 @@ if (mode === 'edit_list') return (
             if (mode === 'new_entry') {
               handleCreateNewSheet();
             } else {
-              // 既存現場選択時はそのままタスク選択画面へ
+              // 既存駅選択時はそのままタスク選択画面へ
               setMode('task_select'); 
             }
           }} 
@@ -573,7 +573,7 @@ if (mode === 'edit_list') return (
               <span>通信中...</span>
             </div>
           ) : (
-            mode === 'new_entry' ? '新規作成して開始' : 'この現場を編集'
+            mode === 'new_entry' ? '新規作成して開始' : 'この駅を編集'
           )}
         </button>
       </div>
