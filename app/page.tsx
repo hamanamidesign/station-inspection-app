@@ -411,12 +411,24 @@ const result = await gasApi(actionType, payload);
       m.id === draggingMarkerId ? { ...m, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : m
     ));
   };
-
+const resetAllState = () => {
+  setStationNo("");
+  setStationName("");
+  setSelectedYear("");
+  setSpreadsheetId("");
+  setFolderId("");
+  setMarkers([]);
+  setPhotos(Array(8).fill(null));
+  setSourceImage(null);
+  setFinalImage(null);
+  setExistingKartes([]);
+  setIsEditMode(false);
+};
   const Nav = ({ back }: { back: AppMode }) => (
     <div className="w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
         <button onClick={() => setMode(back)} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm">← 戻る</button>
-        <button onClick={() => { setMode('menu'); setIsEditMode(false); }} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
+        <button onClick={() => {  resetAllState(); setMode('menu'); setIsEditMode(false); }} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
       </div>
       
       {/* 駅名と年度を表示するヘッダー */}
