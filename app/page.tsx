@@ -444,6 +444,16 @@ const result = await gasApi(actionType, payload);
     </div>
   ) : null;
 
+const LoadingSpinner = () => isLoading ? (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
+    <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
+      <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-slate-900 font-bold text-lg">作成中...</p>
+      <p className="text-slate-500 text-sm">そのままお待ちください</p>
+    </div>
+  </div>
+) : null;
+
   // --- 画面表示 ---
 
   // 1. メインメニュー画面
@@ -490,7 +500,7 @@ if (mode === 'edit_list') return (
   // ① 新規駅登録画面
 if (mode === 'new_entry') return (
   <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
-    <Nav back="menu" />
+    <LoadingSpinner /> <Nav back="menu" />
     <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
 
       <h2 className="text-2xl font-bold mb-6 text-indigo-700">
