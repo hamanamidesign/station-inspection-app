@@ -30,9 +30,7 @@ type AppMode =
   | 'editor';
 
 // components/TaskSelect.tsx
-
 export default function InspectorApp() {
-
   const fileInputs = useRef<(HTMLInputElement | null)[]>([]);
 
   // 追加の入力項目用ステート
@@ -437,7 +435,11 @@ const resetAllState = () => {
 };
 
 const goTo = (next: AppMode) => {
-  setHistory(prev => [...prev, mode]); // 今の画面を保存
+  setHistory(prev => {
+    // 同じ画面なら履歴に追加しない
+    if (mode === next) return prev;
+    return [...prev, mode];
+  });
   setMode(next);
 };
 
@@ -448,7 +450,11 @@ const goBack = () => {
     const newHistory = [...prev];
     const last = newHistory.pop();
 
-    if (last) setMode(last);
+    if (last) {
+      setMode(last);
+    } else {
+      setMode('menu'); // 念のため
+    }
 
     return newHistory;
   });
@@ -653,7 +659,7 @@ if (mode === 'exist_select') return (
 );
 
   if (mode === 'task_select') {
-return <TaskSelect setMode={setMode} Nav={Nav} />;
+  return <TaskSelect goTo={goTo} Nav={Nav} />;
 }
       
 // 入力内容をすべて空にする関数

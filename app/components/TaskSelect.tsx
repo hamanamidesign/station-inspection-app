@@ -1,9 +1,13 @@
+"C:\Users\haman\station-check-app\app\types.ts"
+
+import { AppMode } from "../types";
+
 type Props = {
-  setMode: (mode: any) => void;
+  goTo: (mode: AppMode) => void;
   Nav: any;
 };
 
-export default function TaskSelect({ setMode, Nav }: Props) {
+export default function TaskSelect({ goTo, Nav }: Props) {
 
   const tasks = [
     "表紙",
@@ -26,9 +30,9 @@ export default function TaskSelect({ setMode, Nav }: Props) {
           <button
             key={task}
             onClick={() => {
-              if (task === "写真カルテ番号位置図") setMode('editor');
-              else if (task === "写真カルテ") setMode('karte_menu');
-              else if (task === "傾斜測定カルテ") setMode('inclination_menu');
+              if (task === "写真カルテ番号位置図") goTo('editor');
+              else if (task === "写真カルテ") goTo('karte_menu');
+              else if (task === "傾斜測定カルテ") goTo('inclination_menu');
             }}
 
             className={`transition-all active:scale-95 active:brightness-90 p-6 rounded-2xl shadow-md font-bold text-center border-2 ${
