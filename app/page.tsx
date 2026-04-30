@@ -41,7 +41,6 @@ export default function InspectorApp() {
   const [firstDate, setFirstDate] = useState('');      // 初回点検日 (F5)
   const [firstInspector, setFirstInspector] = useState(''); // 初回点検者 (F6)
   const [firstRemarks, setFirstRemarks] = useState(''); // 初回状況備考 (E7)
-  // ★★★ ここまで ★★★
 
   // --- 共通ステート ---
   const [mode, setMode] = useState<AppMode>('menu');
@@ -98,7 +97,9 @@ useEffect(() => {
   const [contractor, setContractor] = useState('');
   const [inspector, setInspector] = useState('');
   const [locationDetail, setLocationDetail] = useState('');
-  const [remarks, setRemarks] = useState('');
+  const [remarks1, setRemarks1] = useState('');
+  const [remarks2, setRemarks2] = useState('');
+  const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(8).fill(null));
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
@@ -144,9 +145,19 @@ useEffect(() => {
 
   // 駅や年度が変わったら入力をクリア
   useEffect(() => {
-    setSourceImage(null); setFinalImage(null); setMarkers([]); 
-    setPhotos(Array(8).fill(null));
-    setKarteNo('1'); setRemarks(''); setInspectDate('');
+  setSourceImage(null);
+  setFinalImage(null);
+  setMarkers([]); 
+  setPhotos(Array(8).fill(null));
+
+  setKarteNo('1');
+  setInspectDate('');
+
+  // ★ここを修正
+  setRemarks1('');
+  setRemarks2('');
+  setRemarks3('');
+
   }, [stationName, selectedYear]);
 
 // --- ① 関数の定義エリア（コンポーネント内の return より上に書く） ---
@@ -340,7 +351,9 @@ const handlePressEnd = () => {
       setContractor(String(d.contractor || ''));
       setLocationDetail(String(d.locationDetail || ''));
       setInspector(String(d.inspector || ''));
-      setRemarks(String(d.remarks || ''));
+      setRemarks1(d.remarks1 || '');
+      setRemarks2(d.remarks2 || '');
+      setRemarks3(d.remarks3 || '');
 
       setIsEditMode(true);
       setMode('karte_edit');
@@ -392,7 +405,9 @@ const handlePressEnd = () => {
   contractor,
   inspector,
   locationDetail,
-  remarks,
+  remarks1,
+  remarks2,
+  remarks3,
   photoFiles: validPhotos,
 };
 
@@ -664,9 +679,10 @@ if (mode === 'exist_select') return (
       
 // 入力内容をすべて空にする関数
 const resetKarteFields = () => {
-  setLocationDetail('');         // 箇所詳細を空に
-  setRemarks('');                // 備考を空に
-  // その他、点検者や施工者もリセットが必要ならここに追加
+  setLocationDetail('');
+  setRemarks1('');
+  setRemarks2('');
+  setRemarks3('');
 };
  if (mode === 'karte_menu' || mode === 'inclination_menu') {
     const isPhoto = mode === 'karte_menu';
@@ -870,15 +886,37 @@ const resetKarteFields = () => {
             </div>
 
             {/* 今回の状況（備考） */}
-            <div className="p-2 border-b border-slate-800 h-24 bg-blue-50/20 font-bold">
-              <label className="text-[9px] text-blue-700 block mb-1">状況（備考）</label>
-              <textarea 
-                className="w-full h-16 outline-none bg-transparent text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
-                placeholder="変状、進行状況等を入力"
-                value={remarks} 
-                onChange={e => setRemarks(e.target.value)} 
-              />
-            </div>
+<div className="p-2 border-b border-slate-800 bg-blue-50/20 font-bold">
+  <label className="text-[9px] text-blue-700 block mb-2">状況（備考）</label>
+
+  <div className="flex flex-col gap-2">
+
+    {/* ① */}
+    <textarea 
+      className="w-full h-16 outline-none bg-transparent text-[13px] resize-none leading-tight text-black placeholder-slate-400 border p-1"
+      placeholder="仕上げ材"
+      value={remarks1}
+      onChange={e => setRemarks1(e.target.value)}
+    />
+
+    {/* ② */}
+    <textarea 
+      className="w-full h-16 outline-none bg-transparent text-[13px] resize-none leading-tight text-black placeholder-slate-400 border p-1"
+      placeholder="状況"
+      value={remarks2}
+      onChange={e => setRemarks2(e.target.value)}
+    />
+
+    {/* ③ */}
+    <textarea 
+      className="w-full h-16 outline-none bg-transparent text-[13px] resize-none leading-tight text-black placeholder-slate-400 border p-1"
+      placeholder="サイズ、詳細"
+      value={remarks3}
+      onChange={e => setRemarks3(e.target.value)}
+    />
+
+  </div>
+</div>
 
 {/* 今回の写真撮影エリア */}
 <div className="flex-1 p-2 overflow-y-auto bg-blue-50/10">
