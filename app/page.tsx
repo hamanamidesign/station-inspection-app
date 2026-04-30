@@ -885,35 +885,45 @@ const resetKarteFields = () => {
               </div>
             </div>
 
-            {/* 今回の状況（備考） */}
+{/* 今回の状況（備考） */}
 <div className="p-2 border-b border-slate-800 bg-blue-50/20 font-bold">
   <label className="text-[9px] text-blue-700 block mb-2">状況（備考）</label>
 
-  <div className="flex flex-col gap-2">
+  {/* ★ここ修正 */}
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
 
-    {/* ① */}
-    <textarea 
-      className="w-full h-16 outline-none bg-transparent text-[13px] resize-none leading-tight text-black placeholder-slate-400 border p-1"
-      placeholder="仕上げ材"
-      value={remarks1}
-      onChange={e => setRemarks1(e.target.value)}
-    />
+    {/* ① 仕上げ材 */}
+    <div className="p-2 border border-slate-400 rounded bg-white">
+      <label className="text-[9px] text-blue-700 block mb-1">仕上げ材</label>
+      <textarea 
+        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
+        placeholder="仕上げ材入力"
+        value={remarks1} 
+        onChange={e => setRemarks1(e.target.value)} 
+      />
+    </div>
 
-    {/* ② */}
-    <textarea 
-      className="w-full h-16 outline-none bg-transparent text-[13px] resize-none leading-tight text-black placeholder-slate-400 border p-1"
-      placeholder="状況"
-      value={remarks2}
-      onChange={e => setRemarks2(e.target.value)}
-    />
+    {/* ② 状況 */}
+    <div className="p-2 border border-slate-400 rounded bg-white">
+      <label className="text-[9px] text-blue-700 block mb-1">状況</label>
+      <textarea 
+        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
+        placeholder="状況入力"
+        value={remarks2} 
+        onChange={e => setRemarks2(e.target.value)} 
+      />
+    </div>
 
-    {/* ③ */}
-    <textarea 
-      className="w-full h-16 outline-none bg-transparent text-[13px] resize-none leading-tight text-black placeholder-slate-400 border p-1"
-      placeholder="サイズ、詳細"
-      value={remarks3}
-      onChange={e => setRemarks3(e.target.value)}
-    />
+    {/* ③ サイズ・詳細 */}
+    <div className="p-2 border border-slate-400 rounded bg-white">
+      <label className="text-[9px] text-blue-700 block mb-1">サイズ、詳細</label>
+      <textarea 
+        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
+        placeholder="サイズ、詳細入力"
+        value={remarks3} 
+        onChange={e => setRemarks3(e.target.value)} 
+      />
+    </div>
 
   </div>
 </div>
