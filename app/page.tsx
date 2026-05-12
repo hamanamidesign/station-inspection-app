@@ -160,6 +160,42 @@ useEffect(() => {
 
   }, [stationName, selectedYear]);
 
+// 総合評価 自動判定
+useEffect(() => {
+
+  const table: Record<string, string> = {
+
+    "AA_〇": "AA",
+    "AA_△": "AA",
+    "AA_☓": "A1",
+
+    "A1_〇": "AA",
+    "A1_△": "A1",
+    "A1_☓": "A2",
+
+    "A2_〇": "A1",
+    "A2_△": "A2",
+    "A2_☓": "A2",
+
+    "B_〇": "B",
+    "B_△": "B",
+    "B_☓": "C",
+
+    "C_〇": "B",
+    "C_△": "C",
+    "C_☓": "S",
+
+    "S_〇": "C",
+    "S_△": "S",
+    "S_☓": "S",
+  };
+
+  const key = `${structEval}_${impactEval}`;
+
+  setTotalEval(table[key] || '');
+
+}, [structEval, impactEval]);
+
 // --- ① 関数の定義エリア（コンポーネント内の return より上に書く） ---
 const handleCreateNewSheet = async () => {
   if (!stationName || !selectedYear) return alert("駅名と年度を入力してください");
@@ -768,50 +804,90 @@ const resetKarteFields = () => {
             </div>
           </div>
 
-          {/* 3-4行目：各評価項目 */}
-          <div className="grid grid-cols-12 bg-slate-100 font-bold text-center border-b border-slate-800">
-          <div className="col-span-1 border-r border-slate-800 p-2 flex items-center justify-center text-black">評価区分</div>
-  
-          <div className="col-span-2 border-r border-slate-800 bg-white p-1">
-          <div className="text-[9px] text-black mb-1">① 構造度評価</div>
-          <input 
-         className="w-full outline-none text-center text-black placeholder-slate-400 font-normal" 
-         placeholder="A" 
-          value={structEval || ''} // ★修正
-          onChange={e => setStructEval(e.target.value)} 
-          />
-          </div>
-  
-          <div className="col-span-2 border-r border-slate-800 bg-white p-1">
-          <div className="text-[9px] text-black mb-1">② 影響評価</div>
-          <input 
-         className="w-full outline-none text-center text-black placeholder-slate-400 font-normal" 
-          placeholder="1" 
-          value={impactEval || ''} // ★修正
-          onChange={e => setImpactEval(e.target.value)} 
-          />
-          </div>
-  
-          <div className="col-span-2 border-r border-slate-800 bg-white p-1">
-          <div className="text-[9px] text-black mb-1">総合評価</div>
-          <input 
-         className="w-full outline-none text-center font-black text-indigo-700 placeholder-slate-400" 
-          placeholder="A1" 
-          value={totalEval || ''} // ★修正 
-          onChange={e => setTotalEval(e.target.value)} 
-          />
-          </div>
-  
-          <div className="col-span-5 bg-white p-1">
-          <div className="text-[9px] text-black mb-1">前年度評価</div>
-          <input 
-          className="w-full outline-none text-center text-black placeholder-slate-400 font-normal" 
-          placeholder="B2" 
-          value={prevYearEval || ''} // ★修正 
-          onChange={e => setPrevYearEval(e.target.value)} 
-          />
-          </div>
-          </div>
+{/* 3-4行目：各評価項目 */}
+<div className="grid grid-cols-12 bg-slate-100 font-bold text-center border-b border-slate-800">
+
+  {/* タイトル */}
+  <div className="col-span-1 border-r border-slate-800 p-2 flex items-center justify-center text-black">
+    評価区分
+  </div>
+
+  {/* ① 構造度評価 */}
+  <div className="col-span-2 border-r border-slate-800 bg-white p-1">
+    <div className="text-[9px] text-black mb-1">
+      ① 構造度評価
+    </div>
+
+    <select
+      className={`w-full outline-none text-center font-black bg-white ${
+        structEval === 'AA' || structEval === 'A1'
+          ? 'text-red-600'
+          : 'text-black'
+      }`}
+      value={structEval}
+      onChange={(e) => setStructEval(e.target.value)}
+    >
+      <option value="">選択</option>
+      <option value="AA">AA</option>
+      <option value="A1">A1</option>
+      <option value="A2">A2</option>
+      <option value="B">B</option>
+      <option value="C">C</option>
+      <option value="S">S</option>
+    </select>
+  </div>
+
+  {/* ② 影響度評価 */}
+  <div className="col-span-2 border-r border-slate-800 bg-white p-1">
+    <div className="text-[9px] text-black mb-1">
+      ② 影響度評価
+    </div>
+
+    <select
+      className="w-full outline-none text-center font-black bg-white text-black"
+      value={impactEval}
+      onChange={(e) => setImpactEval(e.target.value)}
+    >
+      <option value="">選択</option>
+      <option value="〇">〇</option>
+      <option value="△">△</option>
+      <option value="☓">☓</option>
+    </select>
+  </div>
+
+  {/* 総合評価 */}
+  <div className="col-span-2 border-r border-slate-800 bg-white p-1">
+    <div className="text-[9px] text-black mb-1">
+      総合評価
+    </div>
+
+    <input
+      readOnly
+      value={totalEval}
+      className={`w-full outline-none text-center font-black bg-white ${
+        totalEval === 'AA' || totalEval === 'A1'
+          ? 'text-red-600'
+          : 'text-black'
+      }`}
+    />
+  </div>
+
+  {/* 前年度評価 */}
+  <div className="col-span-5 bg-white p-1">
+    <div className="text-[9px] text-black mb-1">
+      前年度評価
+    </div>
+
+    <input
+      className="w-full outline-none text-center text-black placeholder-slate-400 font-normal"
+      placeholder="B"
+      value={prevYearEval || ''}
+      onChange={e => setPrevYearEval(e.target.value)}
+    />
+  </div>
+
+</div>
+
           </div>
 
         {/* --- メインコンテンツ：左右分割 (外枠を slate-800 で統一) --- */}
