@@ -739,7 +739,9 @@ const resetKarteFields = () => {
   setFirstFinish('');
   setFirstSituation('');
   setFirstDetail('');
-};
+  // ★追加
+  setPhotos(Array(8).fill(null));
+  };
 
  if (mode === 'karte_menu' || mode === 'inclination_menu') {
     const isPhoto = mode === 'karte_menu';
