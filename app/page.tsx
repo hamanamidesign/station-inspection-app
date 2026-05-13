@@ -583,7 +583,7 @@ if (mode === 'edit_list') return (
     <LoadingSpinner />
 
     <Nav />
-    <Nav />
+
     <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl">
       <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">修正するカルテを選択</h2>
       
