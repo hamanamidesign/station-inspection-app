@@ -574,6 +574,9 @@ const LoadingSpinner = () => isLoading ? (
   // --- 画面表示 (edit_list部分) ---
 if (mode === 'edit_list') return (
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black">
+
+    <LoadingSpinner />
+
     <Nav />
     <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl">
       <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">修正するカルテを選択</h2>
