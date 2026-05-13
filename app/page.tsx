@@ -657,7 +657,7 @@ if (mode === 'new_entry') return (
 );
 
 
-// ② 既存駅編集画面（←完全に別にする）
+// ② 既存駅編集画面
 if (mode === 'exist_select') return (
   <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
     <Nav />
@@ -668,57 +668,81 @@ if (mode === 'exist_select') return (
         既存駅を編集
       </h2>
 
-      {/* 駅名 */}
-      <select
-        value={stationName}
-        onChange={(e) => {
-          setStationName(e.target.value);
-          setSelectedYear('');
-        }}
-        className="w-full p-4 border-2 rounded-xl mb-4"
-      >
-        <option value="">駅を選択</option>
-        {Array.from(new Set(existingData.map(d => d.stationName))).map(name => (
-          <option key={name} value={name}>{name}</option>
-        ))}
-      </select>
+      {/* ★読み込み中 */}
+      {isLoading ? (
 
-      {/* 年度 */}
-      <select
-        value={selectedYear}
-        onChange={(e) => {
-          const val = e.target.value;
-          setSelectedYear(val);
+        <div className="flex flex-col items-center py-12">
+          <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+          <div className="mt-4 text-sm text-slate-500">
+            駅データ読込中...
+          </div>
+        </div>
 
-          const target = existingData.find(
-            d => d.stationName === stationName && String(d.year) === val
-          );
+      ) : (
 
-          if (target?.spreadsheetId) {
-  setSpreadsheetId(target.spreadsheetId);
-  setFolderId(target.folderId || '');
-}
-        }}
-        disabled={!stationName}
-        className="w-full p-4 border-2 rounded-xl mb-6"
-      >
-        <option value="">年度を選択</option>
-        {existingData
-          .filter(d => d.stationName === stationName)
-          .map((d, i) => (
-            <option key={i} value={String(d.year)}>
-              {d.year}年度
-            </option>
-          ))}
-      </select>
+        <>
+          {/* 駅名 */}
+          <select
+            value={stationName}
+            onChange={(e) => {
+              setStationName(e.target.value);
+              setSelectedYear('');
+            }}
+            className="w-full p-4 border-2 rounded-xl mb-4"
+          >
+            <option value="">駅を選択</option>
 
-      <button
-        onClick={() => goTo('task_select')}
-        disabled={!stationName || !selectedYear}
-        className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold"
-      >
-        この駅を編集
-      </button>
+            {Array.from(
+              new Set(existingData.map(d => d.stationName))
+            ).map(name => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          {/* 年度 */}
+          <select
+            value={selectedYear}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedYear(val);
+
+              const target = existingData.find(
+                d =>
+                  d.stationName === stationName &&
+                  String(d.year) === val
+              );
+
+              if (target?.spreadsheetId) {
+                setSpreadsheetId(target.spreadsheetId);
+                setFolderId(target.folderId || '');
+              }
+            }}
+            disabled={!stationName}
+            className="w-full p-4 border-2 rounded-xl mb-6"
+          >
+            <option value="">年度を選択</option>
+
+            {existingData
+              .filter(d => d.stationName === stationName)
+              .map((d, i) => (
+                <option key={i} value={String(d.year)}>
+                  {d.year}年度
+                </option>
+              ))}
+          </select>
+
+          <button
+            onClick={() => goTo('task_select')}
+            disabled={!stationName || !selectedYear}
+            className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold"
+          >
+            この駅を編集
+          </button>
+        </>
+
+      )}
 
     </div>
   </div>
