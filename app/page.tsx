@@ -40,9 +40,7 @@ export default function InspectorApp() {
   const [prevYearEval, setPrevYearEval] = useState(''); // 前年度評価 (Q3)
   const [firstDate, setFirstDate] = useState('');      // 初回点検日 (F5)
   const [firstInspector, setFirstInspector] = useState(''); // 初回点検者 (F6)
-  const [firstFinish, setFirstFinish] = useState(''); // 初回 仕上げ材
-  const [firstSituation, setFirstSituation] = useState(''); // 初回 状況
-  const [firstDetail, setFirstDetail] = useState(''); // 初回 サイズ詳細
+  const [firstRemarks, setFirstRemarks] = useState(''); // 初回状況備考 (E7)
 
   // --- 共通ステート ---
   const [mode, setMode] = useState<AppMode>('menu');
@@ -245,7 +243,6 @@ try {
 }
 };
 
-
   // 写真撮影ハンドラ
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
   const file = e.target.files?.[0];
@@ -384,9 +381,7 @@ const handlePressEnd = () => {
       setPrevYearEval(String(d.prevYearEval || ''));
       setFirstDate(String(d.firstDate || ''));
       setFirstInspector(String(d.firstInspector || ''));
-      setFirstFinish(String(d.firstFinish || ''));
-      setFirstSituation(String(d.firstSituation || ''));
-      setFirstDetail(String(d.firstDetail || ''));
+      setFirstRemarks(String(d.firstRemarks || ''));
       setInspectDate(String(d.inspectDate || ''));
       setContractor(String(d.contractor || ''));
       setLocationDetail(String(d.locationDetail || ''));
@@ -440,9 +435,7 @@ const handlePressEnd = () => {
   prevYearEval,
   firstDate,
   firstInspector,
-  firstFinish,
-  firstSituation,
-  firstDetail,
+  firstRemarks,
   inspectDate,
   contractor,
   inspector,
@@ -647,7 +640,6 @@ if (mode === 'new_entry') return (
   </div>
 );
 
-
 // ② 既存駅編集画面（←完全に別にする）
 if (mode === 'exist_select') return (
   <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
@@ -722,16 +714,10 @@ if (mode === 'exist_select') return (
 // 入力内容をすべて空にする関数
 const resetKarteFields = () => {
   setLocationDetail('');
-
   setRemarks1('');
   setRemarks2('');
   setRemarks3('');
-
-  setFirstFinish('');
-  setFirstSituation('');
-  setFirstDetail('');
 };
-
  if (mode === 'karte_menu' || mode === 'inclination_menu') {
     const isPhoto = mode === 'karte_menu';
     return (
@@ -934,58 +920,15 @@ const resetKarteFields = () => {
           </div>
           </div>
 
-        {/* 初回の状況（備考） */}
-<div className="p-2 border-b border-slate-800 bg-slate-100/40 font-bold">
-  <label className="text-[9px] text-black block mb-2">
-    状況（備考）
-  </label>
-
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-
-    {/* ① 仕上げ材 */}
-    <div className="p-2 border border-slate-400 rounded bg-white">
-      <label className="text-[9px] text-slate-700 block mb-1">
-        仕上げ材
-      </label>
-
-      <textarea
-        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400"
-        placeholder="仕上げ材入力"
-        value={firstFinish}
-        onChange={e => setFirstFinish(e.target.value)}
-      />
-    </div>
-
-    {/* ② 状況 */}
-    <div className="p-2 border border-slate-400 rounded bg-white">
-      <label className="text-[9px] text-slate-700 block mb-1">
-        状況
-      </label>
-
-      <textarea
-        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400"
-        placeholder="状況入力"
-        value={firstSituation}
-        onChange={e => setFirstSituation(e.target.value)}
-      />
-    </div>
-
-    {/* ③ サイズ・詳細 */}
-    <div className="p-2 border border-slate-400 rounded bg-white">
-      <label className="text-[9px] text-slate-700 block mb-1">
-        サイズ、詳細
-      </label>
-
-      <textarea
-        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400"
-        placeholder="サイズ、詳細入力"
-        value={firstDetail}
-        onChange={e => setFirstDetail(e.target.value)}
-      />
-    </div>
-
-  </div>
-</div>
+        <div className="p-2 border-b border-slate-800 h-24 flex flex-col">
+        <div className="text-[9px] font-bold text-black mb-1">状況（備考）</div>
+        <textarea 
+        className="w-full flex-1 bg-transparent outline-none text-[12px] resize-none leading-tight placeholder-slate-400" 
+        placeholder="過去の特記事項を入力" 
+        value={firstRemarks || ''} // ★修正 
+        onChange={e => setFirstRemarks(e.target.value)} 
+        />
+        </div>
         </div>
 
           {/* 【右：今回の点検内容入力（青文字ベース）】 */}
@@ -1597,5 +1540,6 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
 
 
