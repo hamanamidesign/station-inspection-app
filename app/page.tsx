@@ -523,7 +523,7 @@ const resetAllState = () => {
   setStationName("");
   setSelectedYear("");
   setSpreadsheetId("");
-  setFolderId("");
+
   setMarkers([]);
   setPhotos(Array(8).fill(null));
   setSourceImage(null);
