@@ -27,7 +27,8 @@ type AppMode =
   | 'inclination_menu' 
   | 'inclination_edit' 
   | 'edit_list' 
-  | 'editor';
+  | 'editor'
+  | 'route_select';
 
 // components/TaskSelect.tsx
 export default function InspectorApp() {
@@ -45,7 +46,9 @@ export default function InspectorApp() {
   const [firstDetail, setFirstDetail] = useState(''); // 初回 サイズ詳細
 
   // --- 共通ステート ---
-  const [mode, setMode] = useState<AppMode>('menu');
+  const [routeList, setRouteList] = useState<any[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState('');
+  const [mode, setMode] = useState<AppMode>('route_select');
   const [history, setHistory] = useState<AppMode[]>([]);
   const [isLoading, setIsLoading] = useState(false); // ★ これを関数の上に持ってくる
   const [stationNo, setStationNo] = useState("");
@@ -107,6 +110,26 @@ useEffect(() => {
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
+const loadRoutes = useCallback(async () => {
+
+  try {
+
+    const result = await gasApi("getRouteList");
+
+    if (result.success) {
+
+      setRouteList(result.list);
+
+    }
+
+  } catch (e) {
+
+    console.error(e);
+
+  }
+
+}, []);
+
 // --- 初期化 ---
   const refreshData = useCallback(async () => {
 
@@ -114,7 +137,9 @@ useEffect(() => {
 
   try {
 
-    const result = await gasApi("getExistingData");
+    const result = await gasApi("getExistingData", {
+  routeFolderId: folderId
+});
 
     if (result.success && Array.isArray(result.list)) {
 
@@ -138,10 +163,19 @@ useEffect(() => {
   }
 
 }, []);
+
+useEffect(() => {
+  loadRoutes();
+}, [loadRoutes]);
+
   // ★ここに入れる
   useEffect(() => {
+
+  if (folderId) {
     refreshData();
-  }, [refreshData]);
+  }
+
+}, [refreshData, folderId]);
 
   console.log(existingData)
 
@@ -223,7 +257,9 @@ setIsLoading(true);
 try {
 
   const result = await gasApi("createNew", {
-  stationNo: stationNo, // ★追加
+  routeFolderId: folderId,
+  routeName: selectedRoute,
+  stationNo: stationNo,
   station: stationName,
   year: selectedYear
 });
@@ -533,6 +569,9 @@ const goBack = () => {
       {(stationName || selectedYear) && (
         <div className="bg-indigo-50 border-l-4 border-indigo-500 p-2 rounded-r-lg shadow-sm mb-2">
           <div className="flex items-baseline gap-2">
+            <span className="text-sm font-black text-indigo-900">
+            {selectedRoute}
+            </span>
             <span className="text-[10px] font-bold text-indigo-400">駅名:</span>
             <span className="text-sm font-black text-indigo-900">{stationName || "---"}</span>
             <span className="text-[10px] font-bold text-indigo-400 ml-2">年度:</span>
@@ -565,6 +604,42 @@ const LoadingSpinner = () => isLoading ? (
 ) : null;
 
   // --- 画面表示 ---
+
+if (mode === 'route_select') return (
+
+  <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
+
+    <h1 className="text-3xl font-black mb-8">
+      路線選択
+    </h1>
+
+    <div className="w-full max-w-md flex flex-col gap-4">
+
+      {routeList.map((route: any) => (
+
+        <button
+          key={route.folderId}
+          onClick={() => {
+
+            setSelectedRoute(route.name);
+
+            // ★重要
+            setFolderId(route.folderId);
+
+            setMode('menu');
+
+          }}
+          className="w-full py-6 bg-indigo-600 text-white rounded-2xl text-xl font-bold shadow-xl"
+        >
+          {route.name}
+        </button>
+
+      ))}
+
+    </div>
+
+  </div>
+);
 
   // 1. メインメニュー画面
   if (mode === 'menu') return (
