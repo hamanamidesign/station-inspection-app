@@ -55,7 +55,8 @@ export default function InspectorApp() {
   const [stationName, setStationName] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [spreadsheetId, setSpreadsheetId] = useState('');
-  const [folderId, setFolderId] = useState('');
+  const [routeFolderId, setRouteFolderId] = useState('');
+  const [stationFolderId, setStationFolderId] = useState('');
   const [existingData, setExistingData] = useState<ExistingStation[]>([]);
   const [isSending, setIsSending] = useState(false);
   // 長押し判定や移動状態を保持するRef
@@ -138,7 +139,7 @@ const loadRoutes = useCallback(async () => {
   try {
 
     const result = await gasApi("getExistingData", {
-  routeFolderId: folderId
+  routeFolderId: routeFolderId
 });
 
     if (result.success && Array.isArray(result.list)) {
@@ -171,11 +172,11 @@ useEffect(() => {
   // ★ここに入れる
   useEffect(() => {
 
-  if (folderId) {
-    refreshData();
-  }
+  if (routeFolderId) {
+  refreshData();
+}
 
-}, [refreshData, folderId]);
+}, [refreshData, routeFolderId]);
 
   console.log(existingData)
 
@@ -243,7 +244,7 @@ const handleCreateNewSheet = async () => {
   if (duplicate) {
     if (confirm(`「${stationName}」の${selectedYear}年度は既に存在します。既存のデータを編集しますか？`)) {
       setSpreadsheetId(duplicate.spreadsheetId);
-      setFolderId(duplicate.folderId || '');
+      setStationFolderId(duplicate.folderId || '');
       goTo('task_select'); 
       return;
     } else {
@@ -257,7 +258,7 @@ setIsLoading(true);
 try {
 
   const result = await gasApi("createNew", {
-  routeFolderId: folderId,
+  routeFolderId: routeFolderId,
   routeName: selectedRoute,
   stationNo: stationNo,
   station: stationName,
@@ -266,7 +267,7 @@ try {
 
   if (result.success) {
     setSpreadsheetId(result.spreadsheetId);
-    setFolderId(result.folderId);
+    setStationFolderId(result.folderId);
     goTo('task_select');
   }
 
@@ -471,7 +472,7 @@ const result = await gasApi("getKarteData", {
       const payload = {
   isUpdate: isEditMode,
   spreadsheetId,
-  folderId,
+  folderId: stationFolderId,
   station: (stationName || "").replace('駅', ''),
   year: selectedYear,
   karteNo: karteNo,
@@ -624,7 +625,7 @@ if (mode === 'route_select') return (
             setSelectedRoute(route.name);
 
             // ★重要
-            setFolderId(route.folderId);
+            setRouteFolderId(route.folderId);
 
             setMode('menu');
 
@@ -791,7 +792,7 @@ if (mode === 'exist_select') return (
 
               if (target?.spreadsheetId) {
                 setSpreadsheetId(target.spreadsheetId);
-                setFolderId(target.folderId || '');
+                setStationFolderId(target.folderId || '');
               }
             }}
             disabled={!stationName}
