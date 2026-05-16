@@ -661,7 +661,6 @@ const registerUnavailableKarteNumber = async () => {
     });
 
     if (result.success) {
-      alert(`写真カルテ番号 No.${no} を登録しました`);
       setRegisterKarteNo('');
       await loadKarteNumberOptions();
     }
