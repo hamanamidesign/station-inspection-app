@@ -673,6 +673,32 @@ const registerUnavailableKarteNumber = async () => {
   }
 };
 
+const deleteUnavailableKarteNumber = async (no: string) => {
+  if (!spreadsheetId) return;
+
+  const ok = confirm(`写真カルテ番号 ${no} を削除しますか？`);
+  if (!ok) return;
+
+  setIsLoading(true);
+
+  try {
+    const result = await gasApi("deleteUnavailableKarteNumber", {
+      spreadsheetId,
+      karteNo: no
+    });
+
+    if (result.success) {
+      alert(`写真カルテ番号 ${no} を削除しました`);
+      await loadKarteNumberOptions();
+    }
+  } catch (e) {
+    console.error(e);
+    alert("削除に失敗しました");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
   const Nav = () => (
     <div className="w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
@@ -1018,13 +1044,24 @@ if (mode === 'photo_number_register') return (
         </button>
       </div>
 
+
       <div className="min-h-24 max-h-64 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50">
         {unavailableKarteNumbers.length > 0 ? (
           <div className="grid grid-cols-5 gap-2">
             {unavailableKarteNumbers.map(no => (
-              <div key={no} className="py-2 bg-white border border-slate-200 rounded-lg text-center font-bold text-slate-700">
-                {no}
-              </div>
+              <div
+  key={no}
+  className="relative py-2 bg-white border border-slate-200 rounded-lg text-center font-bold text-slate-700"
+>
+  {no}
+
+  <button
+    onClick={() => deleteUnavailableKarteNumber(no)}
+    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold"
+  >
+    ×
+  </button>
+</div>
             ))}
           </div>
         ) : (
