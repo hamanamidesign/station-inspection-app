@@ -13,8 +13,11 @@ interface ExistingStation {
   stationName: string; 
   year: string; 
   spreadsheetId?: string;
-  folderId?: string; // ← これ追加！！
+  folderId?: string;
+  routeName?: string;
+  routeFolderId?: string;
 }
+
 
 // 赤い波線を消すために、使用するすべてのモード名をここで定義します
 type AppMode = 
@@ -77,7 +80,6 @@ useEffect(() => {
   // --- 修正・編集用ステート ---
   const [existingKartes, setExistingKartes] = useState<string[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedNo, setSelectedNo] = useState<string | null>(null); // 追加：選択されたNoを保持
   
   // --- 位置図エディタ用ステート ---
   const [sourceImage, setSourceImage] = useState<string | null>(null);
@@ -133,37 +135,26 @@ const loadRoutes = useCallback(async () => {
 
 // --- 初期化 ---
   const refreshData = useCallback(async () => {
-
   setIsLoading(true);
 
   try {
-
     const result = await gasApi("getExistingData", {
-  routeFolderId: routeFolderId
-});
+      routeFolderId,
+    });
 
     if (result.success && Array.isArray(result.list)) {
-
       setExistingData(result.list);
-
     } else {
-
       setExistingData([]);
-
     }
-
   } catch (e) {
-
     console.error(e);
     setExistingData([]);
-
   } finally {
-
     setIsLoading(false);
-
   }
+}, [routeFolderId]);
 
-}, []);
 
 useEffect(() => {
   loadRoutes();
@@ -237,20 +228,29 @@ useEffect(() => {
 const handleCreateNewSheet = async () => {
   if (!stationName || !selectedYear) return alert("駅名と年度を入力してください");
 
-  const duplicate: any = existingData.find(
-    (d: any) => d.stationName === stationName && String(d.year) === String(selectedYear)
-  );
+  const duplicate = existingData.find(
+  d =>
+    d.stationName === stationName &&
+    String(d.year) === String(selectedYear) &&
+    String(d.routeFolderId) === String(routeFolderId)
+);
 
   if (duplicate) {
-    if (confirm(`「${stationName}」の${selectedYear}年度は既に存在します。既存のデータを編集しますか？`)) {
-      setSpreadsheetId(duplicate.spreadsheetId);
-      setStationFolderId(duplicate.folderId || '');
-      goTo('task_select'); 
-      return;
-    } else {
-      return;
-    }
+  if (!duplicate.spreadsheetId) {
+    alert("既存データのスプレッドシートIDが見つかりません");
+    return;
   }
+
+  if (confirm(`「${stationName}」の${selectedYear}年度は既に存在します。既存のデータを編集しますか？`)) {
+    setSpreadsheetId(duplicate.spreadsheetId);
+    setStationFolderId(duplicate.folderId || '');
+    goTo('task_select'); 
+    return;
+  } else {
+    return;
+  }
+}
+
 
   // 重複がなければ新規作成実行
 setIsLoading(true);
@@ -361,11 +361,11 @@ const handlePressEnd = () => {
 };
 
   // --- 写真削除用関数を追加 ---
-  const removePhoto = (index: number) => {
-    const newPhotos = [...photos];
-    newPhotos[index] = null;
-    setPhotos(newPhotos);
-    };
+  //const removePhoto = (index: number) => {
+    //const newPhotos = [...photos];
+    //newPhotos[index] = null;
+    //setPhotos(newPhotos);
+    //};
 
 // --- 1. 一覧取得関数（独立した関数として定義） ---
   const fetchKarteList = async () => {
@@ -411,6 +411,7 @@ const result = await gasApi("getKarteData", {
   karteNo: no,
   station: stationName,
   year: selectedYear,
+  routeFolderId,
 });
     
     if (result.success) {
@@ -473,8 +474,9 @@ const result = await gasApi("getKarteData", {
   isUpdate: isEditMode,
   spreadsheetId,
   folderId: stationFolderId,
-  station: (stationName || "").replace('駅', ''),
+  station: stationName,
   year: selectedYear,
+  routeFolderId,
   karteNo: karteNo,
   structEval,
   impactEval,
@@ -510,15 +512,15 @@ const result = await gasApi(actionType, payload);
     }
   };
 
-     const handleMarkerDrag = (touchX: number, touchY: number) => {
-    if (draggingMarkerId === null || !imageRef.current) return;
-    const rect = imageRef.current.getBoundingClientRect();
-    const x = ((touchX - rect.left) / rect.width) * 100;
-    const y = ((touchY - rect.top) / rect.height) * 100;
-    setMarkers(prev => prev.map(m =>
-      m.id === draggingMarkerId ? { ...m, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : m
-    ));
-  };
+    // const handleMarkerDrag = (touchX: number, touchY: number) => {
+    //if (draggingMarkerId === null || !imageRef.current) return;
+    //const rect = imageRef.current.getBoundingClientRect();
+    //const x = ((touchX - rect.left) / rect.width) * 100;
+    //const y = ((touchY - rect.top) / rect.height) * 100;
+    //setMarkers(prev => prev.map(m =>
+    //  m.id === draggingMarkerId ? { ...m, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : m
+    //));
+  //};
 const resetAllState = () => {
   setStationNo("");
   setStationName("");

@@ -1,5 +1,3 @@
-"C:\Users\haman\station-check-app\app\types.ts"
-
 import { AppMode } from "../types";
 
 type Props = {
