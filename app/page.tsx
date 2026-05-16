@@ -990,10 +990,13 @@ const resetKarteFields = () => {
 
         {/* --- スプレッドシート再現ヘッダー (線の色を slate-800 で統一) --- */}
         <div className="w-full max-w-[99%] bg-white shadow-sm border-2 border-slate-800 mt-2 text-[15px]">
-          {/* 1-2行目：タイトルと駅名 */}
-          <div className="grid grid-cols-12 border-b-2 border-slate-800">
-            <div className="col-span-2 border-r-2 border-slate-800 p-2 bg-slate-100 flex items-center justify-center font-bold">写真カルテ</div>
-            <div className="col-span-2 border-r-2 border-slate-800 p-1 bg-white">
+          {/* 1-2行目：タイトル、駅名、点検場所、年度、点検受注者 */}
+          <div
+            className="grid border-b-2 border-slate-800"
+            style={{ gridTemplateColumns: '1.1fr 1.1fr 2.8fr 1.8fr 1fr 1.6fr' }}
+          >
+            <div className="border-r-2 border-slate-800 p-2 bg-slate-100 flex items-center justify-center font-bold">写真カルテ</div>
+            <div className="border-r-2 border-slate-800 p-1 bg-white">
               <input 
                 className="w-full h-full outline-none px-1 text-center font-black text-black placeholder-slate-400" 
                 placeholder="No.入力" 
@@ -1001,11 +1004,29 @@ const resetKarteFields = () => {
                 onChange={e => setKarteNo(e.target.value)}
               />
             </div>
-            <div className="col-span-6 border-r-2 border-slate-800 p-2 flex items-center px-4 font-black text-xl bg-white text-black">
-              {stationName || "未選択"} 駅
+            <div className="border-r-2 border-slate-800 p-2 flex items-center px-4 font-black text-lg bg-white text-black min-w-0">
+              <span className="truncate">{stationName || "未選択"} 駅</span>
             </div>
-            <div className="col-span-2 p-2 bg-slate-100 flex items-center justify-center font-bold text-black italic text-sm">
+            <div className="border-r-2 border-slate-800 p-1 flex flex-col bg-white min-w-0">
+              <span className="text-[9px] font-bold text-blue-700">点検場所の詳細</span>
+              <input
+                className="w-full outline-none text-[12px] text-black placeholder-slate-400 bg-transparent"
+                placeholder="1F 待合室付近"
+                value={locationDetail}
+                onChange={e => setLocationDetail(e.target.value)}
+              />
+            </div>
+            <div className="border-r-2 border-slate-800 p-2 bg-slate-100 flex items-center justify-center font-bold text-black italic text-sm">
               {selectedYear} 年度
+            </div>
+            <div className="p-1 flex flex-col bg-blue-50/30 min-w-0">
+              <span className="text-[9px] font-bold text-blue-700">点検受注者</span>
+              <input
+                className="w-full outline-none text-[12px] text-black placeholder-slate-400 bg-transparent"
+                placeholder="会社名"
+                value={contractor}
+                onChange={e => setContractor(e.target.value)}
+              />
             </div>
           </div>
 
@@ -1319,16 +1340,6 @@ const resetKarteFields = () => {
               <div className="border-r border-slate-300 p-1 flex flex-col">
                 <span className="text-[9px] text-blue-700">最新点検日</span>
                 <input type="date" className="outline-none text-black placeholder-slate-400" value={inspectDate} onChange={e => setInspectDate(e.target.value)} />
-              </div>
-              <div className="p-1 flex flex-col bg-blue-50/30">
-                <span className="text-[9px] text-blue-700">点検受注者</span>
-                <input type="text" className="outline-none text-black placeholder-slate-400" placeholder="会社名" value={contractor} onChange={e => setContractor(e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 text-[11px] border-b border-slate-800 font-bold">
-              <div className="border-r border-slate-300 p-1 flex flex-col">
-                <span className="text-[9px] text-blue-700">点検場所の詳細</span>
-                <input type="text" className="outline-none text-black placeholder-slate-400" placeholder="1F 待合室付近" value={locationDetail} onChange={e => setLocationDetail(e.target.value)} />
               </div>
               <div className="p-1 flex flex-col bg-blue-50/30">
                 <span className="text-[9px] text-blue-700">点検者</span>
@@ -1919,6 +1930,7 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
 
 
 
