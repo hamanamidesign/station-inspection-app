@@ -31,7 +31,8 @@ type AppMode =
   | 'inclination_edit' 
   | 'edit_list' 
   | 'editor'
-  | 'route_select';
+  | 'route_select'
+  | 'photo_number_register';
 
 // components/TaskSelect.tsx
 export default function InspectorApp() {
@@ -80,6 +81,9 @@ useEffect(() => {
 
   // --- 修正・編集用ステート ---
   const [existingKartes, setExistingKartes] = useState<string[]>([]);
+  const [availableKarteNumbers, setAvailableKarteNumbers] = useState<string[]>([]);
+  const [unavailableKarteNumbers, setUnavailableKarteNumbers] = useState<string[]>([]);
+  const [registerKarteNo, setRegisterKarteNo] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   
   // --- 位置図エディタ用ステート ---
@@ -170,6 +174,12 @@ useEffect(() => {
 }
 
 }, [refreshData, routeFolderId]);
+
+useEffect(() => {
+  if (mode === 'photo_number_register' && spreadsheetId) {
+    loadKarteNumberOptions().catch(e => console.error(e));
+  }
+}, [mode, spreadsheetId]);
 
   console.log(existingData)
 
@@ -599,6 +609,70 @@ const goBack = () => {
   });
 };
 
+const buildAvailableNumbers = (blockedNumbers: string[]) => {
+  const blocked = new Set(blockedNumbers.map(n => String(n).trim()).filter(Boolean));
+  const numbers: string[] = [];
+
+  for (let i = 1; i <= 999; i++) {
+    const no = String(i);
+    if (!blocked.has(no)) numbers.push(no);
+  }
+
+  return numbers;
+};
+
+const loadKarteNumberOptions = async () => {
+  if (!spreadsheetId) return [];
+
+  const [unavailableResult, existingResult] = await Promise.all([
+    gasApi("getUnavailableKarteNumbers", { spreadsheetId }),
+    gasApi("getKarteList", { spreadsheetId, type: "photo" })
+  ]);
+
+  const unavailable = Array.isArray(unavailableResult.list)
+    ? unavailableResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
+    : [];
+  const existing = Array.isArray(existingResult.list)
+    ? existingResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
+    : [];
+
+  const blocked = Array.from(new Set([...unavailable, ...existing]));
+  const available = buildAvailableNumbers(blocked);
+
+  setUnavailableKarteNumbers(unavailable);
+  setExistingKartes(existing);
+  setAvailableKarteNumbers(available);
+
+  return available;
+};
+
+const registerUnavailableKarteNumber = async () => {
+  const no = registerKarteNo.trim();
+
+  if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+  if (!/^\d+$/.test(no)) return alert("写真カルテ番号は数字で入力してください");
+
+  setIsLoading(true);
+
+  try {
+    const result = await gasApi("addUnavailableKarteNumber", {
+      spreadsheetId,
+      karteNo: no
+    });
+
+    if (result.success) {
+      alert(`写真カルテ番号 No.${no} を登録しました`);
+      setRegisterKarteNo('');
+      await loadKarteNumberOptions();
+    }
+  } catch (e) {
+    console.error(e);
+    alert("写真カルテ番号の登録に失敗しました");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
   const Nav = () => (
     <div className="w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
@@ -908,6 +982,58 @@ if (mode === 'exist_select') return (
   if (mode === 'task_select') {
   return <TaskSelect goTo={goTo} Nav={Nav} />;
 }
+
+if (mode === 'photo_number_register') return (
+  <div className="flex flex-col items-center justify-start min-h-screen bg-slate-50 p-6 text-black">
+    <Nav />
+    <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
+      <h2 className="text-2xl font-bold mb-6 text-indigo-700 text-center">写真カルテ番号登録</h2>
+
+      <label className="block text-sm font-bold text-slate-700 mb-2">使用できない写真カルテ番号</label>
+      <div className="flex gap-3 mb-6">
+        <input
+          type="number"
+          value={registerKarteNo}
+          onChange={(e) => setRegisterKarteNo(e.target.value)}
+          className="min-w-0 flex-1 p-4 border-2 rounded-xl outline-none focus:border-indigo-500"
+          placeholder="番号を入力"
+        />
+        <button
+          onClick={registerUnavailableKarteNumber}
+          disabled={isLoading}
+          className="px-5 bg-indigo-600 text-white rounded-xl font-bold disabled:bg-slate-300"
+        >
+          登録
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-bold text-slate-700">登録済み番号</div>
+        <button
+          onClick={() => loadKarteNumberOptions()}
+          disabled={isLoading}
+          className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold disabled:text-slate-300"
+        >
+          更新
+        </button>
+      </div>
+
+      <div className="min-h-24 max-h-64 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50">
+        {unavailableKarteNumbers.length > 0 ? (
+          <div className="grid grid-cols-5 gap-2">
+            {unavailableKarteNumbers.map(no => (
+              <div key={no} className="py-2 bg-white border border-slate-200 rounded-lg text-center font-bold text-slate-700">
+                {no}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-8 text-center text-sm font-bold text-slate-400">登録済み番号はありません</div>
+        )}
+      </div>
+    </div>
+  </div>
+);
       
 // 入力内容をすべて空にする関数
 const resetKarteFields = () => {
@@ -934,8 +1060,31 @@ const resetKarteFields = () => {
         <div className="flex flex-col gap-6 w-full max-w-sm">
           {/* ① 新規作成ボタン */}
           <button 
-            onClick={() => {resetKarteFields(); // ★ ここで入力をリセット！ 
-              setIsEditMode(false); setMode(isPhoto ? 'karte_edit' : 'inclination_edit'); }} 
+            onClick={async () => {
+              resetKarteFields();
+              setIsEditMode(false);
+
+              if (isPhoto) {
+                setIsLoading(true);
+                try {
+                  const available = await loadKarteNumberOptions();
+                  if (available.length === 0) {
+                    alert("使用できる写真カルテ番号がありません");
+                    return;
+                  }
+                  setKarteNo(available[0]);
+                  setMode('karte_edit');
+                } catch (e) {
+                  console.error(e);
+                  alert("写真カルテ番号の取得に失敗しました");
+                } finally {
+                  setIsLoading(false);
+                }
+                return;
+              }
+
+              setMode('inclination_edit');
+            }} 
             className="transition-all active:scale-95 active:brightness-90 py-8 bg-indigo-600 text-white rounded-3xl font-bold text-xl shadow-xl disabled:bg-slate-400"
             disabled={isLoading}
           >
@@ -997,12 +1146,26 @@ const resetKarteFields = () => {
           >
             <div className="border-r-2 border-slate-800 p-2 bg-slate-100 flex items-center justify-center font-bold">写真カルテ</div>
             <div className="border-r-2 border-slate-800 p-1 bg-white">
-              <input 
-                className="w-full h-full outline-none px-1 text-center font-black text-black placeholder-slate-400" 
-                placeholder="No.入力" 
-                value={karteNo} 
-                onChange={e => setKarteNo(e.target.value)}
-              />
+              {isPhoto ? (
+                <select
+                  className="w-full h-full outline-none px-1 text-center font-black text-black bg-white"
+                  value={karteNo}
+                  onChange={e => setKarteNo(e.target.value)}
+                  disabled={isEditMode}
+                >
+                  {isEditMode && <option value={karteNo}>{karteNo}</option>}
+                  {!isEditMode && availableKarteNumbers.map(no => (
+                    <option key={no} value={no}>No.{no}</option>
+                  ))}
+                </select>
+              ) : (
+                <input 
+                  className="w-full h-full outline-none px-1 text-center font-black text-black placeholder-slate-400" 
+                  placeholder="No.入力" 
+                  value={karteNo} 
+                  onChange={e => setKarteNo(e.target.value)}
+                />
+              )}
             </div>
             <div className="border-r-2 border-slate-800 p-2 flex items-center px-4 font-black text-lg bg-white text-black min-w-0">
               <span className="truncate">{stationName || "未選択"} 駅</span>
@@ -1930,6 +2093,9 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
+
+
 
 
 

@@ -9,4 +9,5 @@ export type AppMode =
   | 'inclination_menu'
   | 'inclination_edit'
   | 'edit_list'
-  | 'editor';
+  | 'editor'
+  | 'photo_number_register';
