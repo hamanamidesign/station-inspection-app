@@ -1219,11 +1219,11 @@ const resetKarteFields = () => {
     今回の点検写真
   </div>
 
-  {/* 1〜4（上段2枚・下段2枚） */}
+  {/* 上段：写真1・2 */}
   <div className="border border-black rounded p-2 mb-3">
     <div className="grid grid-cols-2 gap-3">
 
-      {photos.slice(0,4).map((p, i) => {
+      {photos.slice(0,2).map((p, i) => {
         const index = i;
 
         return (
@@ -1246,7 +1246,70 @@ const resetKarteFields = () => {
                 />
               ) : (
                 <div className="flex items-center justify-center h-full text-[10px] text-blue-300 font-bold">
-                  No.{index + 1}
+                  写真{index + 1}
+                </div>
+              )}
+
+            </div>
+
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={(el) => { fileInputs.current[index] = el }}
+              onChange={(e) => handleCapture(e, index)}
+            />
+
+ {!!p && (
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const n = [...photos];
+      n[index] = null;
+      setPhotos(n);
+    }}
+    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+  >
+    ✕
+  </button>
+)}
+
+          </div>
+        );
+      })}
+
+    </div>
+  </div>
+
+  {/* 下段：写真3・4 */}
+  <div className="border border-black rounded p-2">
+    <div className="grid grid-cols-2 gap-3">
+
+      {photos.slice(2,4).map((p, i) => {
+        const index = i + 2;
+
+        return (
+          <div key={index} className="relative aspect-[4/3]">
+
+            <div
+              className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden cursor-pointer"
+              onClick={() => fileInputs.current[index]?.click()}
+            >
+
+              {p ? (
+                <img
+                  src={p}
+                  className="w-full h-full object-cover"
+                  onMouseDown={() => handlePressStart(p)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                  onTouchStart={() => handlePressStart(p)}
+                  onTouchEnd={handlePressEnd}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-[10px] text-blue-300 font-bold">
+                  写真{index + 1}
                 </div>
               )}
 
@@ -1689,6 +1752,7 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
 
 
 
