@@ -660,9 +660,9 @@ if (mode === 'route_select') return (
   // 1. メインメニュー画面
   if (mode === 'menu') return (
     <div className="flex flex-col items-center justify-start h-screen gap-6 bg-slate-50 text-black p-6">
-      <div className="w-full max-w-md bg-white border border-indigo-100 rounded-2xl shadow-sm p-5">
+      <div className="w-full max-w-md bg-white border border-indigo-100 rounded-2xl shadow-sm p-5 text-center">
         <div className="text-xs font-bold text-indigo-500 mb-1">選択中の路線</div>
-        <div className="text-2xl font-black text-slate-900">
+        <div className="text-2xl font-black text-slate-900 text-center">
           {selectedRoute || '未選択'}
         </div>
       </div>
@@ -1750,6 +1750,7 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
 
 
 
