@@ -51,7 +51,7 @@ export default function InspectorApp() {
   // --- 共通ステート ---
   const [routeList, setRouteList] = useState<any[]>([]);
   const [selectedRoute, setSelectedRoute] = useState('');
-  const [mode, setMode] = useState<AppMode>('route_select');
+  const [mode, setMode] = useState<AppMode>('menu');
   const [history, setHistory] = useState<AppMode[]>([]);
   const [isLoading, setIsLoading] = useState(false); // ★ これを関数の上に持ってくる
   const [stationNo, setStationNo] = useState("");
@@ -250,7 +250,6 @@ const handleCreateNewSheet = async () => {
     return;
   }
 }
-
 
   // 重複がなければ新規作成実行
 setIsLoading(true);
@@ -612,6 +611,15 @@ if (mode === 'route_select') return (
 
   <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
 
+    <div className="w-full max-w-md mb-6">
+      <button
+        onClick={goBack}
+        className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm"
+      >
+        ← 戻る
+      </button>
+    </div>
+
     <h1 className="text-3xl font-black mb-8">
       路線選択
     </h1>
@@ -625,9 +633,14 @@ if (mode === 'route_select') return (
           onClick={() => {
 
             setSelectedRoute(route.name);
-
-            // ★重要
             setRouteFolderId(route.folderId);
+            setStationNo('');
+            setStationName('');
+            setSelectedYear('');
+            setSpreadsheetId('');
+            setStationFolderId('');
+            setExistingData([]);
+            setExistingKartes([]);
 
             setMode('menu');
 
@@ -646,10 +659,37 @@ if (mode === 'route_select') return (
 
   // 1. メインメニュー画面
   if (mode === 'menu') return (
-    <div className="flex flex-col items-center justify-start h-screen gap-8 bg-slate-50 text-black p-6">
-      <h1 className="text-3xl font-black mb-4 text-center">施設点検システム</h1>
-      <button onClick={() => goTo('new_entry')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-indigo-600 text-white rounded-3xl shadow-xl text-xl font-bold">➕ 新規駅を開始</button>
-      <button onClick={() => goTo('exist_select')} className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold">📂 既存駅を編集</button>
+    <div className="flex flex-col items-center justify-start h-screen gap-6 bg-slate-50 text-black p-6">
+      <div className="w-full max-w-md bg-white border border-indigo-100 rounded-2xl shadow-sm p-5">
+        <div className="text-xs font-bold text-indigo-500 mb-1">選択中の路線</div>
+        <div className="text-2xl font-black text-slate-900">
+          {selectedRoute || '未選択'}
+        </div>
+      </div>
+
+      <button
+        onClick={() => goTo('route_select')}
+        className="transition-all active:scale-95 active:brightness-90 w-full max-w-md py-5 bg-white border-2 border-indigo-500 text-indigo-700 rounded-2xl shadow-md text-lg font-bold"
+      >
+        路線を選択
+      </button>
+
+      <h1 className="text-3xl font-black mt-4 mb-2 text-center">施設点検システム</h1>
+
+      <button
+        onClick={() => goTo('new_entry')}
+        disabled={!routeFolderId}
+        className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-indigo-600 text-white rounded-3xl shadow-xl text-xl font-bold disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+      >
+        ➕ 新規駅を開始
+      </button>
+      <button
+        onClick={() => goTo('exist_select')}
+        disabled={!routeFolderId}
+        className="transition-all active:scale-95 active:brightness-90 w-full max-w-xs py-10 bg-emerald-600 text-white rounded-3xl shadow-xl text-xl font-bold disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+      >
+        📂 既存駅を編集
+      </button>
     </div>
   );
 
@@ -1710,5 +1750,6 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
 
 
