@@ -36,6 +36,7 @@ type AppMode =
 // components/TaskSelect.tsx
 export default function InspectorApp() {
   const fileInputs = useRef<(HTMLInputElement | null)[]>([]);
+  const firstFileInputs = useRef<(HTMLInputElement | null)[]>([]);
 
   // 追加の入力項目用ステート
   const [structEval, setStructEval] = useState('');    // ① 構造度評価 (F3)
@@ -109,6 +110,7 @@ useEffect(() => {
   const [remarks2, setRemarks2] = useState('');
   const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
+  const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
@@ -177,6 +179,7 @@ useEffect(() => {
   setFinalImage(null);
   setMarkers([]); 
   setPhotos(Array(4).fill(null));
+  setFirstPhotos(Array(4).fill(null));
 
   setKarteNo('1');
   setInspectDate('');
@@ -296,6 +299,24 @@ try {
     const newPhotos = [...photos];
     newPhotos[index] = compressed;
     setPhotos(newPhotos);
+  };
+
+  reader.readAsDataURL(file);
+};
+
+  const handleFirstCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = async (ev) => {
+
+    const compressed = await resizeImage(ev.target?.result as string);
+
+    const newPhotos = [...firstPhotos];
+    newPhotos[index] = compressed;
+    setFirstPhotos(newPhotos);
   };
 
   reader.readAsDataURL(file);
@@ -436,6 +457,7 @@ const result = await gasApi("getKarteData", {
 
         // ★これを追加
       setPhotos((d.photos || Array(4).fill(null)).slice(0, 4));
+      setFirstPhotos((d.firstPhotos || Array(4).fill(null)).slice(0, 4));
 
       setIsEditMode(true);
       setMode('karte_edit');
@@ -469,6 +491,21 @@ const result = await gasApi("getKarteData", {
 
       const validPhotos = photoDataList.filter(Boolean);
 
+      const firstPhotoDataList = await Promise.all(
+        firstPhotos.map(async (p, index) => {
+          if (p && p.startsWith("data:image")) {
+            const resized = await resizeImage(p);
+            return {
+              fileName: `初回点検_${index + 1}.jpg`,
+              base64: resized.includes(',') ? resized.split(',')[1] : resized
+            };
+          }
+          return null;
+        })
+      );
+
+      const validFirstPhotos = firstPhotoDataList.filter(Boolean);
+
       const payload = {
   isUpdate: isEditMode,
   spreadsheetId,
@@ -494,6 +531,7 @@ const result = await gasApi("getKarteData", {
   remarks2,
   remarks3,
   photoFiles: validPhotos,
+  firstPhotoFiles: validFirstPhotos,
 };
 
 const result = await gasApi(actionType, payload);
@@ -528,6 +566,7 @@ const resetAllState = () => {
 
   setMarkers([]);
   setPhotos(Array(4).fill(null));
+  setFirstPhotos(Array(4).fill(null));
   setSourceImage(null);
   setFinalImage(null);
   setExistingKartes([]);
@@ -883,6 +922,7 @@ const resetKarteFields = () => {
   setFirstDetail('');
   // ★追加
   setPhotos(Array(4).fill(null));
+  setFirstPhotos(Array(4).fill(null));
   };
 
  if (mode === 'karte_menu' || mode === 'inclination_menu') {
@@ -1138,6 +1178,133 @@ const resetKarteFields = () => {
     </div>
 
   </div>
+</div>
+
+{/* 初回点検写真 */}
+<div className="flex-1 p-2 overflow-y-auto bg-slate-100/40">
+
+  <div className="text-center text-[10px] font-black text-slate-700 mb-2">
+    初回点検写真
+  </div>
+
+  {/* 上段：写真1・2 */}
+  <div className="border border-black rounded p-2 mb-3 bg-white">
+    <div className="grid grid-cols-2 gap-3">
+
+      {firstPhotos.slice(0,2).map((p, i) => {
+        const index = i;
+
+        return (
+          <div key={index} className="relative aspect-[4/3]">
+            <div
+              className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden cursor-pointer"
+              onClick={() => firstFileInputs.current[index]?.click()}
+            >
+              {p ? (
+                <img
+                  src={p}
+                  className="w-full h-full object-cover"
+                  onMouseDown={() => handlePressStart(p)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                  onTouchStart={() => handlePressStart(p)}
+                  onTouchEnd={handlePressEnd}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-[10px] text-slate-400 font-bold">
+                  初回写真{index + 1}
+                </div>
+              )}
+            </div>
+
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={(el) => { firstFileInputs.current[index] = el }}
+              onChange={(e) => handleFirstCapture(e, index)}
+            />
+
+            {!!p && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const n = [...firstPhotos];
+                  n[index] = null;
+                  setFirstPhotos(n);
+                }}
+                className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        );
+      })}
+
+    </div>
+  </div>
+
+  {/* 下段：写真3・4 */}
+  <div className="border border-black rounded p-2 bg-white">
+    <div className="grid grid-cols-2 gap-3">
+
+      {firstPhotos.slice(2,4).map((p, i) => {
+        const index = i + 2;
+
+        return (
+          <div key={index} className="relative aspect-[4/3]">
+            <div
+              className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden cursor-pointer"
+              onClick={() => firstFileInputs.current[index]?.click()}
+            >
+              {p ? (
+                <img
+                  src={p}
+                  className="w-full h-full object-cover"
+                  onMouseDown={() => handlePressStart(p)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                  onTouchStart={() => handlePressStart(p)}
+                  onTouchEnd={handlePressEnd}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-[10px] text-slate-400 font-bold">
+                  初回写真{index + 1}
+                </div>
+              )}
+            </div>
+
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={(el) => { firstFileInputs.current[index] = el }}
+              onChange={(e) => handleFirstCapture(e, index)}
+            />
+
+            {!!p && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const n = [...firstPhotos];
+                  n[index] = null;
+                  setFirstPhotos(n);
+                }}
+                className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        );
+      })}
+
+    </div>
+  </div>
+
 </div>
         </div>
 
@@ -1752,6 +1919,7 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
 
 
 
