@@ -622,28 +622,48 @@ const buildAvailableNumbers = (blockedNumbers: string[]) => {
 };
 
 const loadKarteNumberOptions = async () => {
+
   if (!spreadsheetId) return [];
 
-  const [unavailableResult, existingResult] = await Promise.all([
-    gasApi("getUnavailableKarteNumbers", { spreadsheetId }),
-    gasApi("getKarteList", { spreadsheetId, type: "photo" })
-  ]);
+  setIsLoading(true);
 
-  const unavailable = Array.isArray(unavailableResult.list)
-    ? unavailableResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
-    : [];
-  const existing = Array.isArray(existingResult.list)
-    ? existingResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
-    : [];
+  try {
 
-  const blocked = Array.from(new Set([...unavailable, ...existing]));
-  const available = buildAvailableNumbers(blocked);
+    const [unavailableResult, existingResult] = await Promise.all([
+      gasApi("getUnavailableKarteNumbers", { spreadsheetId }),
+      gasApi("getKarteList", { spreadsheetId, type: "photo" })
+    ]);
 
-  setUnavailableKarteNumbers(unavailable);
-  setExistingKartes(existing);
-  setAvailableKarteNumbers(available);
+    const unavailable = Array.isArray(unavailableResult.list)
+      ? unavailableResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
+      : [];
 
-  return available;
+    const existing = Array.isArray(existingResult.list)
+      ? existingResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
+      : [];
+
+    const blocked = Array.from(new Set([...unavailable, ...existing]));
+
+    const available = buildAvailableNumbers(blocked);
+
+    setUnavailableKarteNumbers([...unavailable]);
+
+    setExistingKartes([...existing]);
+
+    setAvailableKarteNumbers([...available]);
+
+    return available;
+
+  } catch (e) {
+
+    console.error(e);
+    return [];
+
+  } finally {
+
+    setIsLoading(false);
+
+  }
 };
 
 const registerUnavailableKarteNumber = async () => {
@@ -1033,7 +1053,7 @@ if (mode === 'photo_number_register') return (
         <button
   onClick={() => loadKarteNumberOptions()}
   disabled={isLoading}
-  className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold disabled:text-slate-300 flex items-center gap-2"
+  className="px-5 py-2 bg-indigo-100 text-indigo-700 rounded-xl text-sm font-bold disabled:text-slate-300 flex items-center gap-2 shadow-sm active:scale-95 transition-all"
 >
   {isLoading ? (
     <>
