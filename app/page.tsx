@@ -676,9 +676,6 @@ const registerUnavailableKarteNumber = async () => {
 const deleteUnavailableKarteNumber = async (no: string) => {
   if (!spreadsheetId) return;
 
-  const ok = confirm(`写真カルテ番号 ${no} を削除しますか？`);
-  if (!ok) return;
-
   setIsLoading(true);
 
   try {
@@ -688,7 +685,6 @@ const deleteUnavailableKarteNumber = async (no: string) => {
     });
 
     if (result.success) {
-      alert(`写真カルテ番号 ${no} を削除しました`);
       await loadKarteNumberOptions();
     }
   } catch (e) {
@@ -1036,12 +1032,39 @@ if (mode === 'photo_number_register') return (
       <div className="flex items-center justify-between mb-3">
         <div className="text-sm font-bold text-slate-700">登録済み番号</div>
         <button
-          onClick={() => loadKarteNumberOptions()}
-          disabled={isLoading}
-          className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold disabled:text-slate-300"
-        >
-          更新
-        </button>
+  onClick={() => loadKarteNumberOptions()}
+  disabled={isLoading}
+  className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold disabled:text-slate-300 flex items-center gap-2"
+>
+  {isLoading ? (
+    <>
+      <svg
+        className="animate-spin h-4 w-4"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+          fill="none"
+        ></circle>
+
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+        ></path>
+      </svg>
+
+      更新中...
+    </>
+  ) : (
+    "更新"
+  )}
+</button>
       </div>
 
 
