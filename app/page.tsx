@@ -1030,7 +1030,7 @@ const resetKarteFields = () => {
       readOnly
       value={totalEval}
       className={`w-full outline-none text-center font-black bg-white ${
-        totalEval === 'AA' || totalEval === 'A1'
+        totalEval === 'AA' || totalEval === 'A1' || totalEval === 'B'
           ? 'text-red-600'
           : 'text-black'
       }`}
@@ -1750,6 +1750,7 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
 
 
 
