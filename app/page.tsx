@@ -108,7 +108,7 @@ useEffect(() => {
   const [remarks1, setRemarks1] = useState('');
   const [remarks2, setRemarks2] = useState('');
   const [remarks3, setRemarks3] = useState('');
-  const [photos, setPhotos] = useState<(string | null)[]>(Array(8).fill(null));
+  const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
@@ -176,7 +176,7 @@ useEffect(() => {
   setSourceImage(null);
   setFinalImage(null);
   setMarkers([]); 
-  setPhotos(Array(8).fill(null));
+  setPhotos(Array(4).fill(null));
 
   setKarteNo('1');
   setInspectDate('');
@@ -435,7 +435,7 @@ const result = await gasApi("getKarteData", {
       setRemarks3(d.remarks3 || '');
 
         // ★これを追加
-      setPhotos(d.photos || Array(8).fill(null));
+      setPhotos((d.photos || Array(4).fill(null)).slice(0, 4));
 
       setIsEditMode(true);
       setMode('karte_edit');
@@ -527,7 +527,7 @@ const resetAllState = () => {
   setSpreadsheetId("");
 
   setMarkers([]);
-  setPhotos(Array(8).fill(null));
+  setPhotos(Array(4).fill(null));
   setSourceImage(null);
   setFinalImage(null);
   setExistingKartes([]);
@@ -882,7 +882,7 @@ const resetKarteFields = () => {
   setFirstSituation('');
   setFirstDetail('');
   // ★追加
-  setPhotos(Array(8).fill(null));
+  setPhotos(Array(4).fill(null));
   };
 
  if (mode === 'karte_menu' || mode === 'inclination_menu') {
@@ -1219,7 +1219,7 @@ const resetKarteFields = () => {
     今回の点検写真
   </div>
 
-  {/* 1〜4 */}
+  {/* 1〜4（上段2枚・下段2枚） */}
   <div className="border border-black rounded p-2 mb-3">
     <div className="grid grid-cols-2 gap-3">
 
@@ -1275,67 +1275,6 @@ const resetKarteFields = () => {
   </button>
 )}
 
-          </div>
-        );
-      })}
-
-    </div>
-  </div>
-
-  {/* 5〜8 */}
-  <div className="border border-black rounded p-2">
-    <div className="grid grid-cols-2 gap-3">
-
-      {photos.slice(4,8).map((p, i) => {
-        const index = i + 4;
-
-        return (
-          <div key={index} className="relative aspect-[4/3]">
-
-            <div
-              className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden cursor-pointer"
-              onClick={() => fileInputs.current[index]?.click()}
-            >
-
-              {p ? (
-                <img
-                  src={p}
-                  className="w-full h-full object-cover"
-                  onMouseDown={() => handlePressStart(p)}
-                  onMouseUp={handlePressEnd}
-                  onMouseLeave={handlePressEnd}
-                  onTouchStart={() => handlePressStart(p)}
-                  onTouchEnd={handlePressEnd}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-[10px] text-blue-300 font-bold">
-                  No.{index + 1}
-                </div>
-              )}
-
-            </div>
-
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={(el) => { fileInputs.current[index] = el }}
-              onChange={(e) => handleCapture(e, index)}
-            />
-{!!p && (
-  <button
-    onClick={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const n = [...photos];
-      n[index] = null;
-      setPhotos(n);
-    }}
-    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
-  >
-    ✕
-  </button>
-)}
           </div>
         );
       })}
@@ -1750,6 +1689,7 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+
 
 
 
