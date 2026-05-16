@@ -1155,7 +1155,7 @@ const resetKarteFields = () => {
                 >
                   {isEditMode && <option value={karteNo}>{karteNo}</option>}
                   {!isEditMode && availableKarteNumbers.map(no => (
-                    <option key={no} value={no}>No.{no}</option>
+                    <option key={no} value={no}>{no}</option>
                   ))}
                 </select>
               ) : (
