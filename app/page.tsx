@@ -1090,9 +1090,9 @@ if (mode === 'photo_number_register') return (
       <div className="min-h-24 max-h-64 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50">
         {unavailableKarteNumbers.length > 0 ? (
           <div className="grid grid-cols-5 gap-2">
-            {unavailableKarteNumbers.map(no => (
-              <div
-  key={no}
+            {unavailableKarteNumbers.map((no, index) => (
+  <div
+    key={`${no}-${index}`}
   className="relative py-2 bg-white border border-slate-200 rounded-lg text-center font-bold text-slate-700"
 >
   {no}
