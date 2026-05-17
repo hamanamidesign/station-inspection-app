@@ -1024,11 +1024,9 @@ if (mode === 'exist_select') return (
   return <TaskSelect goTo={goTo} Nav={Nav} />;
 }
 
-console.log("番号", unavailableKarteNumbers);
-
 if (mode === 'photo_number_register') return (
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-50 p-6 text-black">
-    {/* <Nav /> */}
+    <Nav />
     <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
       <h2 className="text-2xl font-bold mb-6 text-indigo-700 text-center">写真カルテ番号登録</h2>
 
@@ -1092,9 +1090,9 @@ if (mode === 'photo_number_register') return (
       <div className="min-h-24 max-h-64 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50">
         {unavailableKarteNumbers.length > 0 ? (
           <div className="grid grid-cols-5 gap-2">
-            {unavailableKarteNumbers.map((no, index) => (
-  <div
-    key={`${no}-${index}`}
+            {unavailableKarteNumbers.map(no => (
+              <div
+  key={no}
   className="relative py-2 bg-white border border-slate-200 rounded-lg text-center font-bold text-slate-700"
 >
   {no}
