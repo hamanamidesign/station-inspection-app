@@ -1024,6 +1024,8 @@ if (mode === 'exist_select') return (
   return <TaskSelect goTo={goTo} Nav={Nav} />;
 }
 
+console.log("番号", unavailableKarteNumbers);
+
 if (mode === 'photo_number_register') return (
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-50 p-6 text-black">
     <Nav />
