@@ -5,10 +5,10 @@ import { MetadataRoute } from 'next'
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: '駅構内点検アプリ',
-    short_name: '駅点検',
+    short_name: '駅構内点検',
     start_url: '/',
     display: 'standalone',
-    background_color: '#502100',
+    background_color: '#f97316',
     theme_color: '#f97316',
     icons: [
       {
