@@ -1028,7 +1028,7 @@ console.log("番号", unavailableKarteNumbers);
 
 if (mode === 'photo_number_register') return (
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-50 p-6 text-black">
-    <Nav />
+    {/* <Nav /> */}
     <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
       <h2 className="text-2xl font-bold mb-6 text-indigo-700 text-center">写真カルテ番号登録</h2>
 
