@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: '駅構内点検アプリ',
     short_name: '駅構内点検',
     start_url: '/',
-    display: "browser",
+    display: "minimal-ui",
     background_color: '#f97316',
     theme_color: '#f97316',
     icons: [
