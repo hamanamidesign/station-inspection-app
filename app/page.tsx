@@ -487,32 +487,48 @@ const result = await gasApi("getKarteData", {
     try {
       // 画像のリサイズ処理
       const photoDataList = await Promise.all(
-        photos.map(async (p, index) => {
-          if (p && p.startsWith("data:image")) {
-            const resized = await resizeImage(p);
-            return {
-              fileName: `${index + 1}.jpg`,
-              base64: resized.includes(',') ? resized.split(',')[1] : resized
-            };
-          }
-          return null;
-        })
-      );
+  photos.map(async (p, index) => {
+    if (p && p.startsWith("data:image")) {
+
+      const resized = await resizeImage(p);
+
+      return {
+        no: index + 1,
+        fileName: `${index + 1}.jpg`,
+        base64: resized.includes(',')
+          ? resized.split(',')[1]
+          : resized
+      };
+
+    }
+
+    return null;
+  })
+);
 
       const validPhotos = photoDataList.filter(Boolean);
 
-      const firstPhotoDataList = await Promise.all(
-        firstPhotos.map(async (p, index) => {
-          if (p && p.startsWith("data:image")) {
-            const resized = await resizeImage(p);
-            return {
-              fileName: `初回点検_${index + 1}.jpg`,
-              base64: resized.includes(',') ? resized.split(',')[1] : resized
-            };
-          }
-          return null;
-        })
-      );
+const firstPhotoDataList = await Promise.all(
+  firstPhotos.map(async (p, index) => {
+
+    if (p && p.startsWith("data:image")) {
+
+      const resized = await resizeImage(p);
+
+      return {
+        no: index + 1,
+        fileName: `初回点検_${index + 1}.jpg`,
+        base64: resized.includes(',')
+          ? resized.split(',')[1]
+          : resized
+      };
+
+    }
+
+    return null;
+
+  })
+);
 
       const validFirstPhotos = firstPhotoDataList.filter(Boolean);
 
