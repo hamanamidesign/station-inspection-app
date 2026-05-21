@@ -1607,7 +1607,7 @@ const resetKarteFields = () => {
     value={inspector}
     onChange={e => setInspector(e.target.value)}
   >
-    <option value="株式会社きんそく / 栗脇">
+    <option value="選択">
       選択
     </option>
 
