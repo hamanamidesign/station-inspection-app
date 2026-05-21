@@ -107,7 +107,7 @@ useEffect(() => {
   // --- カルテ・傾斜共通入力用ステート ---
   const [karteNo, setKarteNo] = useState('1');
   const [inspectDate, setInspectDate] = useState('');
-  const [contractor, setContractor] = useState('');
+  const [contractor, setContractor] = useState('南海辰村建設株式会社 / 奥');
   const [inspector, setInspector] = useState('');
   const [locationDetail, setLocationDetail] = useState('');
   const [remarks1, setRemarks1] = useState('');
@@ -1600,9 +1600,26 @@ const resetKarteFields = () => {
                 <input type="date" className="outline-none text-black placeholder-slate-400" value={inspectDate} onChange={e => setInspectDate(e.target.value)} />
               </div>
               <div className="p-1 flex flex-col bg-blue-50/30">
-                <span className="text-[9px] text-blue-700">点検者</span>
-                <input type="text" className="outline-none text-black placeholder-slate-400" placeholder="氏名" value={inspector} onChange={e => setInspector(e.target.value)} />
-              </div>
+  <span className="text-[9px] text-blue-700">点検者</span>
+
+  <select
+    className="outline-none text-black bg-transparent text-[12px]"
+    value={inspector}
+    onChange={e => setInspector(e.target.value)}
+  >
+    <option value="株式会社きんそく / 栗脇">
+      選択
+    </option>
+
+    <option value="株式会社きんそく / 栗脇">
+      株式会社きんそく / 栗脇
+    </option>
+
+    <option value="株式会社きんそく / 桒内">
+      株式会社きんそく / 桒内
+    </option>
+  </select>
+</div>
             </div>
 
 {/* 今回の状況（備考） */}
