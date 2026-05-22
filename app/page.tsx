@@ -468,7 +468,11 @@ const result = await gasApi("getKarteData", {
       setFirstSituation(String(d.firstSituation || ''));
       setFirstDetail(String(d.firstDetail || ''));
       setInspectDate(String(d.inspectDate || ''));
-      setContractor(String(d.contractor || ''));
+      setContractor(
+      String(d.contractor || '').trim()
+       ? String(d.contractor)
+       : '南海辰村建設株式会社 / 奥'
+        );
       setLocationDetail(String(d.locationDetail || ''));
       setInspector(String(d.inspector || ''));
       setRemarks1(d.remarks1 || '');
