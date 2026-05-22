@@ -1612,14 +1612,11 @@ const resetKarteFields = () => {
 <div className="p-1 flex flex-col bg-blue-50/30">
   <span className="text-[9px] text-blue-700">点検者</span>
 
-  {/* プルダウン */}
   <select
-    className="outline-none text-black bg-white text-[11px] border mb-1"
-    onChange={(e) => setInspector(e.target.value)}
-    value=""
+    className="outline-none text-black bg-transparent text-[12px]"
+    value={inspector}
+    onChange={e => setInspector(e.target.value)}
   >
-    <option value="">▼ 選択してください</option>
-
     <option value="株式会社きんそく / 栗脇">
       株式会社きんそく / 栗脇
     </option>
@@ -1628,15 +1625,6 @@ const resetKarteFields = () => {
       株式会社きんそく / 桒内
     </option>
   </select>
-
-  {/* 自由入力 */}
-  <input
-    type="text"
-    className="outline-none text-black placeholder-slate-400"
-    placeholder="氏名を入力"
-    value={inspector}
-    onChange={(e) => setInspector(e.target.value)}
-  />
 </div>
             </div>
 
