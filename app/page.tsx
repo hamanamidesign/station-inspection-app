@@ -237,63 +237,73 @@ useEffect(() => {
 
 }, [structEval, impactEval]);
 
-// --- ① 関数の定義エリア（コンポーネント内の return より上に書く） ---
 const handleCreateNewSheet = async () => {
   if (!stationName || !selectedYear) return alert("駅名と年度を入力してください");
 
   const duplicate = existingData.find(
-  d =>
-    d.stationName === stationName &&
-    String(d.year) === String(selectedYear) &&
-    String(d.routeFolderId) === String(routeFolderId)
-);
+    d =>
+      d.stationName === stationName &&
+      String(d.year) === String(selectedYear) &&
+      String(d.routeFolderId) === String(routeFolderId)
+  );
 
   if (duplicate) {
-  if (!duplicate.spreadsheetId) {
-    alert("既存データのスプレッドシートIDが見つかりません");
-    return;
-  }
+    if (!duplicate.spreadsheetId) {
+      alert("既存データのスプレッドシートIDが見つかりません");
+      return;
+    }
 
-  if (confirm(`「${stationName}」の${selectedYear}年度は既に存在します。既存のデータを編集しますか？`)) {
-    setSpreadsheetId(duplicate.spreadsheetId);
-    setStationFolderId(duplicate.folderId || '');
-    goTo('task_select'); 
-    return;
-  } else {
-    return;
+    if (confirm(`「${stationName}」の${selectedYear}年度は既に存在します。既存のデータを編集しますか？`)) {
+      setSpreadsheetId(duplicate.spreadsheetId);
+      setStationFolderId(duplicate.folderId || '');
+
+      // ← ここで初期値セット
+      setContractor('南海辰村建設株式会社 / 奥');
+      setInspector('株式会社きんそく / 栗脇');
+
+      goTo('task_select');
+      return;
+
+    } else {
+      return;
+    }
   }
-}
 
   // 重複がなければ新規作成実行
-setIsLoading(true);
+  setIsLoading(true);
 
-try {
+  try {
 
-  const result = await gasApi("createNew", {
-  routeFolderId: routeFolderId,
-  routeName: selectedRoute,
-  stationNo: stationNo,
-  station: stationName,
-  year: selectedYear
-});
+    const result = await gasApi("createNew", {
+      routeFolderId: routeFolderId,
+      routeName: selectedRoute,
+      stationNo: stationNo,
+      station: stationName,
+      year: selectedYear
+    });
 
-  if (result.success) {
-    setSpreadsheetId(result.spreadsheetId);
-    setStationFolderId(result.folderId);
-    goTo('task_select');
+    if (result.success) {
+
+      setSpreadsheetId(result.spreadsheetId);
+      setStationFolderId(result.folderId);
+
+      // ← ここでも初期値セット
+      setContractor('南海辰村建設株式会社 / 奥');
+      setInspector('株式会社きんそく / 栗脇');
+
+      goTo('task_select');
+    }
+
+  } catch (e) {
+
+    alert("作成に失敗しました");
+
+  } finally {
+
+    setIsLoading(false);
+
   }
-
-} catch (e) {
-
-  alert("作成に失敗しました");
-
-} finally {
-
-  setIsLoading(false);
-
-}
 };
-
 
   // 写真撮影ハンドラ
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
