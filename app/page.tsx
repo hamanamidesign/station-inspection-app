@@ -109,7 +109,11 @@ useEffect(() => {
   const [inspectDate, setInspectDate] = useState('');
   const [contractor, setContractor] = useState('南海辰村建設株式会社 / 奥');
   const [inspector, setInspector] = useState('');
+  const [buildingCategory, setBuildingCategory] = useState('');
+  const [inspectionPlace, setInspectionPlace] = useState('');
   const [locationDetail, setLocationDetail] = useState('');
+  const [buildingCategoryOptions, setBuildingCategoryOptions] = useState<string[]>([]);
+  const [inspectionPlaceOptions, setInspectionPlaceOptions] = useState<string[]>([]);
   const [remarks1, setRemarks1] = useState('');
   const [remarks2, setRemarks2] = useState('');
   const [remarks3, setRemarks3] = useState('');
@@ -166,6 +170,27 @@ useEffect(() => {
   loadRoutes();
 }, [loadRoutes]);
 
+useEffect(() => {
+  const loadPulldownLists = async () => {
+    try {
+      const result = await gasApi("getPulldownLists");
+
+      if (result.success) {
+        setBuildingCategoryOptions(
+          Array.isArray(result.buildingCategories) ? result.buildingCategories : []
+        );
+        setInspectionPlaceOptions(
+          Array.isArray(result.inspectionPlaces) ? result.inspectionPlaces : []
+        );
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  loadPulldownLists();
+}, []);
+
   // ★ここに入れる
   useEffect(() => {
 
@@ -193,6 +218,9 @@ useEffect(() => {
 
   setKarteNo('1');
   setInspectDate('');
+  setBuildingCategory('');
+  setInspectionPlace('');
+  setLocationDetail('');
 
   // ★ここを修正
   setRemarks1('');
@@ -473,6 +501,8 @@ const result = await gasApi("getKarteData", {
        ? String(d.contractor)
        : '南海辰村建設株式会社 / 奥'
         );
+      setBuildingCategory(String(d.buildingCategory || ''));
+      setInspectionPlace(String(d.inspectionPlace || ''));
       setLocationDetail(String(d.locationDetail || ''));
       setInspector(String(d.inspector || ''));
       setRemarks1(d.remarks1 || '');
@@ -566,6 +596,8 @@ const firstPhotoDataList = await Promise.all(
   inspectDate,
   contractor,
   inspector,
+  buildingCategory,
+  inspectionPlace,
   locationDetail,
   remarks1,
   remarks2,
@@ -1146,6 +1178,8 @@ if (mode === 'photo_number_register') return (
       
 // 入力内容をすべて空にする関数
 const resetKarteFields = () => {
+  setBuildingCategory('');
+  setInspectionPlace('');
   setLocationDetail('');
 
   setRemarks1('');
@@ -1251,7 +1285,7 @@ const resetKarteFields = () => {
           {/* 1-2行目：タイトル、駅名、点検場所、年度、点検受注者 */}
           <div
             className="grid border-b-2 border-slate-800"
-            style={{ gridTemplateColumns: '1.1fr 1.1fr 2.8fr 1.8fr 1fr 1.6fr' }}
+            style={{ gridTemplateColumns: '0.8fr 0.7fr 1.6fr 3.4fr 0.85fr 1.45fr' }}
           >
             <div className="border-r-2 border-slate-800 p-2 bg-slate-100 flex items-center justify-center font-bold">写真カルテ</div>
             <div className="border-r-2 border-slate-800 p-1 bg-white">
@@ -1281,12 +1315,34 @@ const resetKarteFields = () => {
             </div>
             <div className="border-r-2 border-slate-800 p-1 flex flex-col bg-white min-w-0">
               <span className="text-[9px] font-bold text-blue-700">点検場所の詳細</span>
-              <input
-                className="w-full outline-none text-[12px] text-black placeholder-slate-400 bg-transparent"
-                placeholder="1F 待合室付近"
-                value={locationDetail}
-                onChange={e => setLocationDetail(e.target.value)}
-              />
+              <div className="grid grid-cols-[1fr_1fr_1.25fr] gap-1">
+                <select
+                  className="w-full min-w-0 outline-none text-[12px] text-black bg-transparent"
+                  value={buildingCategory}
+                  onChange={e => setBuildingCategory(e.target.value)}
+                >
+                  <option value="">① 建物分類</option>
+                  {buildingCategoryOptions.map(option => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+                <select
+                  className="w-full min-w-0 outline-none text-[12px] text-black bg-transparent"
+                  value={inspectionPlace}
+                  onChange={e => setInspectionPlace(e.target.value)}
+                >
+                  <option value="">② 点検場所</option>
+                  {inspectionPlaceOptions.map(option => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+                <input
+                  className="w-full min-w-0 outline-none text-[12px] text-black placeholder-slate-400 bg-transparent"
+                  placeholder="③ 詳細"
+                  value={locationDetail}
+                  onChange={e => setLocationDetail(e.target.value)}
+                />
+              </div>
             </div>
             <div className="border-r-2 border-slate-800 p-2 bg-slate-100 flex items-center justify-center font-bold text-black italic text-sm">
               {selectedYear} 年度
@@ -2215,4 +2271,3 @@ setShowMapPicker(false);
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
-
