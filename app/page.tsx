@@ -115,6 +115,8 @@ useEffect(() => {
   const [buildingCategoryOptions, setBuildingCategoryOptions] = useState<string[]>([]);
   const [inspectionPlaceOptions, setInspectionPlaceOptions] = useState<string[]>([]);
   const [finishOptionsByPlace, setFinishOptionsByPlace] = useState<Record<string, string[]>>({});
+  const [checkItemsByPlace, setCheckItemsByPlace] = useState<Record<string, string[][]>>({});
+  const [showCheckPanel, setShowCheckPanel] = useState(false);
   const [remarks1, setRemarks1] = useState('');
   const [remarks2, setRemarks2] = useState('');
   const [remarks3, setRemarks3] = useState('');
@@ -188,6 +190,11 @@ useEffect(() => {
             ? result.finishOptionsByPlace
             : {}
         );
+        setCheckItemsByPlace(
+          result.checkItemsByPlace && typeof result.checkItemsByPlace === "object"
+            ? result.checkItemsByPlace
+            : {}
+        );
       }
     } catch (e) {
       console.error(e);
@@ -211,6 +218,10 @@ useEffect(() => {
     loadKarteNumberOptions().catch(e => console.error(e));
   }
 }, [mode, spreadsheetId]);
+
+useEffect(() => {
+  setShowCheckPanel(false);
+}, [inspectionPlace]);
 
   console.log(existingData)
 
@@ -1205,6 +1216,11 @@ const getFinishOptions = () => {
   return key ? finishOptionsByPlace[key] || [] : [];
 };
 
+const getCheckItems = () => {
+  const key = String(inspectionPlace || '').trim();
+  return key ? checkItemsByPlace[key] || [] : [];
+};
+
 const addFinishText = (
   value: string,
   current: string,
@@ -1304,6 +1320,7 @@ const addFinishText = (
   if (mode === 'karte_edit' || mode === 'inclination_edit') {
     const isPhoto = mode === 'karte_edit';
     const finishOptions = getFinishOptions();
+    const checkItems = getCheckItems();
     return (
       <div className="flex flex-col items-center justify-start min-h-screen bg-slate-300 text-black">
         <Nav />
@@ -1542,9 +1559,18 @@ const addFinishText = (
 
     {/* ② 状況 */}
     <div className="p-2 border border-slate-400 rounded bg-white">
-      <label className="text-[9px] text-slate-700 block mb-1">
-        状況
-      </label>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <label className="text-[9px] text-slate-700">
+          状況
+        </label>
+        <button
+          type="button"
+          className="px-2 py-0.5 rounded bg-slate-700 text-white text-[10px] font-bold"
+          onClick={() => setShowCheckPanel(true)}
+        >
+          チェック
+        </button>
+      </div>
 
       <textarea
         className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400"
@@ -1762,7 +1788,16 @@ const addFinishText = (
 
     {/* ② 状況 */}
     <div className="p-2 border border-slate-400 rounded bg-white">
-      <label className="text-[9px] text-blue-700 block mb-1">状況</label>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <label className="text-[9px] text-blue-700">状況</label>
+        <button
+          type="button"
+          className="px-2 py-0.5 rounded bg-blue-700 text-white text-[10px] font-bold"
+          onClick={() => setShowCheckPanel(true)}
+        >
+          チェック
+        </button>
+      </div>
       <textarea 
         className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
         placeholder="状況入力"
@@ -1921,6 +1956,57 @@ const addFinishText = (
 </div>
           </div>
         </div>
+
+        {showCheckPanel && (
+          <div className="fixed left-3 right-3 bottom-[76px] z-[80] max-h-[38vh] overflow-hidden border-2 border-slate-800 bg-white shadow-2xl text-black">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-100 px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black text-slate-700">
+                  チェック項目
+                </p>
+                <p className="truncate text-[13px] font-black text-slate-900">
+                  {inspectionPlace ? `点検項目_${inspectionPlace}` : "点検場所を選択してください"}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 rounded bg-slate-800 px-3 py-1.5 text-[12px] font-bold text-white"
+                onClick={() => setShowCheckPanel(false)}
+              >
+                チェックを閉じる
+              </button>
+            </div>
+
+            <div className="max-h-[calc(38vh-54px)] overflow-auto">
+              {!inspectionPlace ? (
+                <div className="p-4 text-center text-[13px] font-bold text-slate-500">
+                  先に「点検場所の詳細」の② 点検場所を選択してください。
+                </div>
+              ) : checkItems.length === 0 ? (
+                <div className="p-4 text-center text-[13px] font-bold text-slate-500">
+                  該当するチェック項目シートがありません。
+                </div>
+              ) : (
+                <table className="w-full border-collapse text-[12px]">
+                  <tbody>
+                    {checkItems.map((row, rowIndex) => (
+                      <tr key={rowIndex} className={rowIndex === 0 ? "bg-blue-50 font-black" : "odd:bg-white even:bg-slate-50"}>
+                        {row.map((cell, colIndex) => (
+                          <td
+                            key={colIndex}
+                            className="min-w-[120px] border border-slate-300 px-2 py-1 align-top"
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
 
         {previewPhoto && (
         <div
