@@ -1346,7 +1346,7 @@ const addFinishText = (
               <span className="text-[9px] font-bold text-blue-700">点検場所の詳細</span>
               <div className="grid grid-cols-[1fr_1fr_1.25fr] gap-1">
                 <select
-                  className="w-full min-w-0 outline-none text-[15px] text-black bg-transparent"
+                  className="w-full min-w-0 outline-none text-[17px] text-black bg-transparent"
                   value={buildingCategory}
                   onChange={e => setBuildingCategory(e.target.value)}
                 >
