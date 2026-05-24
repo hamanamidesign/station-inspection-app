@@ -1958,19 +1958,19 @@ const addFinishText = (
         </div>
 
         {showCheckPanel && (
-          <div className="fixed left-3 right-3 bottom-[76px] z-[80] max-h-[38vh] overflow-hidden border-2 border-slate-800 bg-white shadow-2xl text-black">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-100 px-3 py-2">
+          <div className="fixed left-3 right-3 bottom-[76px] z-[80] max-h-[38vh] overflow-hidden border-2 border-orange-800 bg-amber-50 shadow-2xl text-black">
+            <div className="flex items-center justify-between gap-3 border-b border-orange-800 bg-orange-100 px-3 py-2">
               <div className="min-w-0">
-                <p className="text-[11px] font-black text-slate-700">
+                <p className="text-[11px] font-black text-orange-800">
                   チェック項目
                 </p>
-                <p className="truncate text-[13px] font-black text-slate-900">
+                <p className="truncate text-[13px] font-black text-stone-950">
                   {inspectionPlace ? `点検項目_${inspectionPlace}` : "点検場所を選択してください"}
                 </p>
               </div>
               <button
                 type="button"
-                className="shrink-0 rounded bg-slate-800 px-3 py-1.5 text-[12px] font-bold text-white"
+                className="shrink-0 rounded bg-orange-700 px-3 py-1.5 text-[12px] font-bold text-white"
                 onClick={() => setShowCheckPanel(false)}
               >
                 チェックを閉じる
@@ -1979,22 +1979,22 @@ const addFinishText = (
 
             <div className="max-h-[calc(38vh-54px)] overflow-auto">
               {!inspectionPlace ? (
-                <div className="p-4 text-center text-[13px] font-bold text-slate-500">
+                <div className="p-4 text-center text-[13px] font-bold text-orange-800">
                   先に「点検場所の詳細」の② 点検場所を選択してください。
                 </div>
               ) : checkItems.length === 0 ? (
-                <div className="p-4 text-center text-[13px] font-bold text-slate-500">
+                <div className="p-4 text-center text-[13px] font-bold text-orange-800">
                   該当するチェック項目シートがありません。
                 </div>
               ) : (
                 <table className="w-full border-collapse text-[12px]">
                   <tbody>
                     {checkItems.map((row, rowIndex) => (
-                      <tr key={rowIndex} className={rowIndex === 0 ? "bg-blue-50 font-black" : "odd:bg-white even:bg-slate-50"}>
+                      <tr key={rowIndex} className={rowIndex === 0 ? "bg-orange-200 font-black" : "odd:bg-white even:bg-amber-100/70"}>
                         {row.map((cell, colIndex) => (
                           <td
                             key={colIndex}
-                            className="min-w-[120px] border border-slate-300 px-2 py-1 align-top"
+                            className="min-w-[120px] border border-orange-200 px-2 py-1 align-top"
                           >
                             {cell}
                           </td>
