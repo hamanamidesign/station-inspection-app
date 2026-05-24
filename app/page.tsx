@@ -114,6 +114,7 @@ useEffect(() => {
   const [locationDetail, setLocationDetail] = useState('');
   const [buildingCategoryOptions, setBuildingCategoryOptions] = useState<string[]>([]);
   const [inspectionPlaceOptions, setInspectionPlaceOptions] = useState<string[]>([]);
+  const [finishOptionsByPlace, setFinishOptionsByPlace] = useState<Record<string, string[]>>({});
   const [remarks1, setRemarks1] = useState('');
   const [remarks2, setRemarks2] = useState('');
   const [remarks3, setRemarks3] = useState('');
@@ -181,6 +182,11 @@ useEffect(() => {
         );
         setInspectionPlaceOptions(
           Array.isArray(result.inspectionPlaces) ? result.inspectionPlaces : []
+        );
+        setFinishOptionsByPlace(
+          result.finishOptionsByPlace && typeof result.finishOptionsByPlace === "object"
+            ? result.finishOptionsByPlace
+            : {}
         );
       }
     } catch (e) {
@@ -1194,6 +1200,28 @@ const resetKarteFields = () => {
   setFirstPhotos(Array(4).fill(null));
   };
 
+const getFinishOptions = () => {
+  const key = String(inspectionPlace || '').trim();
+  return key ? finishOptionsByPlace[key] || [] : [];
+};
+
+const addFinishText = (
+  value: string,
+  current: string,
+  setter: React.Dispatch<React.SetStateAction<string>>
+) => {
+  const finish = value.trim();
+
+  if (!finish) return;
+  if (!current.trim()) {
+    setter(finish);
+    return;
+  }
+  if (current.split(/[、,\n]/).map(v => v.trim()).includes(finish)) return;
+
+  setter(`${current.trim()}、${finish}`);
+};
+
  if (mode === 'karte_menu' || mode === 'inclination_menu') {
     const isPhoto = mode === 'karte_menu';
     return (
@@ -1275,6 +1303,7 @@ const resetKarteFields = () => {
   }
   if (mode === 'karte_edit' || mode === 'inclination_edit') {
     const isPhoto = mode === 'karte_edit';
+    const finishOptions = getFinishOptions();
     return (
       <div className="flex flex-col items-center justify-start min-h-screen bg-slate-300 text-black">
         <Nav />
@@ -1490,9 +1519,22 @@ const resetKarteFields = () => {
         仕上げ材
       </label>
 
+      <select
+        className="w-full mb-1 outline-none text-[12px] text-black bg-slate-50 border border-slate-200 rounded px-1 py-1"
+        value=""
+        onChange={e => addFinishText(e.target.value, firstFinish, setFirstFinish)}
+      >
+        <option value="">
+          {inspectionPlace ? "仕上げ材を追加" : "点検場所を選択してください"}
+        </option>
+        {finishOptions.map(option => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+
       <textarea
-        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400"
-        placeholder="仕上げ材入力"
+        className="w-full h-12 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400"
+        placeholder="手入力で追加・編集"
         value={firstFinish}
         onChange={e => setFirstFinish(e.target.value)}
       />
@@ -1698,9 +1740,21 @@ const resetKarteFields = () => {
     {/* ① 仕上げ材 */}
     <div className="p-2 border border-slate-400 rounded bg-white">
       <label className="text-[9px] text-blue-700 block mb-1">仕上げ材</label>
+      <select
+        className="w-full mb-1 outline-none text-[12px] text-black bg-blue-50/40 border border-blue-100 rounded px-1 py-1"
+        value=""
+        onChange={e => addFinishText(e.target.value, remarks1, setRemarks1)}
+      >
+        <option value="">
+          {inspectionPlace ? "仕上げ材を追加" : "点検場所を選択してください"}
+        </option>
+        {finishOptions.map(option => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
       <textarea 
-        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
-        placeholder="仕上げ材入力"
+        className="w-full h-12 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
+        placeholder="手入力で追加・編集"
         value={remarks1} 
         onChange={e => setRemarks1(e.target.value)} 
       />
