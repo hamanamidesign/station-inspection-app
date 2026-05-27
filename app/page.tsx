@@ -1244,6 +1244,24 @@ const addFinishText = (
   setter(`${current.trim()}、${finish}`);
 };
 
+const formatSizeDetailValue = (value: string) => {
+  return value
+    .split('\n')
+    .map(line => {
+      const text = line.trim();
+      if (!text || /^(W|L|A)=/.test(text)) return line;
+
+      const areaMatch = text.match(/^(\d+(?:\.\d+)?)\s*[*＊×xX]\s*(\d+(?:\.\d+)?)$/);
+      if (areaMatch) return `A= ${areaMatch[1]} ×${areaMatch[2]}㎝`;
+
+      if (/^\d+\.\d+$/.test(text)) return `W= ${text}㎜`;
+      if (/^\d+$/.test(text)) return `L= ${text}㎝`;
+
+      return line;
+    })
+    .join('\n');
+};
+
  if (mode === 'karte_menu' || mode === 'inclination_menu') {
     const isPhoto = mode === 'karte_menu';
     return (
@@ -1604,6 +1622,7 @@ const addFinishText = (
         placeholder="サイズ、詳細入力"
         value={firstDetail}
         onChange={e => setFirstDetail(e.target.value)}
+        onBlur={e => setFirstDetail(formatSizeDetailValue(e.target.value))}
       />
     </div>
 
@@ -1827,6 +1846,7 @@ const addFinishText = (
         placeholder="サイズ、詳細入力"
         value={remarks3} 
         onChange={e => setRemarks3(e.target.value)} 
+        onBlur={e => setRemarks3(formatSizeDetailValue(e.target.value))}
       />
     </div>
 
