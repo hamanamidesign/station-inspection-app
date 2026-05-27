@@ -1484,12 +1484,19 @@ const addFinishText = (
       前年度評価
     </div>
 
-    <input
-      className="w-full outline-none text-center text-black placeholder-slate-400 font-normal"
-      placeholder="B"
+    <select
+      className="w-full outline-none text-center text-black bg-white font-normal"
       value={prevYearEval || ''}
       onChange={e => setPrevYearEval(e.target.value)}
-    />
+    >
+      <option value="">選択</option>
+      <option value="AA">AA</option>
+      <option value="A1">A1</option>
+      <option value="A2">A2</option>
+      <option value="B">B</option>
+      <option value="C">C</option>
+      <option value="S">S</option>
+    </select>
   </div>
 
 </div>
