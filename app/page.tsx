@@ -18,6 +18,21 @@ interface ExistingStation {
   routeFolderId?: string;
 }
 
+const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
+
+const normalizeDateForDateInput = (value: unknown) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  const ymd = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (ymd) {
+    const [, y, m, d] = ymd;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  return text;
+};
+
 
 // 赤い波線を消すために、使用するすべてのモード名をここで定義します
 type AppMode = 
@@ -168,6 +183,24 @@ const loadRoutes = useCallback(async () => {
   }
 }, [routeFolderId]);
 
+const loadInspectionListDates = useCallback(async () => {
+  if (!selectedRoute || !stationName || !selectedYear) return;
+
+  try {
+    const result = await gasApi("getInspectionListDates", {
+      masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+      routeName: selectedRoute,
+      station: stationName,
+      year: selectedYear,
+    });
+
+    setFirstDate(String(result.firstDate || ''));
+    setInspectDate(normalizeDateForDateInput(result.latestDate));
+  } catch (e) {
+    console.warn("点検リスト_マスタの日付取得に失敗しました", e);
+  }
+}, [selectedRoute, stationName, selectedYear]);
+
 
 useEffect(() => {
   loadRoutes();
@@ -222,6 +255,12 @@ useEffect(() => {
 useEffect(() => {
   setShowCheckPanel(false);
 }, [inspectionPlace]);
+
+useEffect(() => {
+  if (mode === 'karte_edit' && !isEditMode) {
+    loadInspectionListDates();
+  }
+}, [mode, isEditMode, loadInspectionListDates]);
 
   console.log(existingData)
 
