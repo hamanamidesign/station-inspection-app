@@ -1195,6 +1195,12 @@ if (mode === 'photo_number_register') return (
       
 // 入力内容をすべて空にする関数
 const resetKarteFields = () => {
+  setStructEval('');
+  setImpactEval('');
+  setTotalEval('');
+  setFirstDate('');
+  setFirstInspector('');
+
   setBuildingCategory('');
   setInspectionPlace('');
   setLocationDetail('');
