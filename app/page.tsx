@@ -1683,7 +1683,7 @@ if (mode === 'slope_table') {
   )}
 </div>
                 <select
-                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstEwValue) ? 'text-red-600 font-black' : 'text-black'}`}
+                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstEwValue) ? 'text-red-600' : 'text-black'}`}
                   value={row.firstEwDirection}
                   onChange={e => updateSlopeRow(row.id, 'firstEwDirection', e.target.value)}
                 >
@@ -1701,7 +1701,7 @@ if (mode === 'slope_table') {
                   onBlur={e => updateSlopeRow(row.id, 'firstEwValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
-                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstNsValue) ? 'text-red-600 font-black' : 'text-black'}`}
+                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstNsValue) ? 'text-red-600' : 'text-black'}`}
                   value={row.firstNsDirection}
                   onChange={e => updateSlopeRow(row.id, 'firstNsDirection', e.target.value)}
                 >
@@ -1719,7 +1719,7 @@ if (mode === 'slope_table') {
                   onBlur={e => updateSlopeRow(row.id, 'firstNsValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
-                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentEwValue) ? 'text-red-600 font-black' : 'text-black'}`}
+                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentEwValue) ? 'text-red-600' : 'text-black'}`}
                   value={row.currentEwDirection}
                   onChange={e => updateSlopeRow(row.id, 'currentEwDirection', e.target.value)}
                 >
@@ -1737,7 +1737,7 @@ if (mode === 'slope_table') {
                   onBlur={e => updateSlopeRow(row.id, 'currentEwValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
-                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentNsValue) ? 'text-red-600 font-black' : 'text-black'}`}
+                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentNsValue) ? 'text-red-600' : 'text-black'}`}
                   value={row.currentNsDirection}
                   onChange={e => updateSlopeRow(row.id, 'currentNsDirection', e.target.value)}
                 >
