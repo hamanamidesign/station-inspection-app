@@ -116,6 +116,7 @@ export default function InspectorApp() {
   const [stationFolderId, setStationFolderId] = useState('');
   const [existingData, setExistingData] = useState<ExistingStation[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [activePlaceRowId, setActivePlaceRowId] = useState<number | null>(null);
   // 長押し判定や移動状態を保持するRef
   const dragRef = useRef<{
   timer: NodeJS.Timeout | null;
@@ -1537,11 +1538,6 @@ if (mode === 'slope_table') {
       <LoadingOverlay />
 
       <div className="mx-auto w-full max-w-[99%] flex-1 overflow-x-auto px-2 pb-24">
-        <datalist id="slope-building-category-options">
-          {buildingCategoryOptions.map(option => (
-            <option key={option} value={option} />
-          ))}
-        </datalist>
 
         <div className="min-w-[1100px] border-2 border-slate-900 bg-white text-[13px] shadow-sm">
           <div className="grid grid-cols-[1fr_120px_120px] border-b-2 border-slate-900">
@@ -1646,13 +1642,45 @@ if (mode === 'slope_table') {
   <option value="内部">内部</option>
 </select>
 
-                <input
-               className="border-r border-slate-500 px-2 py-2 outline-none"
-               list="slope-building-category-options"
-               value={row.place}
-               onChange={e => updateSlopeRow(row.id, 'place', e.target.value)}
-               placeholder="測定箇所"
-                />
+<div className="relative border-r border-slate-500">
+  <input
+    className="w-full px-2 py-2 outline-none"
+    value={row.place}
+    onChange={e => {
+      updateSlopeRow(row.id, 'place', e.target.value);
+      setActivePlaceRowId(row.id);
+    }}
+    onFocus={() => setActivePlaceRowId(row.id)}
+    onBlur={() => {
+    setTimeout(() => {
+      setActivePlaceRowId(null);
+    }, 200);
+  }}
+    placeholder="測定箇所"
+  />
+
+  {activePlaceRowId === row.id && buildingCategoryOptions.length > 0 && (
+    <div className="absolute left-0 top-full z-50 max-h-48 w-full overflow-y-auto border border-slate-300 bg-white shadow-lg">
+      {buildingCategoryOptions
+        .filter(option =>
+          option.includes(row.place)
+        )
+        .map(option => (
+          <button
+            key={option}
+            type="button"
+            className="block w-full border-b border-slate-100 px-2 py-2 text-left hover:bg-slate-100"
+            onClick={() => {
+              updateSlopeRow(row.id, 'place', option);
+              setActivePlaceRowId(null);
+            }}
+          >
+            {option}
+          </button>
+        ))}
+    </div>
+  )}
+</div>
                 <select
                   className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstEwValue) ? 'text-red-600 font-black' : 'text-black'}`}
                   value={row.firstEwDirection}
