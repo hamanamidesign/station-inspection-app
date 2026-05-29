@@ -1434,7 +1434,7 @@ const getSlopeValueClass = (value: string, isChanged = false) => {
   const classes = ['border-r border-slate-500 px-2 py-2 text-center outline-none'];
 
   if (isChanged) classes.push('bg-slate-200');
-  if (isSlopeAlertValue(value)) classes.push('text-red-600 font-black');
+  if (isSlopeAlertValue(value)) classes.push('text-red-600');
   else classes.push('text-black');
 
   return classes.join(' ');
