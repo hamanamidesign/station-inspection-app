@@ -1361,19 +1361,9 @@ const loadSlopeTable = async () => {
 
 type DateInput = string | Date | null | undefined;
 
-const formatDate = (v: DateInput): string => {
-  if (!v) return "";
-
-  if (v instanceof Date) {
-    return v.toISOString().split("T")[0];
-  }
-
-  return v.split("T")[0];
-};
-
     setStationNo(String(result.stationNo || ""));
-    setFirstDate(formatDate(result.firstDate));
-    setInspectDate(formatDate(result.inspectDate));
+    setFirstDate(result.firstDate || "");
+    setInspectDate(result.inspectDate || "");
 
     setSlopeRows(
       Array.isArray(result.rows)
