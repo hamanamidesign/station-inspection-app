@@ -1840,7 +1840,7 @@ if (mode === 'inclination_menu') return (
 
   <div className="min-h-screen bg-slate-100 p-4 text-black">
 
-    <Nav back="task_select" />
+    <Nav />
 
     <div className="max-w-6xl mx-auto">
 
