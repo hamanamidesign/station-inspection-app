@@ -1344,12 +1344,29 @@ const updateSlopePoint = (rowId: number, value: string) => {
     const rowIndex = rows.findIndex(row => row.id === rowId);
     if (rowIndex === -1) return rows;
 
-    return rows.map((row, index) => {
-      if (index === rowIndex) return { ...row, point: value.toUpperCase() };
-      if (index <= rowIndex || row.point.trim()) return row;
+    const upperValue = value.toUpperCase();
 
-      const nextLabel = getNextPointLabel(value, index - rowIndex);
-      return nextLabel ? { ...row, point: nextLabel } : row;
+    return rows.map((row, index) => {
+
+      // 入力した行
+      if (index === rowIndex) {
+        return {
+          ...row,
+          point: upperValue
+        };
+      }
+
+      // 次の1行だけ自動入力
+      if (index === rowIndex + 1 && !row.point.trim()) {
+        const nextLabel = getNextPointLabel(upperValue, 1);
+
+        return {
+          ...row,
+          point: nextLabel
+        };
+      }
+
+      return row;
     });
   });
 };
@@ -1500,7 +1517,7 @@ const formatSizeDetailValue = (value: string) => {
 };
 
 if (mode === 'slope_table') {
-  const slopeGridColumns = '78px 64px 170px 58px 54px 82px 54px 82px 54px 82px 54px 82px 120px';
+  const slopeGridColumns = '78px 64px 58px 170px 54px 82px 54px 82px 54px 82px 54px 82px 120px';
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-300 text-black">
