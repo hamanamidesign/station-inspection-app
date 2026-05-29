@@ -1609,22 +1609,30 @@ if (mode === 'slope_table') {
                 className="grid border-b border-slate-500"
                 style={{ gridTemplateColumns: slopeGridColumns }}
               >
-                <input
-                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
-                  value={row.slopeType}
-                  onChange={e => updateSlopeRow(row.id, 'slopeType', e.target.value)}
-                />
+                <select
+  className="border-r border-slate-500 bg-white px-2 py-2 text-center outline-none"
+  value={row.slopeType}
+  onChange={e => updateSlopeRow(row.id, 'slopeType', e.target.value)}
+>
+  <option value=""></option>
+  <option value="傾斜">傾斜</option>
+  <option value="水平">水平</option>
+</select>
                 <input
                   className={`border-r border-slate-500 px-2 py-2 text-center outline-none ${getSlopePointClass(row)}`}
                   value={row.point}
                   onChange={e => updateSlopePoint(row.id, e.target.value)}
                   maxLength={1}
                 />
-                <input
-                className="border-r border-slate-500 bg-slate-50 px-2 py-2 text-center outline-none"
-                value={row.placeSide}
-                onChange={e => updateSlopeRow(row.id, 'placeSide', e.target.value)}
-                />
+                <select
+  className="border-r border-slate-500 bg-slate-50 px-2 py-2 text-center outline-none"
+  value={row.placeSide}
+  onChange={e => updateSlopeRow(row.id, 'placeSide', e.target.value)}
+>
+  <option value=""></option>
+  <option value="外部">外部</option>
+  <option value="内部">内部</option>
+</select>
 
                 <input
                className="border-r border-slate-500 px-2 py-2 outline-none"
