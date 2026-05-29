@@ -1846,56 +1846,53 @@ if (mode === 'inclination_menu') return (
 
     <div className="max-w-6xl mx-auto">
 
-      {/* ヘッダー */}
-      <div className="bg-white border-2 border-slate-800 mb-3">
+{/* ヘッダーエリア */}
+<div className="bg-white border-2 border-slate-800 mb-3">
 
-        <div className="grid grid-cols-[140px_1fr_140px]">
+  <div className="grid grid-cols-[160px_120px_140px_80px_1fr_80px]">
 
-          {/* 左 */}
-          <div className="border-r-2 border-slate-800 p-3 font-bold text-center flex items-center justify-center">
-            写真カルテ
-          </div>
+    {/* 写真カルテ */}
+    <div className="border-r-2 border-slate-800 p-3 font-bold flex items-center justify-center">
+      写真カルテ
+    </div>
 
-          {/* 中央 */}
-          <div className="border-r-2 border-slate-800 p-2">
+    {/* A-D（傾斜範囲） */}
+    <div className="border-r-2 border-slate-800 p-3 flex items-center justify-center font-bold">
+      A-D
+    </div>
 
-            <div className="text-[10px] text-slate-500">
-              駅No.
-            </div>
+    {/* 駅No.- */}
+    <div className="border-r-2 border-slate-800 p-2 flex items-center justify-center text-sm font-bold">
+      駅No.-
+    </div>
 
-            <input
-              className="w-full outline-none text-lg"
-              placeholder="駅No"
-            />
+    {/* 駅No（入力） */}
+    <div className="border-r-2 border-slate-800 p-2">
+      <input
+        className="w-full outline-none text-center font-bold"
+        value={stationNo}
+        onChange={(e) => setStationNo(e.target.value)}
+        placeholder="42"
+      />
+    </div>
 
-          </div>
+    {/* 駅名 */}
+    <div className="border-r-2 border-slate-800 p-2">
+      <input
+        className="w-full outline-none text-center font-bold"
+        value={stationName}
+        onChange={(e) => setStationName(e.target.value)}
+        placeholder="高野山"
+      />
+    </div>
 
-          {/* 右 */}
-          <div className="p-2">
+    {/* 駅ラベル */}
+    <div className="p-3 flex items-center justify-center font-bold">
+      駅
+    </div>
 
-            <div className="text-[10px] text-slate-500">
-              評区分
-            </div>
-
-            <input
-              className="w-full outline-none text-lg"
-              placeholder="評区分"
-            />
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* タイトル */}
-      <div className="bg-white border-2 border-slate-800 p-4 mb-4">
-
-        <div className="text-3xl font-bold tracking-wide">
-          建物傾斜測定
-        </div>
-
-      </div>
+  </div>
+</div>
 
       {/* 測定ブロック */}
       <div className="grid grid-cols-2 gap-4">
