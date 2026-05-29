@@ -10,6 +10,7 @@ interface Marker {
   color: 'red' | 'black' | '#5372fc'; shape: 'circle' | 'square';
 }
 interface ExistingStation { 
+  stationNo?: string;
   stationName: string; 
   year: string; 
   spreadsheetId?: string;
@@ -316,12 +317,22 @@ useEffect(() => {
   setInspectionPlace('');
   setLocationDetail('');
 
-  // ★ここを修正
   setRemarks1('');
   setRemarks2('');
   setRemarks3('');
 
-  }, [stationName, selectedYear]);
+  // ★追加ここから
+  const matched = existingData.find(
+    d =>
+      d.stationName === stationName &&
+      String(d.year) === String(selectedYear) &&
+      String(d.routeFolderId) === String(routeFolderId)
+  );
+
+  setStationNo(String(matched?.stationNo || ''));
+  // ★追加ここまで
+
+}, [stationName, selectedYear, existingData, routeFolderId]);
 
 // 総合評価 自動判定
 useEffect(() => {
@@ -378,6 +389,7 @@ const handleCreateNewSheet = async () => {
     if (confirm(`「${stationName}」の${selectedYear}年度は既に存在します。既存のデータを編集しますか？`)) {
       setSpreadsheetId(duplicate.spreadsheetId);
       setStationFolderId(duplicate.folderId || '');
+      setStationNo(String(duplicate.stationNo || ''));
 
       // ← ここで初期値セット
       setContractor('南海辰村建設株式会社 / 奥');
