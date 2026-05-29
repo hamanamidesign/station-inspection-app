@@ -1577,7 +1577,7 @@ const formatSizeDetailValue = (value: string) => {
 };
 
 if (mode === 'slope_table') {
-  const slopeGridColumns = '78px 64px 58px 170px 54px 82px 54px 82px 54px 82px 54px 82px 120px';
+  const slopeGridColumns = '78px 64px 58px 170px 54px 82px 54px 82px 54px 82px 54px 82px 90px';
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-300 text-black">
