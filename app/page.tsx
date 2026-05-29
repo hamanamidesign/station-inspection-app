@@ -1867,24 +1867,24 @@ if (mode === 'inclination_menu') return (
     </div>
 
     {/* 駅No（入力） */}
-    <div className="border-r-2 border-slate-800 p-2">
-      <input
-        className="w-full outline-none text-center font-bold"
-        value={stationNo}
-        onChange={(e) => setStationNo(e.target.value)}
-        placeholder="42"
-      />
-    </div>
+<div className="border-r-2 border-slate-800 p-2 flex items-center">
+  <input
+    className="w-full outline-none text-center font-bold"
+    value={stationNo}
+    onChange={(e) => setStationNo(e.target.value)}
+    placeholder=""
+  />
+</div>
 
-    {/* 駅名 */}
-    <div className="border-r-2 border-slate-800 p-2">
-      <input
-        className="w-full outline-none text-center font-bold"
-        value={stationName}
-        onChange={(e) => setStationName(e.target.value)}
-        placeholder="高野山"
-      />
-    </div>
+{/* 駅名 */}
+<div className="border-r-2 border-slate-800 p-2 flex items-center">
+  <input
+    className="w-full outline-none text-center font-bold"
+    value={stationName}
+    onChange={(e) => setStationName(e.target.value)}
+    placeholder=""
+  />
+</div>
 
     {/* 駅ラベル */}
     <div className="p-3 flex items-center justify-center font-bold">
