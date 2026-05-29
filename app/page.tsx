@@ -1874,7 +1874,7 @@ if (mode === 'inclination_menu') return (
 
 {/* 傾斜範囲 */}
 <div className="border-r-2 border-slate-800 p-3 flex items-center justify-center font-bold">
-  {buildRangeLabel(inspectList)}
+  {inspectList?.length > 0 ? buildRangeLabel(inspectList) : ""}
 </div>
 
     {/* 駅No.- */}
