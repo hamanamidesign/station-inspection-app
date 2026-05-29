@@ -40,17 +40,17 @@ const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs"
 const createEmptySlopeRows = (count = 20): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
     id: Date.now() + index,
-    slopeType: '傾斜',
+    slopeType: '',
     point: '',
     place: '',
-    placeSide: '外部',
-    firstEwDirection: '東',
+    placeSide: '',
+    firstEwDirection: '',
     firstEwValue: '',
-    firstNsDirection: '南',
+    firstNsDirection: '',
     firstNsValue: '',
-    currentEwDirection: '東',
+    currentEwDirection: '',
     currentEwValue: '',
-    currentNsDirection: '南',
+    currentNsDirection: '',
     currentNsValue: '',
     note: '',
   }));
@@ -1414,21 +1414,21 @@ const addSlopeRow = () => {
   setSlopeRows(rows => [
     ...rows,
     {
-      id: Date.now(),
-      slopeType: '傾斜',
-      point: '',
-      place: '',
-      placeSide: '外部',
-      firstEwDirection: '東',
-      firstEwValue: '',
-      firstNsDirection: '南',
-      firstNsValue: '',
-      currentEwDirection: '東',
-      currentEwValue: '',
-      currentNsDirection: '南',
-      currentNsValue: '',
-      note: '',
-    },
+  id: Date.now(),
+  slopeType: '',
+  point: '',
+  place: '',
+  placeSide: '',
+  firstEwDirection: '',
+  firstEwValue: '',
+  firstNsDirection: '',
+  firstNsValue: '',
+  currentEwDirection: '',
+  currentEwValue: '',
+  currentNsDirection: '',
+  currentNsValue: '',
+  note: '',
+},
   ]);
 };
 
@@ -1604,22 +1604,24 @@ if (mode === 'slope_table') {
                   maxLength={1}
                 />
                 <input
-                  className="border-r border-slate-500 px-2 py-2 outline-none"
-                  list="slope-building-category-options"
-                  value={row.place}
-                  onChange={e => updateSlopeRow(row.id, 'place', e.target.value)}
-                  placeholder="測定箇所"
+                className="border-r border-slate-500 bg-slate-50 px-2 py-2 text-center outline-none"
+                value={row.placeSide}
+                onChange={e => updateSlopeRow(row.id, 'placeSide', e.target.value)}
                 />
+
                 <input
-                  className="border-r border-slate-500 bg-slate-50 px-2 py-2 text-center outline-none"
-                  value={row.placeSide}
-                  onChange={e => updateSlopeRow(row.id, 'placeSide', e.target.value)}
+               className="border-r border-slate-500 px-2 py-2 outline-none"
+               list="slope-building-category-options"
+               value={row.place}
+               onChange={e => updateSlopeRow(row.id, 'place', e.target.value)}
+               placeholder="測定箇所"
                 />
                 <select
                   className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstEwValue) ? 'text-red-600 font-black' : 'text-black'}`}
                   value={row.firstEwDirection}
                   onChange={e => updateSlopeRow(row.id, 'firstEwDirection', e.target.value)}
                 >
+                  <option value=""></option>
                   <option value="東">東</option>
                   <option value="西">西</option>
                 </select>
@@ -1637,6 +1639,7 @@ if (mode === 'slope_table') {
                   value={row.firstNsDirection}
                   onChange={e => updateSlopeRow(row.id, 'firstNsDirection', e.target.value)}
                 >
+                  <option value=""></option>
                   <option value="南">南</option>
                   <option value="北">北</option>
                 </select>
@@ -1654,6 +1657,7 @@ if (mode === 'slope_table') {
                   value={row.currentEwDirection}
                   onChange={e => updateSlopeRow(row.id, 'currentEwDirection', e.target.value)}
                 >
+                  <option value=""></option>
                   <option value="東">東</option>
                   <option value="西">西</option>
                 </select>
@@ -1671,6 +1675,7 @@ if (mode === 'slope_table') {
                   value={row.currentNsDirection}
                   onChange={e => updateSlopeRow(row.id, 'currentNsDirection', e.target.value)}
                 >
+                  <option value=""></option>
                   <option value="南">南</option>
                   <option value="北">北</option>
                 </select>
