@@ -23,10 +23,15 @@ interface SlopeTableRow {
   slopeType: string;
   point: string;
   place: string;
-  firstEw: string;
-  firstNs: string;
-  currentEw: string;
-  currentNs: string;
+  placeSide: string;
+  firstEwDirection: string;
+  firstEwValue: string;
+  firstNsDirection: string;
+  firstNsValue: string;
+  currentEwDirection: string;
+  currentEwValue: string;
+  currentNsDirection: string;
+  currentNsValue: string;
   note: string;
 }
 
@@ -35,13 +40,18 @@ const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs"
 const createEmptySlopeRows = (count = 20): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
     id: Date.now() + index,
-    slopeType: '',
+    slopeType: '傾斜',
     point: '',
     place: '',
-    firstEw: '',
-    firstNs: '',
-    currentEw: '',
-    currentNs: '',
+    placeSide: '外部',
+    firstEwDirection: '東',
+    firstEwValue: '',
+    firstNsDirection: '南',
+    firstNsValue: '',
+    currentEwDirection: '東',
+    currentEwValue: '',
+    currentNsDirection: '南',
+    currentNsValue: '',
     note: '',
   }));
 
@@ -284,7 +294,7 @@ useEffect(() => {
 }, [inspectionPlace]);
 
 useEffect(() => {
-  if (mode === 'karte_edit' && !isEditMode) {
+  if ((mode === 'karte_edit' && !isEditMode) || mode === 'slope_table') {
     loadInspectionListDates();
   }
 }, [mode, isEditMode, loadInspectionListDates]);
@@ -1321,25 +1331,105 @@ const updateSlopeRow = (
   );
 };
 
+const getNextPointLabel = (value: string, offset: number) => {
+  const text = value.trim().toUpperCase();
+  if (!/^[A-Z]$/.test(text)) return '';
+
+  const nextCode = text.charCodeAt(0) + offset;
+  return nextCode <= 90 ? String.fromCharCode(nextCode) : '';
+};
+
+const updateSlopePoint = (rowId: number, value: string) => {
+  setSlopeRows(rows => {
+    const rowIndex = rows.findIndex(row => row.id === rowId);
+    if (rowIndex === -1) return rows;
+
+    return rows.map((row, index) => {
+      if (index === rowIndex) return { ...row, point: value.toUpperCase() };
+      if (index <= rowIndex || row.point.trim()) return row;
+
+      const nextLabel = getNextPointLabel(value, index - rowIndex);
+      return nextLabel ? { ...row, point: nextLabel } : row;
+    });
+  });
+};
+
+const isSlopeAlertValue = (value: string) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 10.1;
+};
+
+const normalizeSlopeNumber = (value: string) => {
+  if (!value.trim()) return '';
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(1) : value;
+};
+
+const hasSlopeValueDiff = (firstValue: string, currentValue: string) => {
+  if (!firstValue.trim() || !currentValue.trim()) return false;
+
+  const firstNumber = Number(firstValue);
+  const currentNumber = Number(currentValue);
+  if (Number.isFinite(firstNumber) && Number.isFinite(currentNumber)) {
+    return firstNumber !== currentNumber;
+  }
+
+  return firstValue.trim() !== currentValue.trim();
+};
+
+const hasSlopeDiff = (row: SlopeTableRow, direction: 'ew' | 'ns') => {
+  return direction === 'ew'
+    ? hasSlopeValueDiff(row.firstEwValue, row.currentEwValue)
+    : hasSlopeValueDiff(row.firstNsValue, row.currentNsValue);
+};
+
+const getSlopeNoteValue = (row: SlopeTableRow) => {
+  return hasSlopeDiff(row, 'ew') || hasSlopeDiff(row, 'ns')
+    ? '変化あり'
+    : row.note;
+};
+
+const getSlopePointClass = (row: SlopeTableRow) => {
+  const hasAlert = [
+    row.firstEwValue,
+    row.firstNsValue,
+    row.currentEwValue,
+    row.currentNsValue,
+  ].some(isSlopeAlertValue);
+
+  return hasAlert ? 'text-red-600 font-black' : 'text-black';
+};
+
+const getSlopeValueClass = (value: string, isChanged = false) => {
+  const classes = ['border-r border-slate-500 px-2 py-2 text-center outline-none'];
+
+  if (isChanged) classes.push('bg-slate-200');
+  if (isSlopeAlertValue(value)) classes.push('text-red-600 font-black');
+  else classes.push('text-black');
+
+  return classes.join(' ');
+};
+
 const addSlopeRow = () => {
   setSlopeRows(rows => [
     ...rows,
     {
       id: Date.now(),
-      slopeType: '',
+      slopeType: '傾斜',
       point: '',
       place: '',
-      firstEw: '',
-      firstNs: '',
-      currentEw: '',
-      currentNs: '',
+      placeSide: '外部',
+      firstEwDirection: '東',
+      firstEwValue: '',
+      firstNsDirection: '南',
+      firstNsValue: '',
+      currentEwDirection: '東',
+      currentEwValue: '',
+      currentNsDirection: '南',
+      currentNsValue: '',
       note: '',
     },
   ]);
-};
-
-const removeSlopeRow = (rowId: number) => {
-  setSlopeRows(rows => (rows.length <= 1 ? rows : rows.filter(row => row.id !== rowId)));
 };
 
 const sendSlopeTable = async () => {
@@ -1348,16 +1438,22 @@ const sendSlopeTable = async () => {
 
   const rows = slopeRows.filter(row =>
     [
-      row.slopeType,
       row.point,
       row.place,
-      row.firstEw,
-      row.firstNs,
-      row.currentEw,
-      row.currentNs,
+      row.firstEwValue,
+      row.firstNsValue,
+      row.currentEwValue,
+      row.currentNsValue,
       row.note,
     ].some(value => value.trim())
-  );
+  ).map(row => ({
+    ...row,
+    firstEw: row.firstEwValue,
+    firstNs: row.firstNsValue,
+    currentEw: row.currentEwValue,
+    currentNs: row.currentNsValue,
+    note: getSlopeNoteValue(row),
+  }));
 
   setIsSending(true);
 
@@ -1404,13 +1500,21 @@ const formatSizeDetailValue = (value: string) => {
 };
 
 if (mode === 'slope_table') {
+  const slopeGridColumns = '78px 64px 170px 58px 54px 82px 54px 82px 54px 82px 54px 82px 120px';
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-300 text-black">
       <Nav />
       <LoadingOverlay />
 
       <div className="mx-auto w-full max-w-[99%] flex-1 overflow-x-auto px-2 pb-24">
-        <div className="min-w-[1020px] border-2 border-slate-900 bg-white text-[13px] shadow-sm">
+        <datalist id="slope-building-category-options">
+          {buildingCategoryOptions.map(option => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+
+        <div className="min-w-[1100px] border-2 border-slate-900 bg-white text-[13px] shadow-sm">
           <div className="grid grid-cols-[1fr_120px_120px] border-b-2 border-slate-900">
             <div className="flex items-center justify-center border-r-2 border-slate-900 py-4 text-[22px] font-black tracking-[0.28em]">
               建 物 傾 斜 測 定 結 果 表
@@ -1426,17 +1530,20 @@ if (mode === 'slope_table') {
             />
           </div>
 
-          <div className="grid grid-cols-[90px_76px_170px_104px_104px_104px_104px_1fr] border-b-2 border-slate-900 bg-slate-100 text-center font-black">
+          <div
+            className="grid border-b-2 border-slate-900 bg-slate-100 text-center font-black"
+            style={{ gridTemplateColumns: slopeGridColumns }}
+          >
             <div className="row-span-3 flex items-center justify-center whitespace-pre-line border-r-2 border-slate-900">
               傾斜{"\n"}種類
             </div>
             <div className="row-span-3 flex items-center justify-center border-r-2 border-slate-900">
               測点
             </div>
-            <div className="row-span-3 flex items-center justify-center border-r-2 border-slate-900">
+            <div className="col-span-2 row-span-3 flex items-center justify-center border-r-2 border-slate-900">
               測定箇所
             </div>
-            <div className="col-span-2 border-r-2 border-slate-900 p-1">
+            <div className="col-span-4 border-r-2 border-slate-900 p-1">
               <div className="mb-1">初回点検日</div>
               <input
                 className="w-full border border-slate-300 bg-white px-2 py-1 text-center font-normal outline-none"
@@ -1445,7 +1552,7 @@ if (mode === 'slope_table') {
                 placeholder="日付"
               />
             </div>
-            <div className="col-span-2 border-r-2 border-slate-900 p-1">
+            <div className="col-span-4 border-r-2 border-slate-900 p-1">
               <div className="mb-1">点検日</div>
               <input
                 type="date"
@@ -1458,85 +1565,133 @@ if (mode === 'slope_table') {
               備考
             </div>
 
-            <div className="border-r border-t-2 border-slate-900 p-2">東西方向</div>
-            <div className="border-r-2 border-t-2 border-slate-900 p-2">南北方向</div>
-            <div className="border-r border-t-2 border-slate-900 p-2">東西方向</div>
-            <div className="border-r-2 border-t-2 border-slate-900 p-2">南北方向</div>
+            <div className="col-span-2 border-r border-t-2 border-slate-900 p-2">東西方向</div>
+            <div className="col-span-2 border-r-2 border-t-2 border-slate-900 p-2">南北方向</div>
+            <div className="col-span-2 border-r border-t-2 border-slate-900 p-2">東西方向</div>
+            <div className="col-span-2 border-r-2 border-t-2 border-slate-900 p-2">南北方向</div>
 
+            <div className="border-r border-t border-slate-900 p-2">方角</div>
             <div className="border-r border-t border-slate-900 p-2">測定値(mm)</div>
+            <div className="border-r border-t border-slate-900 p-2">方角</div>
             <div className="border-r-2 border-t border-slate-900 p-2">測定値(mm)</div>
+            <div className="border-r border-t border-slate-900 p-2">方角</div>
             <div className="border-r border-t border-slate-900 p-2">測定値(mm)</div>
+            <div className="border-r border-t border-slate-900 p-2">方角</div>
             <div className="border-r-2 border-t border-slate-900 p-2">測定値(mm)</div>
           </div>
 
           <div>
-            {slopeRows.map((row, index) => (
+            {slopeRows.map(row => {
+              const ewChanged = hasSlopeDiff(row, 'ew');
+              const nsChanged = hasSlopeDiff(row, 'ns');
+              const noteValue = getSlopeNoteValue(row);
+
+              return (
               <div
                 key={row.id}
-                className="grid grid-cols-[90px_76px_170px_104px_104px_104px_104px_1fr_44px] border-b border-slate-500"
+                className="grid border-b border-slate-500"
+                style={{ gridTemplateColumns: slopeGridColumns }}
               >
                 <input
                   className="border-r border-slate-500 px-2 py-2 text-center outline-none"
                   value={row.slopeType}
                   onChange={e => updateSlopeRow(row.id, 'slopeType', e.target.value)}
-                  placeholder={index === 0 ? "柱" : ""}
                 />
                 <input
-                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
+                  className={`border-r border-slate-500 px-2 py-2 text-center outline-none ${getSlopePointClass(row)}`}
                   value={row.point}
-                  onChange={e => updateSlopeRow(row.id, 'point', e.target.value)}
-                  placeholder={String(index + 1)}
+                  onChange={e => updateSlopePoint(row.id, e.target.value)}
+                  maxLength={1}
                 />
                 <input
                   className="border-r border-slate-500 px-2 py-2 outline-none"
+                  list="slope-building-category-options"
                   value={row.place}
                   onChange={e => updateSlopeRow(row.id, 'place', e.target.value)}
                   placeholder="測定箇所"
                 />
                 <input
-                  type="number"
-                  inputMode="decimal"
-                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
-                  value={row.firstEw}
-                  onChange={e => updateSlopeRow(row.id, 'firstEw', e.target.value)}
+                  className="border-r border-slate-500 bg-slate-50 px-2 py-2 text-center outline-none"
+                  value={row.placeSide}
+                  onChange={e => updateSlopeRow(row.id, 'placeSide', e.target.value)}
                 />
+                <select
+                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstEwValue) ? 'text-red-600 font-black' : 'text-black'}`}
+                  value={row.firstEwDirection}
+                  onChange={e => updateSlopeRow(row.id, 'firstEwDirection', e.target.value)}
+                >
+                  <option value="東">東</option>
+                  <option value="西">西</option>
+                </select>
                 <input
                   type="number"
                   inputMode="decimal"
-                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
-                  value={row.firstNs}
-                  onChange={e => updateSlopeRow(row.id, 'firstNs', e.target.value)}
+                  step="0.1"
+                  className={getSlopeValueClass(row.firstEwValue)}
+                  value={row.firstEwValue}
+                  onChange={e => updateSlopeRow(row.id, 'firstEwValue', e.target.value)}
+                  onBlur={e => updateSlopeRow(row.id, 'firstEwValue', normalizeSlopeNumber(e.target.value))}
                 />
+                <select
+                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstNsValue) ? 'text-red-600 font-black' : 'text-black'}`}
+                  value={row.firstNsDirection}
+                  onChange={e => updateSlopeRow(row.id, 'firstNsDirection', e.target.value)}
+                >
+                  <option value="南">南</option>
+                  <option value="北">北</option>
+                </select>
                 <input
                   type="number"
                   inputMode="decimal"
-                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
-                  value={row.currentEw}
-                  onChange={e => updateSlopeRow(row.id, 'currentEw', e.target.value)}
+                  step="0.1"
+                  className={getSlopeValueClass(row.firstNsValue)}
+                  value={row.firstNsValue}
+                  onChange={e => updateSlopeRow(row.id, 'firstNsValue', e.target.value)}
+                  onBlur={e => updateSlopeRow(row.id, 'firstNsValue', normalizeSlopeNumber(e.target.value))}
                 />
+                <select
+                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentEwValue) ? 'text-red-600 font-black' : 'text-black'}`}
+                  value={row.currentEwDirection}
+                  onChange={e => updateSlopeRow(row.id, 'currentEwDirection', e.target.value)}
+                >
+                  <option value="東">東</option>
+                  <option value="西">西</option>
+                </select>
                 <input
                   type="number"
                   inputMode="decimal"
-                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
-                  value={row.currentNs}
-                  onChange={e => updateSlopeRow(row.id, 'currentNs', e.target.value)}
+                  step="0.1"
+                  className={getSlopeValueClass(row.currentEwValue, ewChanged)}
+                  value={row.currentEwValue}
+                  onChange={e => updateSlopeRow(row.id, 'currentEwValue', e.target.value)}
+                  onBlur={e => updateSlopeRow(row.id, 'currentEwValue', normalizeSlopeNumber(e.target.value))}
+                />
+                <select
+                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentNsValue) ? 'text-red-600 font-black' : 'text-black'}`}
+                  value={row.currentNsDirection}
+                  onChange={e => updateSlopeRow(row.id, 'currentNsDirection', e.target.value)}
+                >
+                  <option value="南">南</option>
+                  <option value="北">北</option>
+                </select>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  className={getSlopeValueClass(row.currentNsValue, nsChanged)}
+                  value={row.currentNsValue}
+                  onChange={e => updateSlopeRow(row.id, 'currentNsValue', e.target.value)}
+                  onBlur={e => updateSlopeRow(row.id, 'currentNsValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <input
-                  className="border-r border-slate-500 px-2 py-2 outline-none"
-                  value={row.note}
+                  className="px-2 py-2 outline-none"
+                  value={noteValue}
                   onChange={e => updateSlopeRow(row.id, 'note', e.target.value)}
+                  readOnly={ewChanged || nsChanged}
                   placeholder="備考"
                 />
-                <button
-                  type="button"
-                  className="bg-slate-100 text-sm font-black text-red-600 active:bg-red-50"
-                  onClick={() => removeSlopeRow(row.id)}
-                  aria-label="行を削除"
-                >
-                  ×
-                </button>
               </div>
-            ))}
+            )})}
           </div>
 
           <div className="border-t-2 border-slate-900 px-3 py-2 text-[12px] font-bold">
