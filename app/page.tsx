@@ -1427,7 +1427,7 @@ const getSlopePointClass = (row: SlopeTableRow) => {
     row.currentNsValue,
   ].some(isSlopeAlertValue);
 
-  return hasAlert ? 'text-red-600 font-black' : 'text-black';
+  return hasAlert ? 'text-red-600' : 'text-black';
 };
 
 const getSlopeValueClass = (value: string, isChanged = false) => {
