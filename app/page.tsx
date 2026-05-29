@@ -178,6 +178,7 @@ useEffect(() => {
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
   const [evalType, setEvalType] = useState('');
+  const [inspectList, setInspectList] = useState<string[]>([]);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
@@ -1364,6 +1365,7 @@ type DateInput = string | Date | null | undefined;
     setStationNo(String(result.stationNo || ""));
     setFirstDate(result.firstDate || "");
     setInspectDate(result.inspectDate || "");
+    setInspectList(result.inspectList || []);
 
     setSlopeRows(
       Array.isArray(result.rows)
@@ -1835,6 +1837,20 @@ if (mode === 'slope_table') {
   );
 }
 
+const buildRangeLabel = (list: string[]): string => {
+  if (!list || list.length === 0) return "";
+
+  const unique = [...new Set(list.map(v => v.trim()).filter(Boolean))];
+
+  const len = unique.length;
+
+  if (len === 1) return unique[0];
+  if (len === 2) return `${unique[0]},${unique[1]}`;
+  if (len === 3) return `${unique[0]}-${unique[2]}`;
+
+  return `${unique[0]}-${unique[3] || unique[unique.length - 1]}`;
+};
+
 // ========================================
 // 傾斜測定カルテ
 // ========================================
@@ -1856,10 +1872,10 @@ if (mode === 'inclination_menu') return (
       写真カルテ
     </div>
 
-    {/* A-D（傾斜範囲） */}
-    <div className="border-r-2 border-slate-800 p-3 flex items-center justify-center font-bold">
-      A-D
-    </div>
+{/* 傾斜範囲 */}
+<div className="border-r-2 border-slate-800 p-3 flex items-center justify-center font-bold">
+  {buildRangeLabel(inspectList)}
+</div>
 
     {/* 駅No.- */}
     <div className="border-r-2 border-slate-800 p-2 flex items-center justify-center text-sm font-bold">
