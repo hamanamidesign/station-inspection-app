@@ -234,7 +234,7 @@ const loadInspectionListDates = useCallback(async () => {
     });
 
     setFirstDate(String(result.firstDate || ''));
-    setInspectDate(normalizeDateForDateInput(result.latestDate));
+    setInspectDate(String(result.latestDate || ''));
   } catch (e) {
     console.warn("点検リスト_マスタの日付取得に失敗しました", e);
   }
