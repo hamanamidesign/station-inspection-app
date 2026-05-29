@@ -301,6 +301,15 @@ useEffect(() => {
   }
 }, [mode, isEditMode, loadInspectionListDates]);
 
+useEffect(() => {
+
+  if (mode !== 'slope_table') return;
+  if (!spreadsheetId) return;
+
+  loadSlopeTable();
+
+}, [mode, spreadsheetId]);
+
   console.log(existingData)
 
   // 駅や年度が変わったら入力をクリア
@@ -1332,6 +1341,38 @@ const addFinishText = (
   if (current.split(/[、,\n]/).map(v => v.trim()).includes(finish)) return;
 
   setter(`${current.trim()}、${finish}`);
+};
+
+const loadSlopeTable = async () => {
+
+  try {
+
+    const result = await gasApi("getSlopeTableData", {
+      spreadsheetId,
+    });
+
+    if (!result.success) {
+      alert("傾斜表の読み込みに失敗しました");
+      return;
+    }
+
+    setStationNo(String(result.stationNo || ""));
+    setFirstDate(String(result.firstDate || ""));
+    setInspectDate(String(result.inspectDate || ""));
+
+    setSlopeRows(
+      Array.isArray(result.rows)
+        ? result.rows
+        : createEmptySlopeRows()
+    );
+
+  } catch (e) {
+
+    console.error(e);
+    alert("傾斜表の読み込みに失敗しました");
+
+  }
+
 };
 
 const updateSlopeRow = (
