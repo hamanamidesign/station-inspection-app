@@ -18,7 +18,32 @@ interface ExistingStation {
   routeFolderId?: string;
 }
 
+interface SlopeTableRow {
+  id: number;
+  slopeType: string;
+  point: string;
+  place: string;
+  firstEw: string;
+  firstNs: string;
+  currentEw: string;
+  currentNs: string;
+  note: string;
+}
+
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
+
+const createEmptySlopeRows = (count = 20): SlopeTableRow[] =>
+  Array.from({ length: count }, (_, index) => ({
+    id: Date.now() + index,
+    slopeType: '',
+    point: '',
+    place: '',
+    firstEw: '',
+    firstNs: '',
+    currentEw: '',
+    currentNs: '',
+    note: '',
+  }));
 
 const normalizeDateForDateInput = (value: unknown) => {
   const text = String(value || '').trim();
@@ -40,6 +65,7 @@ type AppMode =
   | 'new_entry' 
   | 'exist_select' 
   | 'task_select' 
+  | 'slope_table'
   | 'karte_menu' 
   | 'karte_edit' 
   | 'inclination_menu' 
@@ -138,6 +164,7 @@ useEffect(() => {
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
@@ -271,6 +298,7 @@ useEffect(() => {
   setMarkers([]); 
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
+  setSlopeRows(createEmptySlopeRows());
 
   setKarteNo('1');
   setInspectDate('');
@@ -1283,6 +1311,80 @@ const addFinishText = (
   setter(`${current.trim()}、${finish}`);
 };
 
+const updateSlopeRow = (
+  rowId: number,
+  field: keyof Omit<SlopeTableRow, 'id'>,
+  value: string
+) => {
+  setSlopeRows(rows =>
+    rows.map(row => (row.id === rowId ? { ...row, [field]: value } : row))
+  );
+};
+
+const addSlopeRow = () => {
+  setSlopeRows(rows => [
+    ...rows,
+    {
+      id: Date.now(),
+      slopeType: '',
+      point: '',
+      place: '',
+      firstEw: '',
+      firstNs: '',
+      currentEw: '',
+      currentNs: '',
+      note: '',
+    },
+  ]);
+};
+
+const removeSlopeRow = (rowId: number) => {
+  setSlopeRows(rows => (rows.length <= 1 ? rows : rows.filter(row => row.id !== rowId)));
+};
+
+const sendSlopeTable = async () => {
+  if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+  if (isSending) return;
+
+  const rows = slopeRows.filter(row =>
+    [
+      row.slopeType,
+      row.point,
+      row.place,
+      row.firstEw,
+      row.firstNs,
+      row.currentEw,
+      row.currentNs,
+      row.note,
+    ].some(value => value.trim())
+  );
+
+  setIsSending(true);
+
+  try {
+    const result = await gasApi("uploadSlopeTable", {
+      spreadsheetId,
+      stationNo,
+      station: stationName,
+      year: selectedYear,
+      firstDate,
+      inspectDate,
+      rows,
+    });
+
+    if (result.success) {
+      alert("傾斜表をスプレッドシートへ保存しました");
+    } else {
+      alert("保存に失敗しました: " + (result.error || "不明なエラー"));
+    }
+  } catch (e) {
+    console.error(e);
+    alert("通信エラーが発生しました。GAS側に uploadSlopeTable の追加が必要です。");
+  } finally {
+    setIsSending(false);
+  }
+};
+
 const formatSizeDetailValue = (value: string) => {
   return value
     .split('\n')
@@ -1300,6 +1402,169 @@ const formatSizeDetailValue = (value: string) => {
     })
     .join('\n');
 };
+
+if (mode === 'slope_table') {
+  return (
+    <div className="flex min-h-screen flex-col bg-slate-300 text-black">
+      <Nav />
+      <LoadingOverlay />
+
+      <div className="mx-auto w-full max-w-[99%] flex-1 overflow-x-auto px-2 pb-24">
+        <div className="min-w-[1020px] border-2 border-slate-900 bg-white text-[13px] shadow-sm">
+          <div className="grid grid-cols-[1fr_120px_120px] border-b-2 border-slate-900">
+            <div className="flex items-center justify-center border-r-2 border-slate-900 py-4 text-[22px] font-black tracking-[0.28em]">
+              建 物 傾 斜 測 定 結 果 表
+            </div>
+            <div className="flex items-center justify-center border-r-2 border-slate-900 bg-slate-50 font-bold">
+              駅No.
+            </div>
+            <input
+              className="w-full px-3 text-center font-black outline-none"
+              value={stationNo}
+              onChange={e => setStationNo(e.target.value)}
+              placeholder="駅No."
+            />
+          </div>
+
+          <div className="grid grid-cols-[90px_76px_170px_104px_104px_104px_104px_1fr] border-b-2 border-slate-900 bg-slate-100 text-center font-black">
+            <div className="row-span-3 flex items-center justify-center whitespace-pre-line border-r-2 border-slate-900">
+              傾斜{"\n"}種類
+            </div>
+            <div className="row-span-3 flex items-center justify-center border-r-2 border-slate-900">
+              測点
+            </div>
+            <div className="row-span-3 flex items-center justify-center border-r-2 border-slate-900">
+              測定箇所
+            </div>
+            <div className="col-span-2 border-r-2 border-slate-900 p-1">
+              <div className="mb-1">初回点検日</div>
+              <input
+                className="w-full border border-slate-300 bg-white px-2 py-1 text-center font-normal outline-none"
+                value={firstDate}
+                onChange={e => setFirstDate(e.target.value)}
+                placeholder="日付"
+              />
+            </div>
+            <div className="col-span-2 border-r-2 border-slate-900 p-1">
+              <div className="mb-1">点検日</div>
+              <input
+                type="date"
+                className="w-full border border-slate-300 bg-white px-2 py-1 text-center font-normal outline-none"
+                value={inspectDate}
+                onChange={e => setInspectDate(e.target.value)}
+              />
+            </div>
+            <div className="row-span-3 flex items-center justify-center">
+              備考
+            </div>
+
+            <div className="border-r border-t-2 border-slate-900 p-2">東西方向</div>
+            <div className="border-r-2 border-t-2 border-slate-900 p-2">南北方向</div>
+            <div className="border-r border-t-2 border-slate-900 p-2">東西方向</div>
+            <div className="border-r-2 border-t-2 border-slate-900 p-2">南北方向</div>
+
+            <div className="border-r border-t border-slate-900 p-2">測定値(mm)</div>
+            <div className="border-r-2 border-t border-slate-900 p-2">測定値(mm)</div>
+            <div className="border-r border-t border-slate-900 p-2">測定値(mm)</div>
+            <div className="border-r-2 border-t border-slate-900 p-2">測定値(mm)</div>
+          </div>
+
+          <div>
+            {slopeRows.map((row, index) => (
+              <div
+                key={row.id}
+                className="grid grid-cols-[90px_76px_170px_104px_104px_104px_104px_1fr_44px] border-b border-slate-500"
+              >
+                <input
+                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
+                  value={row.slopeType}
+                  onChange={e => updateSlopeRow(row.id, 'slopeType', e.target.value)}
+                  placeholder={index === 0 ? "柱" : ""}
+                />
+                <input
+                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
+                  value={row.point}
+                  onChange={e => updateSlopeRow(row.id, 'point', e.target.value)}
+                  placeholder={String(index + 1)}
+                />
+                <input
+                  className="border-r border-slate-500 px-2 py-2 outline-none"
+                  value={row.place}
+                  onChange={e => updateSlopeRow(row.id, 'place', e.target.value)}
+                  placeholder="測定箇所"
+                />
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
+                  value={row.firstEw}
+                  onChange={e => updateSlopeRow(row.id, 'firstEw', e.target.value)}
+                />
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
+                  value={row.firstNs}
+                  onChange={e => updateSlopeRow(row.id, 'firstNs', e.target.value)}
+                />
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
+                  value={row.currentEw}
+                  onChange={e => updateSlopeRow(row.id, 'currentEw', e.target.value)}
+                />
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className="border-r border-slate-500 px-2 py-2 text-center outline-none"
+                  value={row.currentNs}
+                  onChange={e => updateSlopeRow(row.id, 'currentNs', e.target.value)}
+                />
+                <input
+                  className="border-r border-slate-500 px-2 py-2 outline-none"
+                  value={row.note}
+                  onChange={e => updateSlopeRow(row.id, 'note', e.target.value)}
+                  placeholder="備考"
+                />
+                <button
+                  type="button"
+                  className="bg-slate-100 text-sm font-black text-red-600 active:bg-red-50"
+                  onClick={() => removeSlopeRow(row.id)}
+                  aria-label="行を削除"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t-2 border-slate-900 px-3 py-2 text-[12px] font-bold">
+            *測定値については±1mmの範囲で測定誤差の生じる場合があります。
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={addSlopeRow}
+            className="rounded-xl bg-white px-5 py-3 text-sm font-black text-slate-800 shadow active:scale-95"
+          >
+            行を追加
+          </button>
+          <button
+            type="button"
+            onClick={sendSlopeTable}
+            disabled={isSending}
+            className="rounded-xl bg-blue-600 px-8 py-3 text-sm font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+          >
+            {isSending ? "保存中..." : "この内容で傾斜表を更新"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
  if (mode === 'karte_menu' || mode === 'inclination_menu') {
     const isPhoto = mode === 'karte_menu';
