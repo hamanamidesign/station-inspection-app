@@ -38,7 +38,7 @@ interface SlopeTableRow {
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 
-const createEmptySlopeRows = (count = 20): SlopeTableRow[] =>
+const createEmptySlopeRows = (count = 13): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
     id: Date.now() + index,
     slopeType: '',
@@ -1769,23 +1769,16 @@ if (mode === 'slope_table') {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={addSlopeRow}
-            className="rounded-xl bg-white px-5 py-3 text-sm font-black text-slate-800 shadow active:scale-95"
-          >
-            行を追加
-          </button>
-          <button
-            type="button"
-            onClick={sendSlopeTable}
-            disabled={isSending}
-            className="rounded-xl bg-blue-600 px-8 py-3 text-sm font-black text-white shadow active:scale-95 disabled:bg-slate-400"
-          >
-            {isSending ? "保存中..." : "この内容で傾斜表を更新"}
-          </button>
-        </div>
+<div className="mt-4 flex justify-center">
+  <button
+    type="button"
+    onClick={sendSlopeTable}
+    disabled={isSending}
+    className="w-[420px] rounded-xl bg-blue-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+  >
+    {isSending ? "保存中..." : "この内容で傾斜表を更新"}
+  </button>
+</div>
       </div>
     </div>
   );
