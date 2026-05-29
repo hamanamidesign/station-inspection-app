@@ -1345,6 +1345,8 @@ const addFinishText = (
 
 const loadSlopeTable = async () => {
 
+  setIsLoading(true);
+
   try {
 
     const result = await gasApi("getSlopeTableData", {
@@ -1370,6 +1372,10 @@ const loadSlopeTable = async () => {
 
     console.error(e);
     alert("傾斜表の読み込みに失敗しました");
+
+  } finally {
+
+    setIsLoading(false);
 
   }
 
