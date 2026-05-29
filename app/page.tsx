@@ -177,6 +177,7 @@ useEffect(() => {
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
+  const [evalType, setEvalType] = useState('');
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
@@ -1832,7 +1833,134 @@ if (mode === 'slope_table') {
   );
 }
 
- if (mode === 'karte_menu' || mode === 'inclination_menu') {
+// ========================================
+// 傾斜測定カルテ
+// ========================================
+if (mode === 'inclination_menu') return (
+
+  <div className="min-h-screen bg-slate-100 p-4 text-black">
+
+    <Nav back="task_select" />
+
+    <div className="max-w-6xl mx-auto">
+
+      {/* ヘッダー */}
+      <div className="bg-white border-2 border-slate-800 mb-3">
+
+        <div className="grid grid-cols-[140px_1fr_140px]">
+
+          {/* 左 */}
+          <div className="border-r-2 border-slate-800 p-3 font-bold text-center flex items-center justify-center">
+            写真カルテ
+          </div>
+
+          {/* 中央 */}
+          <div className="border-r-2 border-slate-800 p-2">
+
+            <div className="text-[10px] text-slate-500">
+              駅No.
+            </div>
+
+            <input
+              className="w-full outline-none text-lg"
+              placeholder="駅No"
+            />
+
+          </div>
+
+          {/* 右 */}
+          <div className="p-2">
+
+            <div className="text-[10px] text-slate-500">
+              評区分
+            </div>
+
+            <input
+              className="w-full outline-none text-lg"
+              placeholder="評区分"
+            />
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* タイトル */}
+      <div className="bg-white border-2 border-slate-800 p-4 mb-4">
+
+        <div className="text-3xl font-bold tracking-wide">
+          建物傾斜測定
+        </div>
+
+      </div>
+
+      {/* 測定ブロック */}
+      <div className="grid grid-cols-2 gap-4">
+
+        {[1,2,3,4,5,6].map((num) => (
+
+          <div
+            key={num}
+            className="bg-white border-2 border-slate-800"
+          >
+
+            {/* ブロックタイトル */}
+            <div className="border-b-2 border-slate-800 bg-slate-50 p-2">
+
+              <div className="font-bold">
+                測定箇所 {num}
+              </div>
+
+            </div>
+
+            {/* 測定値 */}
+            <div className="p-2 border-b border-slate-300">
+
+              <div className="text-[11px] font-bold text-blue-700 mb-1">
+                測定値(mm)
+              </div>
+
+              <input
+                className="w-full border border-slate-400 rounded p-2"
+                placeholder="測定値入力"
+              />
+
+            </div>
+
+            {/* 写真 */}
+            <div className="aspect-[4/3] bg-slate-100 border-b border-slate-300 flex items-center justify-center">
+
+              <span className="text-slate-400 text-sm">
+                写真エリア
+              </span>
+
+            </div>
+
+            {/* 備考 */}
+            <div className="p-2">
+
+              <textarea
+                rows={3}
+                className="w-full border border-slate-400 rounded p-2 text-sm"
+                placeholder="備考"
+              />
+
+            </div>
+
+          </div>
+
+        ))}
+
+      </div>
+
+    </div>
+
+  </div>
+
+);
+
+ if (mode === 'karte_menu') {
     const isPhoto = mode === 'karte_menu';
     return (
       <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
