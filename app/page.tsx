@@ -1582,7 +1582,7 @@ if (mode === 'slope_table') {
   return (
     <div className="flex min-h-screen flex-col bg-slate-300 text-black">
       <Nav />
-      {isLoading && <LoadingOverlay />}
+      <LoadingOverlay />
 
       <div className="mx-auto w-full max-w-[99%] flex-1 overflow-x-auto px-2 pb-24">
 
