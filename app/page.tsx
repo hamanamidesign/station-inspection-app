@@ -1932,7 +1932,7 @@ if (mode === 'inclination_menu') return (
   </div>
 
   {/* テーブル部分 */}
-  <div className="grid grid-cols-[160px_1fr_140px_140px_160px_1fr_140px_140px]">
+  <div className="grid grid-cols-[120px_1fr_140px_140px_120px_1fr_140px_140px]">
 
     {/* 初回点検日 */}
     <div className="border-r border-slate-800 p-3 flex items-center justify-center font-bold bg-slate-100">
@@ -1947,7 +1947,7 @@ if (mode === 'inclination_menu') return (
     {/* 初回 受注者（入力） */}
     <div className="border-r border-slate-800 p-2 flex items-center">
       <input
-        className="w-full text-center font-bold outline-none"
+        className="w-full text-center text-sm outline-none"
         value={firstInspector}
         onChange={(e) => setFirstInspector(e.target.value)}
         placeholder="受注者"
@@ -1957,7 +1957,7 @@ if (mode === 'inclination_menu') return (
     {/* 初回 点検者（入力） */}
     <div className="border-r border-slate-800 p-2 flex items-center">
       <input
-        className="w-full text-center font-bold outline-none"
+        className="w-full text-center text-sm outline-none"
         value={firstFinish}
         onChange={(e) => setFirstFinish(e.target.value)}
         placeholder="点検者"
@@ -1977,7 +1977,7 @@ if (mode === 'inclination_menu') return (
     {/* 最新 受注者（入力） */}
     <div className="border-r border-slate-800 p-2 flex items-center">
       <input
-        className="w-full text-center font-bold outline-none"
+        className="w-full text-center text-sm outline-none"
         value={contractor}
         onChange={(e) => setContractor(e.target.value)}
         placeholder="受注者"
@@ -1987,7 +1987,7 @@ if (mode === 'inclination_menu') return (
     {/* 最新 点検者（入力） */}
     <div className="p-2 flex items-center">
       <input
-        className="w-full text-center font-bold outline-none"
+        className="w-full text-centertext-sm outline-none"
         value={inspector}
         onChange={(e) => setInspector(e.target.value)}
         placeholder="点検者"
