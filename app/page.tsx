@@ -2104,7 +2104,7 @@ if (mode === 'inclination_menu') return (
 
               <div className={`border p-1 ${
                 isSlopeAlertValue(row.firstEwValue)
-                  ? 'text-red-600 font-bold'
+                  ? 'text-red-600'
                   : ''
               }`}>
                 {row.firstEwDirection}
@@ -2112,7 +2112,7 @@ if (mode === 'inclination_menu') return (
 
               <div className={`border p-1 ${
                 isSlopeAlertValue(row.firstEwValue)
-                  ? 'text-red-600 font-bold'
+                  ? 'text-red-600'
                   : ''
               }`}>
                 {row.firstEwValue}
@@ -2120,7 +2120,7 @@ if (mode === 'inclination_menu') return (
 
               <div className={`border p-1 ${
                 isSlopeAlertValue(row.firstNsValue)
-                  ? 'text-red-600 font-bold'
+                  ? 'text-red-600'
                   : ''
               }`}>
                 {row.firstNsDirection}
@@ -2128,7 +2128,7 @@ if (mode === 'inclination_menu') return (
 
               <div className={`border p-1 ${
                 isSlopeAlertValue(row.firstNsValue)
-                  ? 'text-red-600 font-bold'
+                  ? 'text-red-600'
                   : ''
               }`}>
                 {row.firstNsValue}
