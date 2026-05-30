@@ -2102,7 +2102,7 @@ if (mode === 'inclination_menu') return (
                 数値
               </div>
 
-              <div className={`border p-1 ${
+              <div className={`${
                 isSlopeAlertValue(row.firstEwValue)
                   ? 'text-red-600'
                   : ''
@@ -2118,7 +2118,7 @@ if (mode === 'inclination_menu') return (
                 {row.firstEwValue}
               </div>
 
-              <div className={`border-t border-r border p-1 ${
+              <div className={`border-t border-r ${
                 isSlopeAlertValue(row.firstNsValue)
                   ? 'text-red-600'
                   : ''
@@ -2163,9 +2163,9 @@ if (mode === 'inclination_menu') return (
                 数値
               </div>
 
-              <div className={`border p-1 ${
+              <div className={`${
                 isSlopeAlertValue(row.currentEwValue)
-                  ? 'text-red-600 font-bold'
+                  ? 'text-red-600'
                   : ''
               }`}>
                 {row.currentEwDirection}
@@ -2177,15 +2177,15 @@ if (mode === 'inclination_menu') return (
                   : ''
               } ${
                 isSlopeAlertValue(row.currentEwValue)
-                  ? 'text-red-600 font-bold'
+                  ? 'text-red-600'
                   : ''
               }`}>
                 {row.currentEwValue}
               </div>
 
-              <div className={`border-t border-r border p-1 ${
+              <div className={`border-t border-r ${
                 isSlopeAlertValue(row.currentNsValue)
-                  ? 'text-red-600 font-bold'
+                  ? 'text-red-600'
                   : ''
               }`}>
                 {row.currentNsDirection}
@@ -2197,7 +2197,7 @@ if (mode === 'inclination_menu') return (
                   : ''
               } ${
                 isSlopeAlertValue(row.currentNsValue)
-                  ? 'text-red-600 font-bold'
+                  ? 'text-red-600'
                   : ''
               }`}>
                 {row.currentNsValue}
