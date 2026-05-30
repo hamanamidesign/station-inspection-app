@@ -1918,7 +1918,6 @@ if (mode === 'inclination_menu') return (
     className="w-full outline-none text-center font-bold"
     value={evalType}
     onChange={(e) => setEvalType(e.target.value)}
-    placeholder=""
   />
 </div>
 </div>
