@@ -34,7 +34,8 @@ interface SlopeTableRow {
   currentNsDirection: string;
   currentNsValue: string;
   note: string;
-  photo: string | null;
+  photo1?: string | null;
+  photo2?: string | null;
 }
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
@@ -1514,20 +1515,25 @@ const addSlopeRow = () => {
   currentNsDirection: '',
   currentNsValue: '',
   note: '',
-  photo: null,
+  photo1: null,
+  photo2: null,
 },
   ]);
 };
 
 const updateSlopePhoto = (
   rowId: number,
+  photoField: 'photo1' | 'photo2',
   photo: string | null
 ) => {
 
   setSlopeRows(rows =>
     rows.map(row =>
       row.id === rowId
-        ? { ...row, photo }
+        ? {
+            ...row,
+            [photoField]: photo,
+          }
         : row
     )
   );
@@ -1536,7 +1542,8 @@ const updateSlopePhoto = (
 
 const handleSlopeCapture = async (
   e: React.ChangeEvent<HTMLInputElement>,
-  rowId: number
+  rowId: number,
+  photoField: 'photo1' | 'photo2'
 ) => {
 
   const file = e.target.files?.[0];
@@ -1547,10 +1554,11 @@ const handleSlopeCapture = async (
 
   reader.onload = () => {
 
-    updateSlopePhoto(
-      rowId,
-      reader.result as string
-    );
+updateSlopePhoto(
+  rowId,
+  photoField,
+  reader.result as string
+);
 
   };
 
@@ -2051,6 +2059,7 @@ if (mode === 'inclination_menu') return (
 
 {slopeRows
   .filter(row => row.point?.trim())
+  .slice(0, 4)
   .map((row) => {
 
     const ewChanged = hasSlopeDiff(row, 'ew');
@@ -2222,61 +2231,119 @@ if (mode === 'inclination_menu') return (
 
         </div>
 
-{/* 写真 */}
-<div className="relative aspect-[4/3] bg-slate-100 border-b border-slate-300">
+{/* 写真２枚 */}
+<div className="grid grid-cols-2 border-b border-slate-300">
 
-  <div
-    className="w-full h-full cursor-pointer overflow-hidden"
-    onClick={() =>
-      document
-        .getElementById(`slope-photo-${row.id}`)
-        ?.click()
-    }
-  >
+  {/* 写真① */}
+  <div className="relative aspect-[4/3] bg-slate-100">
 
-    {row.photo ? (
+    <div
+      className="w-full h-full cursor-pointer overflow-hidden"
+      onClick={() =>
+        document
+          .getElementById(`slope-photo1-${row.id}`)
+          ?.click()
+      }
+    >
 
-      <img
-        src={row.photo}
-        className="w-full h-full object-cover"
-      />
+      {row.photo1 ? (
 
-    ) : (
+        <img
+          src={row.photo1}
+          className="w-full h-full object-cover"
+        />
 
-      <div className="flex h-full items-center justify-center text-slate-400 text-sm">
+      ) : (
 
-        写真貼付
+        <div className="flex h-full items-center justify-center text-slate-400 text-sm">
+          写真①
+        </div>
 
-      </div>
+      )}
+
+    </div>
+
+    <input
+      id={`slope-photo1-${row.id}`}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={(e) =>
+        handleSlopeCapture(e, row.id, 'photo1')
+      }
+    />
+
+    {!!row.photo1 && (
+
+      <button
+        onClick={() =>
+          updateSlopePhoto(row.id, 'photo1', null)
+        }
+        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
+      >
+        ✕
+      </button>
 
     )}
 
   </div>
 
-  <input
-    id={`slope-photo-${row.id}`}
-    type="file"
-    accept="image/*"
-    className="hidden"
-    onChange={(e) =>
-      handleSlopeCapture(e, row.id)
-    }
-  />
+  {/* 写真② */}
+  <div className="relative aspect-[4/3] bg-slate-100 border-l border-slate-300">
 
-  {!!row.photo && (
-
-    <button
+    <div
+      className="w-full h-full cursor-pointer overflow-hidden"
       onClick={() =>
-        updateSlopePhoto(row.id, null)
+        document
+          .getElementById(`slope-photo2-${row.id}`)
+          ?.click()
       }
-      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
     >
-      ✕
-    </button>
 
-  )}
+      {row.photo2 ? (
+
+        <img
+          src={row.photo2}
+          className="w-full h-full object-cover"
+        />
+
+      ) : (
+
+        <div className="flex h-full items-center justify-center text-slate-400 text-sm">
+          写真②
+        </div>
+
+      )}
+
+    </div>
+
+    <input
+      id={`slope-photo2-${row.id}`}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={(e) =>
+        handleSlopeCapture(e, row.id, 'photo2')
+      }
+    />
+
+    {!!row.photo2 && (
+
+      <button
+        onClick={() =>
+          updateSlopePhoto(row.id, 'photo2', null)
+        }
+        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
+      >
+        ✕
+      </button>
+
+    )}
+
+  </div>
 
 </div>
+
 
         {/* 備考 */}
         <div className="p-2">
