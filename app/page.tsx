@@ -2086,19 +2086,19 @@ if (mode === 'inclination_menu') return (
 
             <div className="grid grid-cols-[60px_1fr_60px_1fr] text-center">
 
-<div className="border p-1">
+<div className="p-1">
   方角
 </div>
 
-<div className="border-t border-r border-b p-1">
+<div className="p-1">
   数値
 </div>
 
-<div className="border p-1">
+<div className="p-1">
   方角
 </div>
 
-<div className="border-t border-r border-b p-1">
+<div className="p-1">
   数値
 </div>
 
@@ -2118,7 +2118,7 @@ if (mode === 'inclination_menu') return (
                 {row.firstEwValue}
               </div>
 
-              <div className={`border-t border-r ${
+              <div className={`${
                 isSlopeAlertValue(row.firstNsValue)
                   ? 'text-red-600'
                   : ''
@@ -2147,19 +2147,19 @@ if (mode === 'inclination_menu') return (
 
             <div className="grid grid-cols-[60px_1fr_60px_1fr] text-center">
 
-<div className="border p-1">
+<div className="p-1">
   方角
 </div>
 
-<div className="border-t border-r border-b p-1">
+<div className="p-1">
   数値
 </div>
 
-<div className="border p-1">
+<div className="p-1">
   方角
 </div>
 
-<div className="border-t border-r border-b p-1">
+<div className="p-1">
   数値
 </div>
 
@@ -2183,7 +2183,7 @@ if (mode === 'inclination_menu') return (
                 {row.currentEwValue}
               </div>
 
-              <div className={`border-t border-r ${
+              <div className={`${
                 isSlopeAlertValue(row.currentNsValue)
                   ? 'text-red-600'
                   : ''
