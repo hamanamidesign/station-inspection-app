@@ -1923,69 +1923,74 @@ if (mode === 'inclination_menu') return (
 </div>
 </div>
 
-{/* 傾斜情報ブロック */}
+{/* 傾斜ブロック */}
 <div className="bg-white border-2 border-slate-800 mb-3">
 
-  <div className="grid grid-cols-[160px_140px_1fr_140px_140px_140px_1fr_140px_140px]">
+  {/* タイトル（上段・中央） */}
+  <div className="border-b border-slate-800 p-3 flex items-center justify-center font-bold bg-slate-200">
+    建物傾斜測定
+  </div>
 
-    {/* タイトル */}
-    <div className="p-3 flex items-center justify-center font-bold bg-slate-200 border-r border-slate-800">
-      建物傾斜測定
-    </div>
+  {/* テーブル部分 */}
+  <div className="grid grid-cols-[160px_1fr_140px_140px_160px_1fr_140px_140px]">
 
     {/* 初回点検日 */}
-    <div className="p-3 flex items-center justify-center font-bold bg-slate-200 border-r border-slate-800">
+    <div className="border-r border-slate-800 p-3 flex items-center justify-center font-bold bg-slate-100">
       初回点検日
     </div>
 
     {/* 初回 日付反映 */}
-    <div className="p-2 flex items-center border-r border-slate-800">
+    <div className="border-r border-slate-800 p-2 flex items-center justify-center">
       {firstDate}
     </div>
 
-    {/* 初回 受注者 */}
-    <div className="p-2 flex items-center border-r border-slate-800">
+    {/* 初回 受注者（入力） */}
+    <div className="border-r border-slate-800 p-2 flex items-center">
       <input
         className="w-full text-center font-bold outline-none"
         value={firstInspector}
         onChange={(e) => setFirstInspector(e.target.value)}
+        placeholder="受注者"
       />
     </div>
 
-    {/* 初回 点検者 */}
-    <div className="p-2 flex items-center border-r border-slate-800">
+    {/* 初回 点検者（入力） */}
+    <div className="border-r border-slate-800 p-2 flex items-center">
       <input
         className="w-full text-center font-bold outline-none"
         value={firstFinish}
         onChange={(e) => setFirstFinish(e.target.value)}
+        placeholder="点検者"
       />
     </div>
 
     {/* 最新点検日 */}
-    <div className="p-3 flex items-center justify-center font-bold bg-slate-200 border-r border-slate-800">
+    <div className="border-r border-slate-800 p-3 flex items-center justify-center font-bold bg-slate-100">
       最新点検日
     </div>
 
     {/* 最新 日付反映 */}
-    <div className="p-2 flex items-center border-r border-slate-800">
+    <div className="border-r border-slate-800 p-2 flex items-center justify-center">
       {inspectDate}
     </div>
 
-    {/* 最新 受注者 */}
-    <div className="p-2 flex items-center border-r border-slate-800">
+    {/* 最新 受注者（入力） */}
+    <div className="border-r border-slate-800 p-2 flex items-center">
       <input
         className="w-full text-center font-bold outline-none"
         value={contractor}
         onChange={(e) => setContractor(e.target.value)}
+        placeholder="受注者"
       />
     </div>
 
-    {/* 最新 点検者 */}
+    {/* 最新 点検者（入力） */}
     <div className="p-2 flex items-center">
       <input
         className="w-full text-center font-bold outline-none"
         value={inspector}
         onChange={(e) => setInspector(e.target.value)}
+        placeholder="点検者"
       />
     </div>
 
