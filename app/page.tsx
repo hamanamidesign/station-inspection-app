@@ -2256,7 +2256,7 @@ if (mode === 'inclination_menu') return (
       ) : (
 
         <div className="flex h-full items-center justify-center text-slate-400 text-sm">
-          写真①
+          初回写真
         </div>
 
       )}
@@ -2310,7 +2310,7 @@ if (mode === 'inclination_menu') return (
       ) : (
 
         <div className="flex h-full items-center justify-center text-slate-400 text-sm">
-          写真②
+          最新写真
         </div>
 
       )}
