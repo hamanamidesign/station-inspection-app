@@ -1945,24 +1945,26 @@ if (mode === 'inclination_menu') return (
     </div>
 
     {/* 初回 受注者（入力） */}
-    <div className="border-r border-slate-800 p-2 flex items-center">
-      <input
-        className="w-full text-center text-sm outline-none whitespace-normal break-words"
-        value={firstInspector}
-        onChange={(e) => setFirstInspector(e.target.value)}
-        placeholder="受注者"
-      />
-    </div>
+<div className="border-r border-slate-800 p-2 flex items-center">
+  <textarea
+    className="w-full text-center text-sm outline-none resize-none overflow-hidden"
+    value={firstInspector}
+    onChange={(e) => setFirstInspector(e.target.value)}
+    rows={2}
+    placeholder="受注者"
+  />
+</div>
 
     {/* 初回 点検者（入力） */}
-    <div className="border-r border-slate-800 p-2 flex items-center">
-      <input
-        className="w-full text-center text-sm outline-none whitespace-normal break-words"
-        value={firstFinish}
-        onChange={(e) => setFirstFinish(e.target.value)}
-        placeholder="点検者"
-      />
-    </div>
+<div className="border-r border-slate-800 p-2 flex items-center">
+  <textarea
+    className="w-full text-center text-sm outline-none resize-none overflow-hidden"
+    value={firstFinish}
+    onChange={(e) => setFirstFinish(e.target.value)}
+    rows={2}
+    placeholder="点検者"
+  />
+</div>
 
     {/* 最新点検日 */}
    <div className="border-r border-slate-800 p-3 flex items-center justify-center font-bold bg-blue-700 text-white">
@@ -1975,24 +1977,26 @@ if (mode === 'inclination_menu') return (
     </div>
 
     {/* 最新 受注者（入力） */}
-    <div className="border-r border-slate-800 p-2 flex items-center">
-      <input
-        className="w-full text-center text-sm outline-none whitespace-normal break-words"
-        value={contractor}
-        onChange={(e) => setContractor(e.target.value)}
-        placeholder="受注者"
-      />
-    </div>
+<div className="border-r border-slate-800 p-2 flex items-center">
+  <textarea
+    className="w-full text-center text-sm outline-none resize-none overflow-hidden"
+    value={contractor}
+    onChange={(e) => setContractor(e.target.value)}
+    rows={2}
+    placeholder="受注者"
+  />
+</div>
 
     {/* 最新 点検者（入力） */}
-    <div className="p-2 flex items-center">
-      <input
-        className="w-full text-center text-sm outline-none whitespace-normal break-words"
-        value={inspector}
-        onChange={(e) => setInspector(e.target.value)}
-        placeholder="点検者"
-      />
-    </div>
+<div className="p-2 flex items-center">
+  <textarea
+    className="w-full text-center text-sm outline-none resize-none overflow-hidden"
+    value={inspector}
+    onChange={(e) => setInspector(e.target.value)}
+    rows={2}
+    placeholder="点検者"
+  />
+</div>
 
   </div>
 
