@@ -2346,11 +2346,11 @@ if (mode === 'inclination_menu') return (
 
 
         {/* 備考 */}
-        <div className="p-2">
+        <div className="p-1">
 
           <textarea
-            rows={3}
-            className="w-full border border-slate-400 rounded p-2 text-sm"
+            rows={1}
+            className="w-full border border-slate-400 rounded p-1 text-sm"
             value={row.note || ''}
             readOnly
           />
