@@ -1918,16 +1918,17 @@ if (mode === 'inclination_menu') return (
     評価区分
   </div>
 
-  {/* 評価区分（入力） */}
-  <div className="grid-cols-[120px_1fr_1fr] p-3 flex items-center">
+{/* 評価区分（入力） */}
+<div className="p-3 flex items-center">
+  <div className="w-[120px] border border-slate-800">
     <input
-      className="w-full outline-none text-center font-bold"
+      className="w-full outline-none text-center font-bold p-1"
       value={evalType}
       onChange={(e) => setEvalType(e.target.value)}
       placeholder="文字入力"
     />
   </div>
-
+</div>
 </div>
 
       {/* 測定ブロック */}
