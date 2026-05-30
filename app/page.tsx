@@ -1913,12 +1913,12 @@ if (mode === 'inclination_menu') return (
 </div>
 
 {/* 評価区分（入力） */}
-<div className="p-2 flex items-center justify-center">
+<div className="border-r-2 border-slate-800 p-2 flex items-center">
   <input
-    className="w-full border border-slate-800 text-center font-bold outline-none"
+    className="w-full outline-none text-center font-bold"
     value={evalType}
     onChange={(e) => setEvalType(e.target.value)}
-    placeholder="入力"
+    placeholder=""
   />
 </div>
 </div>
