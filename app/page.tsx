@@ -1910,6 +1910,26 @@ if (mode === 'inclination_menu') return (
   </div>
 </div>
 
+{/* 評価区分行 */}
+<div className="grid grid-cols-[120px_1fr] border-b border-slate-800">
+
+  {/* 評価区分（ラベル） */}
+  <div className="border-r-2 border-slate-800 p-3 flex items-center justify-center font-bold bg-slate-200">
+    評価区分
+  </div>
+
+  {/* 評価区分（入力） */}
+  <div className="grid-cols-[120px_1fr_1fr] p-3 flex items-center">
+    <input
+      className="w-full outline-none text-center font-bold"
+      value={evaluationType}
+      onChange={(e) => setEvaluationType(e.target.value)}
+      placeholder="文字入力"
+    />
+  </div>
+
+</div>
+
       {/* 測定ブロック */}
       <div className="grid grid-cols-2 gap-4">
 
