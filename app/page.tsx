@@ -1868,8 +1868,8 @@ if (mode === 'inclination_menu') return (
   <div className="grid grid-cols-[160px_120px_140px_80px_1fr_80px_120px_120px]">
 
     {/* 写真カルテ */}
-    <div className="border-r-2 border-slate-800 p-3 font-bold flex items-center justify-center bg-slate-200">
-      写真カルテ
+    <div className="p-3 font-bold flex items-center justify-center bg-slate-200">
+    写真カルテ
     </div>
 
 {/* 傾斜範囲 */}
