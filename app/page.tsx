@@ -101,6 +101,8 @@ export default function InspectorApp() {
   const [firstFinish, setFirstFinish] = useState(''); // 初回 仕上げ材
   const [firstSituation, setFirstSituation] = useState(''); // 初回 状況
   const [firstDetail, setFirstDetail] = useState(''); // 初回 サイズ詳細
+  const [slopeFirstContractor, setSlopeFirstContractor] = useState('');
+  const [slopeFirstInspector, setSlopeFirstInspector] = useState('');
 
   // --- 共通ステート ---
   const [routeList, setRouteList] = useState<any[]>([]);
@@ -1948,8 +1950,8 @@ if (mode === 'inclination_menu') return (
 <div className="border-r border-slate-800 p-2 flex items-center">
   <textarea
     className="w-full text-center text-sm outline-none resize-none overflow-hidden"
-    value={firstInspector}
-    onChange={(e) => setFirstInspector(e.target.value)}
+    value={slopeFirstContractor}
+    onChange={(e) => setSlopeFirstContractor(e.target.value)}
     rows={2}
     placeholder="受注者"
   />
@@ -1959,8 +1961,8 @@ if (mode === 'inclination_menu') return (
 <div className="border-r border-slate-800 p-2 flex items-center">
   <textarea
     className="w-full text-center text-sm outline-none resize-none overflow-hidden"
-    value={firstFinish}
-    onChange={(e) => setFirstFinish(e.target.value)}
+    value={slopeFirstInspector}
+    onChange={(e) => setSlopeFirstInspector(e.target.value)}
     rows={2}
     placeholder="点検者"
   />
