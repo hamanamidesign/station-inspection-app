@@ -1868,7 +1868,7 @@ if (mode === 'inclination_menu') return (
   <div className="grid grid-cols-[160px_120px_140px_80px_1fr_80px]">
 
     {/* 写真カルテ */}
-    <div className="border-r-2 border-slate-800 p-3 font-bold flex items-center justify-center">
+    <div className="border-r-2 border-slate-800 p-3 font-bold flex items-center justify-center bg-slate-200">
       写真カルテ
     </div>
 
@@ -1878,7 +1878,7 @@ if (mode === 'inclination_menu') return (
 </div>
 
     {/* 駅No.- */}
-    <div className="border-r-2 border-slate-800 p-2 flex items-center justify-center text-sm font-bold">
+    <div className="border-r-2 border-slate-800 p-2 flex items-center justify-center text-sm font-bold bg-slate-200">
       駅No.-
     </div>
 
@@ -1903,7 +1903,7 @@ if (mode === 'inclination_menu') return (
 </div>
 
     {/* 駅ラベル */}
-    <div className="p-3 flex items-center justify-center font-bold">
+    <div className="p-3 flex items-center justify-center font-bold bg-slate-200">
       駅
     </div>
 
