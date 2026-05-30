@@ -2110,7 +2110,7 @@ if (mode === 'inclination_menu') return (
                 {row.firstEwDirection}
               </div>
 
-              <div className={`border-t border-r border p-1 ${
+              <div className={`border-t border-r ${
                 isSlopeAlertValue(row.firstEwValue)
                   ? 'text-red-600'
                   : ''
@@ -2126,7 +2126,7 @@ if (mode === 'inclination_menu') return (
                 {row.firstNsDirection}
               </div>
 
-              <div className={`border-t border-r border p-1 ${
+              <div className={`border-t border-r ${
                 isSlopeAlertValue(row.firstNsValue)
                   ? 'text-red-600'
                   : ''
@@ -2171,7 +2171,7 @@ if (mode === 'inclination_menu') return (
                 {row.currentEwDirection}
               </div>
 
-              <div className={`border-t border-r border p-1 ${
+              <div className={`border-t border-r ${
                 ewChanged
                   ? 'bg-slate-300'
                   : ''
@@ -2191,7 +2191,7 @@ if (mode === 'inclination_menu') return (
                 {row.currentNsDirection}
               </div>
 
-              <div className={`border-t border-r border p-1 ${
+              <div className={`border-t border-r ${
                 nsChanged
                   ? 'bg-slate-300'
                   : ''
