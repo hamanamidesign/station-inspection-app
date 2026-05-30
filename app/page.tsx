@@ -2086,19 +2086,19 @@ if (mode === 'inclination_menu') return (
 
             <div className="grid grid-cols-[60px_1fr_60px_1fr] text-center">
 
-              <div className="border p-1 font-bold">
+              <div className="border p-1">
                 方角
               </div>
 
-              <div className="border p-1 font-bold">
+              <div className="border p-1">
                 数値
               </div>
 
-              <div className="border p-1 font-bold">
+              <div className="border p-1">
                 方角
               </div>
 
-              <div className="border p-1 font-bold">
+              <div className="border p-1">
                 数値
               </div>
 
@@ -2110,7 +2110,7 @@ if (mode === 'inclination_menu') return (
                 {row.firstEwDirection}
               </div>
 
-              <div className={`border p-1 ${
+              <div className={`border-t border-r border p-1 ${
                 isSlopeAlertValue(row.firstEwValue)
                   ? 'text-red-600'
                   : ''
@@ -2118,7 +2118,7 @@ if (mode === 'inclination_menu') return (
                 {row.firstEwValue}
               </div>
 
-              <div className={`border p-1 ${
+              <div className={`border-t border-r border p-1 ${
                 isSlopeAlertValue(row.firstNsValue)
                   ? 'text-red-600'
                   : ''
@@ -2126,7 +2126,7 @@ if (mode === 'inclination_menu') return (
                 {row.firstNsDirection}
               </div>
 
-              <div className={`border p-1 ${
+              <div className={`border-t border-r border p-1 ${
                 isSlopeAlertValue(row.firstNsValue)
                   ? 'text-red-600'
                   : ''
@@ -2147,19 +2147,19 @@ if (mode === 'inclination_menu') return (
 
             <div className="grid grid-cols-[60px_1fr_60px_1fr] text-center">
 
-              <div className="border p-1 font-bold">
+              <div className="border p-1">
                 方角
               </div>
 
-              <div className="border p-1 font-bold">
+              <div className="border p-1">
                 数値
               </div>
 
-              <div className="border p-1 font-bold">
+              <div className="border p-1">
                 方角
               </div>
 
-              <div className="border p-1 font-bold">
+              <div className="border p-1">
                 数値
               </div>
 
@@ -2171,7 +2171,7 @@ if (mode === 'inclination_menu') return (
                 {row.currentEwDirection}
               </div>
 
-              <div className={`border p-1 ${
+              <div className={`border-t border-r border p-1 ${
                 ewChanged
                   ? 'bg-slate-300'
                   : ''
@@ -2183,7 +2183,7 @@ if (mode === 'inclination_menu') return (
                 {row.currentEwValue}
               </div>
 
-              <div className={`border p-1 ${
+              <div className={`border-t border-r border p-1 ${
                 isSlopeAlertValue(row.currentNsValue)
                   ? 'text-red-600 font-bold'
                   : ''
@@ -2191,7 +2191,7 @@ if (mode === 'inclination_menu') return (
                 {row.currentNsDirection}
               </div>
 
-              <div className={`border p-1 ${
+              <div className={`border-t border-r border p-1 ${
                 nsChanged
                   ? 'bg-slate-300'
                   : ''
