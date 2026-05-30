@@ -1865,7 +1865,7 @@ if (mode === 'inclination_menu') return (
 {/* ヘッダーエリア */}
 <div className="bg-white border-2 border-slate-800 mb-3">
 
-  <div className="grid grid-cols-[160px_120px_140px_80px_1fr_80px]">
+  <div className="grid grid-cols-[160px_120px_140px_80px_1fr_80px_120px_120px]">
 
     {/* 写真カルテ */}
     <div className="border-r-2 border-slate-800 p-3 font-bold flex items-center justify-center bg-slate-200">
@@ -1902,33 +1902,26 @@ if (mode === 'inclination_menu') return (
   />
 </div>
 
-    {/* 駅ラベル */}
-    <div className="p-3 flex items-center justify-center font-bold bg-slate-200">
-      駅
-    </div>
-
-  </div>
+{/* 駅ラベル */}
+<div className="p-3 flex items-center justify-center font-bold bg-slate-200 border-r-2 border-slate-800">
+  駅
 </div>
 
-<div className="w-full bg-white border-b border-slate-800 flex">
+{/* 評価区分（ラベル） */}
+<div className="p-3 flex items-center justify-center font-bold bg-slate-200 border-r-2 border-slate-800">
+  評価区分
+</div>
 
-  {/* 評価区分 */}
-  <div className="w-[160px] bg-slate-200 border-r-2 border-slate-800 p-3 flex items-center justify-center font-bold">
-    評価区分
-  </div>
-
-  {/* 入力 + 余白エリア */}
-  <div className="flex-1 p-3 flex items-center">
-    
-    <input
-      className="w-[120px] border border-slate-800 text-center font-bold outline-none p-1"
-      value={evalType}
-      onChange={(e) => setEvalType(e.target.value)}
-      placeholder="文字入力"
-    />
-
-  </div>
-
+{/* 評価区分（入力） */}
+<div className="p-2 flex items-center justify-center">
+  <input
+    className="w-full border border-slate-800 text-center font-bold outline-none"
+    value={evalType}
+    onChange={(e) => setEvalType(e.target.value)}
+    placeholder="入力"
+  />
+</div>
+</div>
 </div>
 
       {/* 測定ブロック */}
