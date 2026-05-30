@@ -2037,29 +2037,29 @@ if (mode === 'inclination_menu') return (
         </div>
 
         {/* 点検日 */}
-        <div className="grid grid-cols-2 border-b border-slate-800">
+<div className="grid grid-cols-2 border-b border-slate-800">
 
-          <div>
-            <div className="bg-slate-300 p-1 text-center text-xs font-bold">
-              初回点検日
-            </div>
+  <div className="border-r border-slate-800">
+    <div className="bg-slate-300 p-1 text-center text-xs font-bold">
+      初回点検日
+    </div>
 
-            <div className="p-2 text-center">
-              {firstDate}
-            </div>
-          </div>
+    <div className="p-2 text-center">
+      {firstDate}
+    </div>
+  </div>
 
-          <div>
-            <div className="bg-blue-700 text-white p-1 text-center text-xs font-bold">
-              最新点検日
-            </div>
+  <div>
+    <div className="bg-blue-700 text-white p-1 text-center text-xs font-bold">
+      最新点検日
+    </div>
 
-            <div className="p-2 text-center">
-              {inspectDate}
-            </div>
-          </div>
+    <div className="p-2 text-center">
+      {inspectDate}
+    </div>
+  </div>
 
-        </div>
+</div>
 
         {/* 点検場所 */}
         <div className="grid grid-cols-[90px_1fr] border-b border-slate-800">
