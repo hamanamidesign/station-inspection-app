@@ -2002,70 +2002,243 @@ if (mode === 'inclination_menu') return (
 
 </div>
 
-      {/* 測定ブロック */}
-      <div className="grid grid-cols-2 gap-4">
+{/* 傾斜測定ブロック */}
+<div className="grid grid-cols-2 gap-4">
 
-        {[1,2,3,4,5,6].map((num) => (
+{slopeRows
+  .filter(row => row.point?.trim())
+  .map((row) => {
 
-          <div
-            key={num}
-            className="bg-white border-2 border-slate-800"
-          >
+    const ewChanged = hasSlopeDiff(row, 'ew');
+    const nsChanged = hasSlopeDiff(row, 'ns');
 
-            {/* ブロックタイトル */}
-            <div className="border-b-2 border-slate-800 bg-slate-50 p-2">
+    return (
 
-              <div className="font-bold">
-                測定箇所 {num}
+      <div
+        key={row.id}
+        className="bg-white border-2 border-slate-800"
+      >
+
+        {/* タイトル */}
+        <div className="border-b-2 border-slate-800">
+
+          <div className="grid grid-cols-[100px_1fr]">
+
+            <div className="bg-slate-200 border-r border-slate-800 p-2 text-center font-bold">
+              測点
+            </div>
+
+            <div className="p-2 text-center font-bold text-lg">
+              {row.point}
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* 点検日 */}
+        <div className="grid grid-cols-2 border-b border-slate-800">
+
+          <div>
+            <div className="bg-slate-300 p-1 text-center text-xs font-bold">
+              初回点検日
+            </div>
+
+            <div className="p-2 text-center">
+              {firstDate}
+            </div>
+          </div>
+
+          <div>
+            <div className="bg-blue-700 text-white p-1 text-center text-xs font-bold">
+              最新点検日
+            </div>
+
+            <div className="p-2 text-center">
+              {inspectDate}
+            </div>
+          </div>
+
+        </div>
+
+        {/* 点検場所 */}
+        <div className="grid grid-cols-[90px_1fr] border-b border-slate-800">
+
+          <div className="bg-slate-100 border-r border-slate-800 p-2 text-center font-bold">
+            点検場所
+          </div>
+
+          <div className="p-2">
+            {row.place}
+          </div>
+
+        </div>
+
+        {/* 測定値 */}
+        <div className="grid grid-cols-2 border-b border-slate-800">
+
+          {/* 初回 */}
+          <div className="border-r border-slate-800">
+
+            <div className="bg-slate-200 p-1 text-center font-bold">
+              初回傾斜
+            </div>
+
+            <div className="grid grid-cols-[60px_1fr_60px_1fr] text-center">
+
+              <div className="border p-1 font-bold">
+                方角
               </div>
 
-            </div>
-
-            {/* 測定値 */}
-            <div className="p-2 border-b border-slate-300">
-
-              <div className="text-[11px] font-bold text-blue-700 mb-1">
-                測定値(mm)
+              <div className="border p-1 font-bold">
+                数値
               </div>
 
-              <input
-                className="w-full border border-slate-400 rounded p-2"
-                placeholder="測定値入力"
-              />
+              <div className="border p-1 font-bold">
+                方角
+              </div>
 
-            </div>
+              <div className="border p-1 font-bold">
+                数値
+              </div>
 
-            {/* 写真 */}
-            <div className="aspect-[4/3] bg-slate-100 border-b border-slate-300 flex items-center justify-center">
+              <div className={`border p-1 ${
+                isSlopeAlertValue(row.firstEwValue)
+                  ? 'text-red-600 font-bold'
+                  : ''
+              }`}>
+                {row.firstEwDirection}
+              </div>
 
-              <span className="text-slate-400 text-sm">
-                写真エリア
-              </span>
+              <div className={`border p-1 ${
+                isSlopeAlertValue(row.firstEwValue)
+                  ? 'text-red-600 font-bold'
+                  : ''
+              }`}>
+                {row.firstEwValue}
+              </div>
 
-            </div>
+              <div className={`border p-1 ${
+                isSlopeAlertValue(row.firstNsValue)
+                  ? 'text-red-600 font-bold'
+                  : ''
+              }`}>
+                {row.firstNsDirection}
+              </div>
 
-            {/* 備考 */}
-            <div className="p-2">
-
-              <textarea
-                rows={3}
-                className="w-full border border-slate-400 rounded p-2 text-sm"
-                placeholder="備考"
-              />
+              <div className={`border p-1 ${
+                isSlopeAlertValue(row.firstNsValue)
+                  ? 'text-red-600 font-bold'
+                  : ''
+              }`}>
+                {row.firstNsValue}
+              </div>
 
             </div>
 
           </div>
 
-        ))}
+          {/* 最新 */}
+          <div>
+
+            <div className="bg-blue-700 text-white p-1 text-center font-bold">
+              最新傾斜
+            </div>
+
+            <div className="grid grid-cols-[60px_1fr_60px_1fr] text-center">
+
+              <div className="border p-1 font-bold">
+                方角
+              </div>
+
+              <div className="border p-1 font-bold">
+                数値
+              </div>
+
+              <div className="border p-1 font-bold">
+                方角
+              </div>
+
+              <div className="border p-1 font-bold">
+                数値
+              </div>
+
+              <div className={`border p-1 ${
+                isSlopeAlertValue(row.currentEwValue)
+                  ? 'text-red-600 font-bold'
+                  : ''
+              }`}>
+                {row.currentEwDirection}
+              </div>
+
+              <div className={`border p-1 ${
+                ewChanged
+                  ? 'bg-slate-300'
+                  : ''
+              } ${
+                isSlopeAlertValue(row.currentEwValue)
+                  ? 'text-red-600 font-bold'
+                  : ''
+              }`}>
+                {row.currentEwValue}
+              </div>
+
+              <div className={`border p-1 ${
+                isSlopeAlertValue(row.currentNsValue)
+                  ? 'text-red-600 font-bold'
+                  : ''
+              }`}>
+                {row.currentNsDirection}
+              </div>
+
+              <div className={`border p-1 ${
+                nsChanged
+                  ? 'bg-slate-300'
+                  : ''
+              } ${
+                isSlopeAlertValue(row.currentNsValue)
+                  ? 'text-red-600 font-bold'
+                  : ''
+              }`}>
+                {row.currentNsValue}
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* 写真 */}
+        <div className="aspect-[4/3] bg-slate-100 border-b border-slate-300 flex items-center justify-center">
+
+          <span className="text-slate-400 text-sm">
+            写真エリア
+          </span>
+
+        </div>
+
+        {/* 備考 */}
+        <div className="p-2">
+
+          <textarea
+            rows={3}
+            className="w-full border border-slate-400 rounded p-2 text-sm"
+            value={row.note || ''}
+            readOnly
+          />
+
+        </div>
 
       </div>
 
+    );
+  })}
+
+</div>
+      </div>
     </div>
-
-  </div>
-
-);
+  );
 
  if (mode === 'karte_menu') {
     const isPhoto = mode === 'karte_menu';
