@@ -1922,8 +1922,8 @@ if (mode === 'inclination_menu') return (
   <div className="grid-cols-[120px_1fr_1fr] p-3 flex items-center">
     <input
       className="w-full outline-none text-center font-bold"
-      value={evaluationType}
-      onChange={(e) => setEvaluationType(e.target.value)}
+      value={evalType}
+      onChange={(e) => setEvalType(e.target.value)}
       placeholder="文字入力"
     />
   </div>
