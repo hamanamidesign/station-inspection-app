@@ -59,6 +59,22 @@ const createEmptySlopeRows = (count = 13): SlopeTableRow[] =>
     photo: null,
   }));
 
+const formatSheetDateText = (value: unknown) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if (iso) return `${iso[1]}/${iso[2]}/${iso[3]}`;
+
+  const ymd = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ymd) {
+    const [, y, m, d] = ymd;
+    return `${y}/${m.padStart(2, '0')}/${d.padStart(2, '0')}`;
+  }
+
+  return text;
+};
+
 const normalizeDateForDateInput = (value: unknown) => {
   const text = String(value || '').trim();
   if (!text) return '';
@@ -240,8 +256,8 @@ const loadInspectionListDates = useCallback(async () => {
       year: selectedYear,
     });
 
-    setFirstDate(String(result.firstDate || ''));
-    setInspectDate(String(result.latestDate || ''));
+    setFirstDate(formatSheetDateText(result.firstDate));
+    setInspectDate(formatSheetDateText(result.latestDate));
   } catch (e) {
     console.warn("点検リスト_マスタの日付取得に失敗しました", e);
   }
@@ -303,14 +319,14 @@ useEffect(() => {
 }, [inspectionPlace]);
 
 useEffect(() => {
-  if ((mode === 'karte_edit' && !isEditMode) || mode === 'slope_table') {
+  if ((mode === 'karte_edit' && !isEditMode) || mode === 'slope_table' || mode === 'inclination_menu') {
     loadInspectionListDates();
   }
 }, [mode, isEditMode, loadInspectionListDates]);
 
 useEffect(() => {
 
-  if (mode !== 'slope_table') return;
+  if (mode !== 'slope_table' && mode !== 'inclination_menu') return;
   if (!spreadsheetId) return;
 
   loadSlopeTable();
@@ -613,12 +629,12 @@ const result = await gasApi("getKarteData", {
       setImpactEval(String(d.impactEval || ''));
       setTotalEval(String(d.totalEval || ''));
       setPrevYearEval(String(d.prevYearEval || ''));
-      setFirstDate(String(d.firstDate || ''));
+      setFirstDate(normalizeDateForDateInput(d.firstDate));
       setFirstInspector(String(d.firstInspector || ''));
       setFirstFinish(String(d.firstFinish || ''));
       setFirstSituation(String(d.firstSituation || ''));
       setFirstDetail(String(d.firstDetail || ''));
-      setInspectDate(String(d.inspectDate || ''));
+      setInspectDate(normalizeDateForDateInput(d.inspectDate));
       setContractor(
       String(d.contractor || '').trim()
        ? String(d.contractor)
@@ -1365,11 +1381,9 @@ const loadSlopeTable = async () => {
       return;
     }
 
-type DateInput = string | Date | null | undefined;
-
     setStationNo(String(result.stationNo || ""));
-    setFirstDate(result.firstDate || "");
-    setInspectDate(result.inspectDate || "");
+    setFirstDate(formatSheetDateText(result.firstDate));
+    setInspectDate(formatSheetDateText(result.inspectDate));
     setInspectList(result.inspectList || []);
 
     setSlopeRows(
@@ -1597,8 +1611,8 @@ const sendSlopeTable = async () => {
       stationNo,
       station: stationName,
       year: selectedYear,
-      firstDate,
-      inspectDate,
+      firstDate: formatSheetDateText(firstDate),
+      inspectDate: formatSheetDateText(inspectDate),
       rows,
     });
 
