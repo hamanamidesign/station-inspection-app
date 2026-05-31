@@ -36,6 +36,7 @@ interface SlopeTableRow {
   note: string;
   photo1?: string | null;
   photo2?: string | null;
+  pointColor?: string;
 }
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
@@ -1393,16 +1394,18 @@ const loadSlopeTable = async () => {
     setInspectDate(formatSheetDateText(result.inspectDate));
     setInspectList(result.inspectList || []);
 
-    setSlopeRows(
-      Array.isArray(result.rows)
-        ? result.rows
-        : createEmptySlopeRows()
-    );
+    const loadedSlopeRows = Array.isArray(result.rows)
+      ? result.rows
+      : createEmptySlopeRows();
+
+    setSlopeRows(loadedSlopeRows);
 
     if (mode === 'inclination_menu') {
       try {
         const inclination = await gasApi("getInclinationKarteSheets", {
           spreadsheetId,
+          folderId: stationFolderId,
+          year: selectedYear,
         });
 
         if (inclination.success) {
@@ -1419,8 +1422,8 @@ const loadSlopeTable = async () => {
               inclination.rows.map((row: Partial<SlopeTableRow>) => [String(row.point || '').trim(), row])
             );
 
-            setSlopeRows(rows =>
-              rows.map(row => {
+            setSlopeRows((rows: SlopeTableRow[]) =>
+              rows.map((row: SlopeTableRow) => {
                 const saved = byPoint.get(row.point.trim());
                 return saved ? { ...row, ...saved, id: row.id } : row;
               })
@@ -1531,6 +1534,12 @@ const getSlopeNoteValue = (row: SlopeTableRow) => {
 };
 
 const getSlopePointClass = (row: SlopeTableRow) => {
+  if (row.pointColor) {
+    return row.pointColor.toLowerCase() === '#dc2626' || row.pointColor.toLowerCase() === 'red'
+      ? 'text-red-600'
+      : 'text-black';
+  }
+
   const hasAlert = [
     row.firstEwValue,
     row.firstNsValue,
@@ -1672,6 +1681,7 @@ const sendSlopeTable = async () => {
 const toPhotoPayload = async (photo: string | null | undefined, point: string, kind: 'first' | 'current') => {
   if (!photo) return null;
 
+  const fileId = photo.match(/[?&]id=([^&]+)/)?.[1] || photo.match(/\/d\/([^/]+)/)?.[1] || "";
   const resized = photo.startsWith("data:image")
     ? await resizeImage(photo, 520, 180000, 0.25)
     : photo;
@@ -1681,6 +1691,7 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
     kind,
     fileName: kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`,
     base64: resized.includes(',') ? resized.split(',')[1] : "",
+    fileId,
     url: resized.startsWith("http") ? resized : "",
   };
 };
@@ -2269,7 +2280,7 @@ if (mode === 'inclination_menu') {
               測点
             </div>
 
-            <div className="p-2 text-center font-bold text-lg">
+            <div className={`p-2 text-center font-bold text-lg ${getSlopePointClass(row)}`}>
               {row.point}
             </div>
 
