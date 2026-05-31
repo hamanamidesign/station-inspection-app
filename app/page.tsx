@@ -948,12 +948,20 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   );
 
   // --- 送信中のくるくるアニメーション（全画面共通） ---
-  const LoadingOverlay = () => isSending ? (
+  const LoadingOverlay = () =>
+  (isSending || isLoading) ? (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-900 font-bold text-lg">保存しています...</p>
-        <p className="text-slate-500 text-sm">そのままお待ちください</p>
+
+        <p className="text-slate-900 font-bold text-lg">
+          {isSending ? '保存しています...' : '読み込んでいます...'}
+        </p>
+
+        <p className="text-slate-500 text-sm">
+          そのままお待ちください
+        </p>
+
       </div>
     </div>
   ) : null;
@@ -2097,6 +2105,7 @@ if (mode === 'inclination_menu') {
   <div className="min-h-screen bg-slate-100 p-4 text-black">
 
     <Nav />
+    <LoadingOverlay />
 
     <div className="max-w-6xl mx-auto">
 
