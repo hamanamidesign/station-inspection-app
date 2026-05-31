@@ -1534,11 +1534,6 @@ const getSlopeNoteValue = (row: SlopeTableRow) => {
 };
 
 const getSlopePointClass = (row: SlopeTableRow) => {
-  if (row.pointColor) {
-    return row.pointColor.toLowerCase() === '#dc2626' || row.pointColor.toLowerCase() === 'red'
-      ? 'text-red-600'
-      : 'text-black';
-  }
 
   const hasAlert = [
     row.firstEwValue,
@@ -1546,6 +1541,15 @@ const getSlopePointClass = (row: SlopeTableRow) => {
     row.currentEwValue,
     row.currentNsValue,
   ].some(isSlopeAlertValue);
+
+  console.log(
+    row.point,
+    row.firstEwValue,
+    row.firstNsValue,
+    row.currentEwValue,
+    row.currentNsValue,
+    hasAlert
+  );
 
   return hasAlert ? 'text-red-600' : 'text-black';
 };
