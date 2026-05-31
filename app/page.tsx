@@ -1723,7 +1723,7 @@ const sendInclinationKarte = async () => {
     }
   } catch (e) {
     console.error(e);
-    alert("通信エラーが発生しました。GAS側に uploadInclinationKarteSheets の追加が必要です。");
+    alert(`傾斜測定カルテの保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     setIsSending(false);
   }
