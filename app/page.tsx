@@ -1687,7 +1687,7 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
 
   const fileId = photo.match(/[?&]id=([^&]+)/)?.[1] || photo.match(/\/d\/([^/]+)/)?.[1] || "";
   const resized = photo.startsWith("data:image")
-    ? await resizeImage(photo, 800, 300000, 0.7)
+    ? await resizeImage(photo, 1200, 300000, 0.7)
     : photo;
 
   return {
