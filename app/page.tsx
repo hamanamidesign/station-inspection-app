@@ -514,7 +514,12 @@ const handleCreateNewSheet = async () => {
   reader.readAsDataURL(file);
 };
 
-  const resizeImage = async (base64Str: string): Promise<string> => {
+  const resizeImage = async (
+    base64Str: string,
+    maxSize = 900,
+    maxBytes = 1000000,
+    minQuality = 0.3
+  ): Promise<string> => {
 
   return new Promise((resolve) => {
 
@@ -523,18 +528,16 @@ const handleCreateNewSheet = async () => {
 
     img.onload = () => {
 
-      const MAX_SIZE = 900;
-
       let width = img.width;
       let height = img.height;
 
-      if (width > height && width > MAX_SIZE) {
-        height = height * (MAX_SIZE / width);
-        width = MAX_SIZE;
+      if (width > height && width > maxSize) {
+        height = height * (maxSize / width);
+        width = maxSize;
       } 
-      else if (height > MAX_SIZE) {
-        width = width * (MAX_SIZE / height);
-        height = MAX_SIZE;
+      else if (height > maxSize) {
+        width = width * (maxSize / height);
+        height = maxSize;
       }
 
       const canvas = document.createElement("canvas");
@@ -547,8 +550,7 @@ const handleCreateNewSheet = async () => {
       let quality = 0.6;
       let result = canvas.toDataURL("image/jpeg", quality);
 
-      // 1MB以下になるまで圧縮
-      while (result.length > 1000000 && quality > 0.3) {
+      while (result.length > maxBytes && quality > minQuality) {
         quality -= 0.05;
         result = canvas.toDataURL("image/jpeg", quality);
       }
@@ -1670,7 +1672,9 @@ const sendSlopeTable = async () => {
 const toPhotoPayload = async (photo: string | null | undefined, point: string, kind: 'first' | 'current') => {
   if (!photo) return null;
 
-  const resized = photo.startsWith("data:image") ? await resizeImage(photo) : photo;
+  const resized = photo.startsWith("data:image")
+    ? await resizeImage(photo, 520, 180000, 0.25)
+    : photo;
 
   return {
     point,
@@ -1691,13 +1695,11 @@ const sendInclinationKarte = async () => {
   setIsSending(true);
 
   try {
-    const rows = await Promise.all(
-      filledRows.map(async row => ({
-        ...row,
-        firstPhotoFile: await toPhotoPayload(row.photo1, row.point, 'first'),
-        currentPhotoFile: await toPhotoPayload(row.photo2, row.point, 'current'),
-      }))
-    );
+    const inclinationGroups = chunkSlopeRows(slopeRows);
+    const rows = filledRows.map(row => {
+      const { photo1, photo2, ...rowWithoutPhotos } = row;
+      return rowWithoutPhotos;
+    });
 
     const result = await gasApi("uploadInclinationKarteSheets", {
       spreadsheetId,
@@ -1705,7 +1707,7 @@ const sendInclinationKarte = async () => {
       stationNo,
       station: stationName,
       year: selectedYear,
-      rangeLabel: getSlopeRangeLabel(chunkSlopeRows(slopeRows)[inclinationPageIndex] || []),
+      rangeLabel: getSlopeRangeLabel(inclinationGroups[inclinationPageIndex] || []),
       evalType,
       firstDate: formatSheetDateText(firstDate),
       firstContractor: slopeFirstContractor,
@@ -1716,11 +1718,44 @@ const sendInclinationKarte = async () => {
       rows,
     });
 
-    if (result.success) {
-      alert("傾斜測定カルテをスプレッドシートへ保存しました");
-    } else {
+    if (!result.success) {
       alert("保存に失敗しました: " + (result.error || "不明なエラー"));
+      return;
     }
+
+    for (const group of inclinationGroups) {
+      const sheetName = getSlopeRangeLabel(group);
+
+      for (const row of group) {
+        const firstPhotoFile = await toPhotoPayload(row.photo1, row.point, 'first');
+        if (firstPhotoFile) {
+          await gasApi("uploadInclinationKartePhoto", {
+            spreadsheetId,
+            folderId: stationFolderId,
+            year: selectedYear,
+            sheetName,
+            point: row.point,
+            kind: 'first',
+            photoFile: firstPhotoFile,
+          });
+        }
+
+        const currentPhotoFile = await toPhotoPayload(row.photo2, row.point, 'current');
+        if (currentPhotoFile) {
+          await gasApi("uploadInclinationKartePhoto", {
+            spreadsheetId,
+            folderId: stationFolderId,
+            year: selectedYear,
+            sheetName,
+            point: row.point,
+            kind: 'current',
+            photoFile: currentPhotoFile,
+          });
+        }
+      }
+    }
+
+    alert("傾斜測定カルテをスプレッドシートへ保存しました");
   } catch (e) {
     console.error(e);
     alert(`傾斜測定カルテの保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
