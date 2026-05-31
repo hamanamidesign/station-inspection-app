@@ -200,6 +200,7 @@ useEffect(() => {
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
   const [evalType, setEvalType] = useState('');
   const [inspectList, setInspectList] = useState<string[]>([]);
+  const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
@@ -331,6 +332,10 @@ useEffect(() => {
 
   loadSlopeTable();
 
+}, [mode, spreadsheetId]);
+
+useEffect(() => {
+  setInclinationPageIndex(0);
 }, [mode, spreadsheetId]);
 
   console.log(existingData)
@@ -1392,6 +1397,39 @@ const loadSlopeTable = async () => {
         : createEmptySlopeRows()
     );
 
+    if (mode === 'inclination_menu') {
+      try {
+        const inclination = await gasApi("getInclinationKarteSheets", {
+          spreadsheetId,
+        });
+
+        if (inclination.success) {
+          if (inclination.header) {
+            setEvalType(String(inclination.header.evalType || ''));
+            setSlopeFirstContractor(String(inclination.header.firstContractor || ''));
+            setSlopeFirstInspector(String(inclination.header.firstInspector || ''));
+            setContractor(String(inclination.header.contractor || contractor));
+            setInspector(String(inclination.header.inspector || inspector));
+          }
+
+          if (Array.isArray(inclination.rows) && inclination.rows.length > 0) {
+            const byPoint = new Map(
+              inclination.rows.map((row: Partial<SlopeTableRow>) => [String(row.point || '').trim(), row])
+            );
+
+            setSlopeRows(rows =>
+              rows.map(row => {
+                const saved = byPoint.get(row.point.trim());
+                return saved ? { ...row, ...saved, id: row.id } : row;
+              })
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("傾斜測定カルテの保存済みデータ取得をスキップしました", e);
+      }
+    }
+
   } catch (e) {
 
     console.error(e);
@@ -1624,6 +1662,68 @@ const sendSlopeTable = async () => {
   } catch (e) {
     console.error(e);
     alert("通信エラーが発生しました。GAS側に uploadSlopeTable の追加が必要です。");
+  } finally {
+    setIsSending(false);
+  }
+};
+
+const toPhotoPayload = async (photo: string | null | undefined, point: string, kind: 'first' | 'current') => {
+  if (!photo) return null;
+
+  const resized = photo.startsWith("data:image") ? await resizeImage(photo) : photo;
+
+  return {
+    point,
+    kind,
+    fileName: kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`,
+    base64: resized.includes(',') ? resized.split(',')[1] : "",
+    url: resized.startsWith("http") ? resized : "",
+  };
+};
+
+const sendInclinationKarte = async () => {
+  if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+  if (isSending) return;
+
+  const filledRows = getFilledSlopeRows(slopeRows);
+  if (filledRows.length === 0) return alert("傾斜表に測点が入力されていません");
+
+  setIsSending(true);
+
+  try {
+    const rows = await Promise.all(
+      filledRows.map(async row => ({
+        ...row,
+        firstPhotoFile: await toPhotoPayload(row.photo1, row.point, 'first'),
+        currentPhotoFile: await toPhotoPayload(row.photo2, row.point, 'current'),
+      }))
+    );
+
+    const result = await gasApi("uploadInclinationKarteSheets", {
+      spreadsheetId,
+      folderId: stationFolderId,
+      stationNo,
+      station: stationName,
+      year: selectedYear,
+      rangeLabel: getSlopeRangeLabel(chunkSlopeRows(slopeRows)[inclinationPageIndex] || []),
+      evalType,
+      firstDate: formatSheetDateText(firstDate),
+      firstContractor: slopeFirstContractor,
+      firstInspector: slopeFirstInspector,
+      inspectDate: formatSheetDateText(inspectDate),
+      contractor,
+      inspector,
+      rows,
+    });
+
+    if (result.success) {
+      alert("傾斜測定カルテをスプレッドシートへ保存しました");
+    } else {
+      alert("保存に失敗しました: " + (result.error || "不明なエラー"));
+    }
+  } catch (e) {
+    console.error(e);
+    alert("通信エラーが発生しました。GAS側に uploadInclinationKarteSheets の追加が必要です。");
   } finally {
     setIsSending(false);
   }
@@ -1917,10 +2017,32 @@ const buildRangeLabel = (list: string[]): string => {
   return `${unique[0]}-${unique[3] || unique[unique.length - 1]}`;
 };
 
+const getFilledSlopeRows = (rows: SlopeTableRow[]) =>
+  rows.filter(row => row.point?.trim());
+
+const chunkSlopeRows = (rows: SlopeTableRow[], size = 4) => {
+  const filledRows = getFilledSlopeRows(rows);
+  const chunks: SlopeTableRow[][] = [];
+
+  for (let index = 0; index < filledRows.length; index += size) {
+    chunks.push(filledRows.slice(index, index + size));
+  }
+
+  return chunks;
+};
+
+const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
+  buildRangeLabel(rows.map(row => row.point));
+
 // ========================================
 // 傾斜測定カルテ
 // ========================================
-if (mode === 'inclination_menu') return (
+if (mode === 'inclination_menu') {
+  const inclinationGroups = chunkSlopeRows(slopeRows);
+  const selectedInclinationRows = inclinationGroups[inclinationPageIndex] || [];
+  const currentInclinationRange = getSlopeRangeLabel(selectedInclinationRows);
+
+  return (
 
   <div className="min-h-screen bg-slate-100 p-4 text-black">
 
@@ -1940,7 +2062,7 @@ if (mode === 'inclination_menu') return (
 
 {/* 傾斜範囲 */}
 <div className="border-r-2 border-slate-800 p-3 flex items-center justify-center font-bold">
-  {inspectList?.length > 0 ? buildRangeLabel(inspectList) : ""}
+  {currentInclinationRange || (inspectList?.length > 0 ? buildRangeLabel(inspectList) : "")}
 </div>
 
     {/* 駅No.- */}
@@ -2069,11 +2191,28 @@ if (mode === 'inclination_menu') return (
 </div>
 
 {/* 傾斜測定ブロック */}
+{inclinationGroups.length > 1 && (
+  <div className="mb-3 flex flex-wrap gap-2">
+    {inclinationGroups.map((group, index) => (
+      <button
+        key={getSlopeRangeLabel(group) || index}
+        type="button"
+        onClick={() => setInclinationPageIndex(index)}
+        className={`rounded-lg border px-4 py-2 text-sm font-bold ${
+          index === inclinationPageIndex
+            ? 'border-blue-700 bg-blue-700 text-white'
+            : 'border-slate-400 bg-white text-slate-700'
+        }`}
+      >
+        {getSlopeRangeLabel(group)}
+      </button>
+    ))}
+  </div>
+)}
+
 <div className="grid grid-cols-2 gap-4">
 
-{slopeRows
-  .filter(row => row.point?.trim())
-  .slice(0, 4)
+{selectedInclinationRows
   .map((row) => {
 
     const ewChanged = hasSlopeDiff(row, 'ew');
@@ -2364,9 +2503,20 @@ if (mode === 'inclination_menu') return (
   })}
 
 </div>
+<div className="mt-6 flex justify-center pb-10">
+  <button
+    type="button"
+    onClick={sendInclinationKarte}
+    disabled={isSending || inclinationGroups.length === 0}
+    className="w-[460px] rounded-xl bg-blue-700 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+  >
+    {isSending ? "保存中..." : "この内容で傾斜測定カルテを更新"}
+  </button>
+</div>
       </div>
     </div>
   );
+}
 
  if (mode === 'karte_menu') {
     const isPhoto = mode === 'karte_menu';
