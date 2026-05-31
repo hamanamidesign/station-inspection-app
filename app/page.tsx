@@ -2358,19 +2358,6 @@ if (mode === 'inclination_menu') return (
 
 </div>
 
-
-        {/* 備考 */}
-        <div className="p-1">
-
-          <textarea
-            rows={1}
-            className="w-full border border-slate-400 rounded p-1 text-sm"
-            value={row.note || ''}
-            readOnly
-          />
-
-        </div>
-
       </div>
 
     );
