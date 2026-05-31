@@ -1410,7 +1410,7 @@ const loadSlopeTable = async () => {
 
         if (inclination.success) {
           if (inclination.header) {
-            setEvalType(String(inclination.header.evalType || ''));
+
             setSlopeFirstContractor(String(inclination.header.firstContractor || ''));
             setSlopeFirstInspector(String(inclination.header.firstInspector || ''));
             setContractor(String(inclination.header.contractor || contractor));
