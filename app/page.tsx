@@ -1403,7 +1403,7 @@ const addFinishText = (
 };
 
 const loadSlopeTable = async () => {
-
+console.log("selectedRoute =", selectedRoute);
   setIsLoading(true);
 
   try {
@@ -1414,6 +1414,7 @@ const result = await gasApi("getSlopeTableData", {
   spreadsheetId,
   stationName,
   year: selectedYear,
+  routeName: selectedRoute,
 });
 
     if (!result.success) {
