@@ -1408,6 +1408,7 @@ const loadSlopeTable = async () => {
 const result = await gasApi("getSlopeTableData", {
   spreadsheetId,
   stationName,
+  year: selectedYear,
 });
 
     if (!result.success) {
