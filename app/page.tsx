@@ -2068,6 +2068,7 @@ if (mode === 'slope_table') {
                   <option value=""></option>
                   <option value="東">東</option>
                   <option value="西">西</option>
+                  <option value="東西">東西</option>
                 </select>
                 <input
                   type="number"
@@ -2086,6 +2087,7 @@ if (mode === 'slope_table') {
                   <option value=""></option>
                   <option value="南">南</option>
                   <option value="北">北</option>
+                  <option value="南北">南北</option>
                 </select>
                 <input
                   type="number"
