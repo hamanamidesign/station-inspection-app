@@ -1405,9 +1405,10 @@ const loadSlopeTable = async () => {
 
   try {
 
-    const result = await gasApi("getSlopeTableData", {
-      spreadsheetId,
-    });
+const result = await gasApi("getSlopeTableData", {
+  spreadsheetId,
+  stationName,
+});
 
     if (!result.success) {
       alert("傾斜表の読み込みに失敗しました");
