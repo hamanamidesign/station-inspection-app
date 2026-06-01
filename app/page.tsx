@@ -350,6 +350,9 @@ useEffect(() => {
   if (mode !== 'slope_table' && mode !== 'inclination_menu') return;
   if (!spreadsheetId) return;
 
+  console.log("stationName =", stationName);
+  console.log("selectedYear =", selectedYear);
+
   loadSlopeTable();
 
 }, [mode, spreadsheetId]);
@@ -1404,6 +1407,8 @@ const loadSlopeTable = async () => {
   setIsLoading(true);
 
   try {
+console.log("送信 stationName =", stationName);
+console.log("送信 year =", selectedYear);
 
 const result = await gasApi("getSlopeTableData", {
   spreadsheetId,
