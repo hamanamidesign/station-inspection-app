@@ -1450,7 +1450,42 @@ const result = await gasApi("getSlopeTableData", {
             setInspector(String(inclination.header.inspector || inspector));
           }
 
+if (Array.isArray(inclination.rows) && inclination.rows.length > 0) {
 
+  console.log("inclination.rows =", inclination.rows);
+
+const byPoint = new Map<string, Partial<SlopeTableRow>>(
+  inclination.rows.map((row: Partial<SlopeTableRow>) => [
+    String(row.point || '').trim(),
+    row
+  ])
+);
+
+  setSlopeRows((rows: SlopeTableRow[]) =>
+    rows.map((row: SlopeTableRow) => {
+
+      const saved = byPoint.get(row.point.trim());
+
+      console.log(
+        "point=",
+        row.point,
+        "photo1=",
+        saved?.photo1,
+        "photo2=",
+        saved?.photo2
+      );
+
+      if (!saved) return row;
+
+      return {
+        ...row,
+        photo1: saved.photo1,
+        photo2: saved.photo2,
+        id: row.id,
+      };
+    })
+  );
+}
         }
       } catch (e) {
         console.warn("傾斜測定カルテの保存済みデータ取得をスキップしました", e);
