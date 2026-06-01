@@ -89,6 +89,9 @@ const normalizeDateForDateInput = (value: unknown) => {
   return text;
 };
 
+const isMissingSlopeTableError = (error: unknown) =>
+  error instanceof Error && error.message.includes("傾斜表シートが見つかりません");
+
 
 // 赤い波線を消すために、使用するすべてのモード名をここで定義します
 type AppMode = 
@@ -354,8 +357,6 @@ useEffect(() => {
 useEffect(() => {
   setInclinationPageIndex(0);
 }, [mode, spreadsheetId]);
-
-  console.log(existingData)
 
   // 駅や年度が変わったら入力をクリア
   useEffect(() => {
@@ -1460,6 +1461,11 @@ const loadSlopeTable = async () => {
     }
 
   } catch (e) {
+    if (isMissingSlopeTableError(e)) {
+      setSlopeRows(createEmptySlopeRows());
+      setInspectList([]);
+      return;
+    }
 
     console.error(e);
     alert("傾斜表の読み込みに失敗しました");
@@ -1565,15 +1571,6 @@ const getSlopePointClass = (row: SlopeTableRow) => {
     row.currentEwValue,
     row.currentNsValue,
   ].some(isSlopeAlertValue);
-
-  console.log(
-    row.point,
-    row.firstEwValue,
-    row.firstNsValue,
-    row.currentEwValue,
-    row.currentNsValue,
-    hasAlert
-  );
 
   return hasAlert ? 'text-red-600' : 'text-black';
 };
@@ -1700,7 +1697,8 @@ const sendSlopeTable = async () => {
     }
   } catch (e) {
     console.error(e);
-    alert("通信エラーが発生しました。GAS側に uploadSlopeTable の追加が必要です。");
+    const message = e instanceof Error ? e.message : String(e);
+    alert(`傾斜表の保存に失敗しました: ${message || "不明なエラー"}`);
   } finally {
     setIsSending(false);
   }
