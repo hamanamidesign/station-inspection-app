@@ -1492,7 +1492,49 @@ const updateSlopeRow = (
   value: string
 ) => {
   setSlopeRows(rows =>
-    rows.map(row => (row.id === rowId ? { ...row, [field]: value } : row))
+    rows.map(row => {
+
+      if (row.id !== rowId) return row;
+
+      const updated = {
+        ...row,
+        [field]: value
+      };
+
+      // 初回 東西
+      if (
+        field === 'firstEwValue' &&
+        (value === '0' || value === '0.0')
+      ) {
+        updated.firstEwDirection = '東西';
+      }
+
+      // 初回 南北
+      if (
+        field === 'firstNsValue' &&
+        (value === '0' || value === '0.0')
+      ) {
+        updated.firstNsDirection = '南北';
+      }
+
+      // 最新 東西
+      if (
+        field === 'currentEwValue' &&
+        (value === '0' || value === '0.0')
+      ) {
+        updated.currentEwDirection = '東西';
+      }
+
+      // 最新 南北
+      if (
+        field === 'currentNsValue' &&
+        (value === '0' || value === '0.0')
+      ) {
+        updated.currentNsDirection = '南北';
+      }
+
+      return updated;
+    })
   );
 };
 
@@ -1988,6 +2030,7 @@ if (mode === 'slope_table') {
                   <option value=""></option>
                   <option value="東">東</option>
                   <option value="西">西</option>
+                  <option value="東西">東西</option>
                 </select>
                 <input
                   type="number"
@@ -2006,6 +2049,7 @@ if (mode === 'slope_table') {
                   <option value=""></option>
                   <option value="南">南</option>
                   <option value="北">北</option>
+                  <option value="南北">南北</option>
                 </select>
                 <input
                   type="number"
