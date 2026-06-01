@@ -106,10 +106,13 @@ type AppMode =
   | 'route_select'
   | 'photo_number_register';
 
+const INCLINATION_CARD_WIDTH = 1152;
+
 // components/TaskSelect.tsx
 export default function InspectorApp() {
   const fileInputs = useRef<(HTMLInputElement | null)[]>([]);
   const firstFileInputs = useRef<(HTMLInputElement | null)[]>([]);
+  const [viewportWidth, setViewportWidth] = useState(INCLINATION_CARD_WIDTH);
 
   // 追加の入力項目用ステート
   const [structEval, setStructEval] = useState('');    // ① 構造度評価 (F3)
@@ -153,6 +156,19 @@ useEffect(() => {
     resetAllState();
   }
 }, [mode]);
+
+useEffect(() => {
+  const updateViewportWidth = () => setViewportWidth(window.innerWidth);
+
+  updateViewportWidth();
+  window.addEventListener('resize', updateViewportWidth);
+  window.addEventListener('orientationchange', updateViewportWidth);
+
+  return () => {
+    window.removeEventListener('resize', updateViewportWidth);
+    window.removeEventListener('orientationchange', updateViewportWidth);
+  };
+}, []);
 
   // --- 修正・編集用ステート ---
   const [existingKartes, setExistingKartes] = useState<string[]>([]);
@@ -2099,15 +2115,29 @@ if (mode === 'inclination_menu') {
   const inclinationGroups = chunkSlopeRows(slopeRows);
   const selectedInclinationRows = inclinationGroups[inclinationPageIndex] || [];
   const currentInclinationRange = getSlopeRangeLabel(selectedInclinationRows);
+  const inclinationScale = Math.min(
+    1,
+    Math.max(0.3, (viewportWidth - 32) / INCLINATION_CARD_WIDTH)
+  );
+  const scaledInclinationWidth = INCLINATION_CARD_WIDTH * inclinationScale;
 
   return (
 
-  <div className="min-h-screen bg-slate-100 p-4 text-black">
+  <div className="min-h-screen overflow-x-hidden bg-slate-100 p-4 text-black">
 
     <Nav />
     <LoadingOverlay />
 
-    <div className="max-w-6xl mx-auto">
+    <div
+      className="mx-auto"
+      style={{
+        width: INCLINATION_CARD_WIDTH,
+        maxWidth: INCLINATION_CARD_WIDTH,
+        transform: `scale(${inclinationScale})`,
+        transformOrigin: 'top left',
+        marginLeft: inclinationScale < 1 ? `calc((100% - ${scaledInclinationWidth}px) / 2)` : undefined,
+      }}
+    >
 
 {/* ヘッダーエリア */}
 <div className="bg-white border-2 border-slate-800 mb-3">
