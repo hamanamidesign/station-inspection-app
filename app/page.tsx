@@ -1479,6 +1479,7 @@ const result = await gasApi("getSlopeTableData", {
       ? result.rows.map((row: Partial<SlopeTableRow>, index: number) => normalizeSlopeRow(row, index))
       : createEmptySlopeRows();
 
+    console.log("loadedSlopeRows", loadedSlopeRows);
     setSlopeRows(loadedSlopeRows);
 
     if (mode === 'inclination_menu') {
