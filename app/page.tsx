@@ -2220,7 +2220,7 @@ console.log(
                   inputMode="decimal"
                   step="0.1"
                   className={getSlopeValueClass(row.currentEwValue, ewChanged)}
-                  style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#e2e8f0' : undefined)}
+                  style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#e2e8f0' : '#ffffff')}
                   value={row.currentEwValue}
                   onChange={e => updateSlopeRow(row.id, 'currentEwValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'currentEwValue', normalizeSlopeNumber(e.target.value))}
@@ -2241,7 +2241,7 @@ console.log(
                   inputMode="decimal"
                   step="0.1"
                   className={getSlopeValueClass(row.currentNsValue, nsChanged)}
-                  style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#e2e8f0' : undefined)}
+                  style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#e2e8f0' : '#ffffff')}
                   value={row.currentNsValue}
                   onChange={e => updateSlopeRow(row.id, 'currentNsValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'currentNsValue', normalizeSlopeNumber(e.target.value))}
@@ -2646,7 +2646,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.currentEwValue)
                   ? 'text-red-600'
                   : ''
-              }`} style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#cbd5e1' : undefined)}>
+              }`} style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#cbd5e1' : '#ffffff',)}>
                 {row.currentEwValue}
               </div>
 
@@ -2666,7 +2666,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.currentNsValue)
                   ? 'text-red-600'
                   : ''
-              }`} style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#cbd5e1' : undefined)}>
+              }`} style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#cbd5e1' : '#ffffff')}>
                 {row.currentNsValue}
               </div>
 
