@@ -317,6 +317,9 @@ const loadInspectionListDates = useCallback(async () => {
 
     setFirstDate(formatSheetDateText(result.firstDate));
     setInspectDate(formatSheetDateText(result.latestDate));
+    if (result.stationNo !== undefined && result.stationNo !== null && String(result.stationNo).trim()) {
+      setStationNo(String(result.stationNo));
+    }
   } catch (e) {
     console.warn("点検リスト_マスタの日付取得に失敗しました", e);
   }
@@ -1460,9 +1463,15 @@ const result = await gasApi("getSlopeTableData", {
       return;
     }
 
-    setStationNo(String(result.stationNo || ""));
-    setFirstDate(formatSheetDateText(result.firstDate));
-    setInspectDate(formatSheetDateText(result.inspectDate));
+    if (result.stationNo !== undefined && result.stationNo !== null && String(result.stationNo).trim()) {
+      setStationNo(String(result.stationNo));
+    }
+    if (result.firstDate !== undefined && result.firstDate !== null && String(result.firstDate).trim()) {
+      setFirstDate(formatSheetDateText(result.firstDate));
+    }
+    if (result.inspectDate !== undefined && result.inspectDate !== null && String(result.inspectDate).trim()) {
+      setInspectDate(formatSheetDateText(result.inspectDate));
+    }
     setInspectList(result.inspectList || []);
 
     const loadedSlopeRows = Array.isArray(result.rows)
