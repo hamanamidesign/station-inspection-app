@@ -2431,22 +2431,22 @@ if (mode === 'inclination_menu') {
 
     {/* 初回 受注者（入力） */}
 <div className="border-r border-slate-800 p-2 flex items-center">
-  <textarea
-    className="w-full h-12 text-center text-sm outline-none resize-none overflow-hidden flex items-center"
+  <input
+    type="text"
+    className="w-full h-12 text-center text-sm outline-none"
     value={slopeFirstContractor}
     onChange={(e) => setSlopeFirstContractor(e.target.value)}
-    rows={2}
     placeholder="受注者"
   />
 </div>
 
     {/* 初回 点検者（入力） */}
 <div className="border-r border-slate-800 p-2 flex items-center">
-  <textarea
-    className="w-full h-12 text-center text-sm outline-none resize-none overflow-hidden flex items-center"
+  <input
+    type="text"
+    className="w-full h-12 text-center text-sm outline-none"
     value={slopeFirstInspector}
     onChange={(e) => setSlopeFirstInspector(e.target.value)}
-    rows={2}
     placeholder="点検者"
   />
 </div>
