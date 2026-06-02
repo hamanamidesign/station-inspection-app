@@ -1491,8 +1491,12 @@ const result = await gasApi("getSlopeTableData", {
         if (inclination.success) {
           if (inclination.header) {
 
-            setSlopeFirstContractor(String(inclination.header.firstContractor || ''));
-            setSlopeFirstInspector(String(inclination.header.firstInspector || ''));
+            if (inclination.header.firstContractor !== undefined && inclination.header.firstContractor !== null && String(inclination.header.firstContractor).trim()) {
+              setSlopeFirstContractor(String(inclination.header.firstContractor));
+            }
+            if (inclination.header.firstInspector !== undefined && inclination.header.firstInspector !== null && String(inclination.header.firstInspector).trim()) {
+              setSlopeFirstInspector(String(inclination.header.firstInspector));
+            }
             setContractor(String(inclination.header.contractor || contractor));
             setInspector(String(inclination.header.inspector || inspector));
           }
