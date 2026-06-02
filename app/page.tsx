@@ -1585,6 +1585,15 @@ const updateSlopeRow = (
         ...row,
         [field]: value
       };
+console.log(
+  "update",
+  updated.point,
+  updated.firstEwValue,
+  updated.currentEwValue,
+  updated.firstNsValue,
+  updated.currentNsValue
+);
+
 
       // 初回 東西
       if (
@@ -2062,7 +2071,13 @@ if (mode === 'slope_table') {
               const ewChanged = hasSlopeDiff(row, 'ew');
               const nsChanged = hasSlopeDiff(row, 'ns');
               const noteValue = getSlopeNoteValue(row);
-
+console.log(
+    row.point,
+    "ewChanged=",
+    ewChanged,
+    row.firstEwValue,
+    row.currentEwValue
+  );
               return (
               <div
                 key={row.id}
