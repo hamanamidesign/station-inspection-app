@@ -89,6 +89,29 @@ const normalizeDateForDateInput = (value: unknown) => {
   return text;
 };
 
+const toDisplayText = (value: unknown) =>
+  value === null || value === undefined ? '' : String(value);
+
+const normalizeSlopeRow = (row: Partial<SlopeTableRow>, index: number): SlopeTableRow => ({
+  id: Number(row.id) || Date.now() + index,
+  slopeType: toDisplayText(row.slopeType),
+  point: toDisplayText(row.point),
+  place: toDisplayText(row.place),
+  placeSide: toDisplayText(row.placeSide),
+  firstEwDirection: toDisplayText(row.firstEwDirection),
+  firstEwValue: toDisplayText(row.firstEwValue),
+  firstNsDirection: toDisplayText(row.firstNsDirection),
+  firstNsValue: toDisplayText(row.firstNsValue),
+  currentEwDirection: toDisplayText(row.currentEwDirection),
+  currentEwValue: toDisplayText(row.currentEwValue),
+  currentNsDirection: toDisplayText(row.currentNsDirection),
+  currentNsValue: toDisplayText(row.currentNsValue),
+  note: toDisplayText(row.note),
+  photo1: row.photo1 ?? null,
+  photo2: row.photo2 ?? null,
+  pointColor: row.pointColor,
+});
+
 const isMissingSlopeTableError = (error: unknown) =>
   error instanceof Error && error.message.includes("傾斜表シートが見つかりません");
 
@@ -1428,7 +1451,7 @@ const result = await gasApi("getSlopeTableData", {
     setInspectList(result.inspectList || []);
 
     const loadedSlopeRows = Array.isArray(result.rows)
-      ? result.rows
+      ? result.rows.map((row: Partial<SlopeTableRow>, index: number) => normalizeSlopeRow(row, index))
       : createEmptySlopeRows();
 
     setSlopeRows(loadedSlopeRows);
