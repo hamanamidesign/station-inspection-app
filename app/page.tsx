@@ -1489,11 +1489,24 @@ const result = await gasApi("getSlopeTableData", {
         });
 
         if (inclination.success) {
-          if (inclination.header) {
+        if (inclination.header) {
 
-            if (inclination.header.firstContractor !== undefined && inclination.header.firstContractor !== null && String(inclination.header.firstContractor).trim()) {
-              setSlopeFirstContractor(String(inclination.header.firstContractor));
-            }
+  console.log("evalType =", inclination.header.evalType);
+
+  if (
+    inclination.header.evalType !== undefined &&
+    inclination.header.evalType !== null
+  ) {
+    setEvalType(String(inclination.header.evalType));
+  }
+
+  if (
+    inclination.header.firstContractor !== undefined &&
+    inclination.header.firstContractor !== null &&
+    String(inclination.header.firstContractor).trim()
+  ) {
+    setSlopeFirstContractor(String(inclination.header.firstContractor));
+  }
             if (inclination.header.firstInspector !== undefined && inclination.header.firstInspector !== null && String(inclination.header.firstInspector).trim()) {
               setSlopeFirstInspector(String(inclination.header.firstInspector));
             }
