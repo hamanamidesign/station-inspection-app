@@ -1716,12 +1716,12 @@ const getSlopeCellStyle = (
   fallbackBackgroundColor?: string
 ): React.CSSProperties => {
   const source = row.cellStyles?.[field];
+
   return {
-    ...(source?.color ? { color: source.color } : {}),
-    ...(source?.backgroundColor
-      ? { backgroundColor: source.backgroundColor }
-      : fallbackBackgroundColor
-        ? { backgroundColor: fallbackBackgroundColor }
+    ...(fallbackBackgroundColor
+      ? { backgroundColor: fallbackBackgroundColor }
+      : source?.backgroundColor
+        ? { backgroundColor: source.backgroundColor }
         : {}),
   };
 };
