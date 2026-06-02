@@ -19,6 +19,11 @@ interface ExistingStation {
   routeFolderId?: string;
 }
 
+interface CellStyle {
+  color?: string;
+  backgroundColor?: string;
+}
+
 interface SlopeTableRow {
   id: number;
   slopeType: string;
@@ -37,6 +42,7 @@ interface SlopeTableRow {
   photo1?: string | null;
   photo2?: string | null;
   pointColor?: string;
+  cellStyles?: Partial<Record<keyof Omit<SlopeTableRow, 'id' | 'photo1' | 'photo2' | 'cellStyles'>, CellStyle>>;
 }
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
@@ -92,6 +98,14 @@ const normalizeDateForDateInput = (value: unknown) => {
 const toDisplayText = (value: unknown) =>
   value === null || value === undefined ? '' : String(value);
 
+const formatSlopeDisplayNumber = (value: unknown) => {
+  const text = toDisplayText(value).trim();
+  if (!text) return '';
+
+  const number = Number(text);
+  return Number.isFinite(number) ? number.toFixed(1) : text;
+};
+
 const normalizeSlopeRow = (row: Partial<SlopeTableRow>, index: number): SlopeTableRow => ({
   id: Number(row.id) || Date.now() + index,
   slopeType: toDisplayText(row.slopeType),
@@ -99,17 +113,18 @@ const normalizeSlopeRow = (row: Partial<SlopeTableRow>, index: number): SlopeTab
   place: toDisplayText(row.place),
   placeSide: toDisplayText(row.placeSide),
   firstEwDirection: toDisplayText(row.firstEwDirection),
-  firstEwValue: toDisplayText(row.firstEwValue),
+  firstEwValue: formatSlopeDisplayNumber(row.firstEwValue),
   firstNsDirection: toDisplayText(row.firstNsDirection),
-  firstNsValue: toDisplayText(row.firstNsValue),
+  firstNsValue: formatSlopeDisplayNumber(row.firstNsValue),
   currentEwDirection: toDisplayText(row.currentEwDirection),
-  currentEwValue: toDisplayText(row.currentEwValue),
+  currentEwValue: formatSlopeDisplayNumber(row.currentEwValue),
   currentNsDirection: toDisplayText(row.currentNsDirection),
-  currentNsValue: toDisplayText(row.currentNsValue),
+  currentNsValue: formatSlopeDisplayNumber(row.currentNsValue),
   note: toDisplayText(row.note),
   photo1: row.photo1 ?? null,
   photo2: row.photo2 ?? null,
   pointColor: row.pointColor,
+  cellStyles: row.cellStyles,
 });
 
 const isMissingSlopeTableError = (error: unknown) =>
@@ -1672,6 +1687,22 @@ const getSlopePointClass = (row: SlopeTableRow) => {
   return hasAlert ? 'text-red-600' : 'text-black';
 };
 
+const getSlopeCellStyle = (
+  row: SlopeTableRow,
+  field: keyof NonNullable<SlopeTableRow['cellStyles']>,
+  fallbackBackgroundColor?: string
+): React.CSSProperties => {
+  const source = row.cellStyles?.[field];
+  return {
+    ...(source?.color ? { color: source.color } : {}),
+    ...(source?.backgroundColor
+      ? { backgroundColor: source.backgroundColor }
+      : fallbackBackgroundColor
+        ? { backgroundColor: fallbackBackgroundColor }
+        : {}),
+  };
+};
+
 const getSlopeValueClass = (value: string, isChanged = false) => {
   const classes = ['border-r border-slate-500 px-2 py-2 text-center outline-none'];
 
@@ -1767,10 +1798,14 @@ const sendSlopeTable = async () => {
     ].some(value => value.trim())
   ).map(row => ({
     ...row,
-    firstEw: row.firstEwValue,
-    firstNs: row.firstNsValue,
-    currentEw: row.currentEwValue,
-    currentNs: row.currentNsValue,
+    firstEwValue: formatSlopeDisplayNumber(row.firstEwValue),
+    firstNsValue: formatSlopeDisplayNumber(row.firstNsValue),
+    currentEwValue: formatSlopeDisplayNumber(row.currentEwValue),
+    currentNsValue: formatSlopeDisplayNumber(row.currentNsValue),
+    firstEw: formatSlopeDisplayNumber(row.firstEwValue),
+    firstNs: formatSlopeDisplayNumber(row.firstNsValue),
+    currentEw: formatSlopeDisplayNumber(row.currentEwValue),
+    currentNs: formatSlopeDisplayNumber(row.currentNsValue),
     note: getSlopeNoteValue(row),
   }));
 
@@ -1832,7 +1867,13 @@ const sendInclinationKarte = async () => {
     const inclinationGroups = chunkSlopeRows(slopeRows);
     const rows = filledRows.map(row => {
       const { photo1, photo2, ...rowWithoutPhotos } = row;
-      return rowWithoutPhotos;
+      return {
+        ...rowWithoutPhotos,
+        firstEwValue: formatSlopeDisplayNumber(row.firstEwValue),
+        firstNsValue: formatSlopeDisplayNumber(row.firstNsValue),
+        currentEwValue: formatSlopeDisplayNumber(row.currentEwValue),
+        currentNsValue: formatSlopeDisplayNumber(row.currentNsValue),
+      };
     });
 
     const result = await gasApi("uploadInclinationKarteSheets", {
@@ -2016,6 +2057,7 @@ if (mode === 'slope_table') {
 </select>
                 <input
                   className={`border-r border-slate-500 px-2 py-2 text-center outline-none ${getSlopePointClass(row)}`}
+                  style={getSlopeCellStyle(row, 'point')}
                   value={row.point}
                   onChange={e => updateSlopePoint(row.id, e.target.value)}
                   maxLength={1}
@@ -2033,6 +2075,7 @@ if (mode === 'slope_table') {
 <div className="relative border-r border-slate-500">
   <input
     className="w-full px-2 py-2 outline-none"
+    style={getSlopeCellStyle(row, 'place')}
     value={row.place}
     onChange={e => {
       updateSlopeRow(row.id, 'place', e.target.value);
@@ -2071,6 +2114,7 @@ if (mode === 'slope_table') {
 </div>
                 <select
                   className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstEwValue) ? 'text-red-600' : 'text-black'}`}
+                  style={getSlopeCellStyle(row, 'firstEwDirection')}
                   value={row.firstEwDirection}
                   onChange={e => updateSlopeRow(row.id, 'firstEwDirection', e.target.value)}
                 >
@@ -2084,12 +2128,14 @@ if (mode === 'slope_table') {
                   inputMode="decimal"
                   step="0.1"
                   className={getSlopeValueClass(row.firstEwValue)}
+                  style={getSlopeCellStyle(row, 'firstEwValue')}
                   value={row.firstEwValue}
                   onChange={e => updateSlopeRow(row.id, 'firstEwValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'firstEwValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
                   className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstNsValue) ? 'text-red-600' : 'text-black'}`}
+                  style={getSlopeCellStyle(row, 'firstNsDirection')}
                   value={row.firstNsDirection}
                   onChange={e => updateSlopeRow(row.id, 'firstNsDirection', e.target.value)}
                 >
@@ -2103,12 +2149,14 @@ if (mode === 'slope_table') {
                   inputMode="decimal"
                   step="0.1"
                   className={getSlopeValueClass(row.firstNsValue)}
+                  style={getSlopeCellStyle(row, 'firstNsValue')}
                   value={row.firstNsValue}
                   onChange={e => updateSlopeRow(row.id, 'firstNsValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'firstNsValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
                   className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentEwValue) ? 'text-red-600' : 'text-black'}`}
+                  style={getSlopeCellStyle(row, 'currentEwDirection')}
                   value={row.currentEwDirection}
                   onChange={e => updateSlopeRow(row.id, 'currentEwDirection', e.target.value)}
                 >
@@ -2122,12 +2170,14 @@ if (mode === 'slope_table') {
                   inputMode="decimal"
                   step="0.1"
                   className={getSlopeValueClass(row.currentEwValue, ewChanged)}
+                  style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#e2e8f0' : undefined)}
                   value={row.currentEwValue}
                   onChange={e => updateSlopeRow(row.id, 'currentEwValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'currentEwValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
                   className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentNsValue) ? 'text-red-600' : 'text-black'}`}
+                  style={getSlopeCellStyle(row, 'currentNsDirection')}
                   value={row.currentNsDirection}
                   onChange={e => updateSlopeRow(row.id, 'currentNsDirection', e.target.value)}
                 >
@@ -2141,6 +2191,7 @@ if (mode === 'slope_table') {
                   inputMode="decimal"
                   step="0.1"
                   className={getSlopeValueClass(row.currentNsValue, nsChanged)}
+                  style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#e2e8f0' : undefined)}
                   value={row.currentNsValue}
                   onChange={e => updateSlopeRow(row.id, 'currentNsValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'currentNsValue', normalizeSlopeNumber(e.target.value))}
@@ -2422,7 +2473,10 @@ if (mode === 'inclination_menu') {
               測点
             </div>
 
-            <div className={`p-2 text-center font-bold text-lg ${getSlopePointClass(row)}`}>
+            <div
+              className={`p-2 text-center font-bold text-lg ${getSlopePointClass(row)}`}
+              style={getSlopeCellStyle(row, 'point')}
+            >
               {row.point}
             </div>
 
@@ -2462,7 +2516,7 @@ if (mode === 'inclination_menu') {
             点検場所
           </div>
 
-          <div className="p-2">
+          <div className="p-2" style={getSlopeCellStyle(row, 'place')}>
             {row.place}
           </div>
 
@@ -2485,7 +2539,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.firstEwValue)
                   ? 'text-red-600'
                   : ''
-              }`}>
+              }`} style={getSlopeCellStyle(row, 'firstEwDirection')}>
                 {row.firstEwDirection}
               </div>
 
@@ -2493,7 +2547,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.firstEwValue)
                   ? 'text-red-600'
                   : ''
-              }`}>
+              }`} style={getSlopeCellStyle(row, 'firstEwValue')}>
                 {row.firstEwValue}
               </div>
 
@@ -2501,7 +2555,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.firstNsValue)
                   ? 'text-red-600'
                   : ''
-              }`}>
+              }`} style={getSlopeCellStyle(row, 'firstNsDirection')}>
                 {row.firstNsDirection}
               </div>
 
@@ -2509,7 +2563,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.firstNsValue)
                   ? 'text-red-600'
                   : ''
-              }`}>
+              }`} style={getSlopeCellStyle(row, 'firstNsValue')}>
                 {row.firstNsValue}
               </div>
 
@@ -2530,7 +2584,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.currentEwValue)
                   ? 'text-red-600'
                   : ''
-              }`}>
+              }`} style={getSlopeCellStyle(row, 'currentEwDirection')}>
                 {row.currentEwDirection}
               </div>
 
@@ -2542,7 +2596,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.currentEwValue)
                   ? 'text-red-600'
                   : ''
-              }`}>
+              }`} style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#cbd5e1' : undefined)}>
                 {row.currentEwValue}
               </div>
 
@@ -2550,7 +2604,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.currentNsValue)
                   ? 'text-red-600'
                   : ''
-              }`}>
+              }`} style={getSlopeCellStyle(row, 'currentNsDirection')}>
                 {row.currentNsDirection}
               </div>
 
@@ -2562,7 +2616,7 @@ if (mode === 'inclination_menu') {
                 isSlopeAlertValue(row.currentNsValue)
                   ? 'text-red-600'
                   : ''
-              }`}>
+              }`} style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#cbd5e1' : undefined)}>
                 {row.currentNsValue}
               </div>
 
