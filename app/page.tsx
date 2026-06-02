@@ -2432,7 +2432,7 @@ if (mode === 'inclination_menu') {
     {/* 初回 受注者（入力） */}
 <div className="border-r border-slate-800 p-2 flex items-center">
   <textarea
-    className="w-full text-center text-sm outline-none resize-none overflow-hidden"
+    className="w-full h-12 text-center text-sm outline-none resize-none overflow-hidden flex items-center"
     value={slopeFirstContractor}
     onChange={(e) => setSlopeFirstContractor(e.target.value)}
     rows={2}
@@ -2443,7 +2443,7 @@ if (mode === 'inclination_menu') {
     {/* 初回 点検者（入力） */}
 <div className="border-r border-slate-800 p-2 flex items-center">
   <textarea
-    className="w-full text-center text-sm outline-none resize-none overflow-hidden"
+    className="w-full h-12 text-center text-sm outline-none resize-none overflow-hidden flex items-center"
     value={slopeFirstInspector}
     onChange={(e) => setSlopeFirstInspector(e.target.value)}
     rows={2}
