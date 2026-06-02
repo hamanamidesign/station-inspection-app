@@ -1702,8 +1702,16 @@ const hasSlopeDiff = (row: SlopeTableRow, direction: 'ew' | 'ns') => {
 };
 
 const getSlopeNoteValue = (row: SlopeTableRow) => {
-  return hasSlopeDiff(row, 'ew') || hasSlopeDiff(row, 'ns')
-    ? '変化あり'
+  const changed =
+    hasSlopeDiff(row, 'ew') ||
+    hasSlopeDiff(row, 'ns');
+
+  if (changed) {
+    return '変化あり';
+  }
+
+  return row.note === '変化あり'
+    ? ''
     : row.note;
 };
 
@@ -1725,7 +1733,11 @@ const getSlopeCellStyle = (
   fallbackBackgroundColor?: string
 ): React.CSSProperties => {
   const source = row.cellStyles?.[field];
-
+console.log(
+  field,
+  source?.backgroundColor,
+  fallbackBackgroundColor
+);
   return {
     ...(fallbackBackgroundColor
       ? { backgroundColor: fallbackBackgroundColor }
