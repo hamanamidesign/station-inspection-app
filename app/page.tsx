@@ -1472,6 +1472,7 @@ const result = await gasApi("getSlopeTableData", {
     if (result.inspectDate !== undefined && result.inspectDate !== null && String(result.inspectDate).trim()) {
       setInspectDate(formatSheetDateText(result.inspectDate));
     }
+    if (result.evalType !== undefined && result.evalType !== null) {setEvalType(String(result.evalType));}
     setInspectList(result.inspectList || []);
 
     const loadedSlopeRows = Array.isArray(result.rows)
