@@ -1492,17 +1492,9 @@ const inclination = await gasApi("getInclinationKarteSheets", {
 console.log("inclination =", inclination);
 
 if (inclination.success) {
-  if (inclination.header) {
+if (inclination.header) {
 
-    console.log("inclination.header =", inclination.header);
-    console.log("header.evalType =", inclination.header.evalType);
-
-  if (
-    inclination.header.evalType !== undefined &&
-    inclination.header.evalType !== null
-  ) {
-    setEvalType(String(inclination.header.evalType));
-  }
+  setEvalType(String(inclination.header.evalType || ''));
 
   if (
     inclination.header.firstContractor !== undefined &&
