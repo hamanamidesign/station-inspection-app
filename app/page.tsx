@@ -1482,16 +1482,19 @@ const result = await gasApi("getSlopeTableData", {
 
     if (mode === 'inclination_menu') {
       try {
-        const inclination = await gasApi("getInclinationKarteSheets", {
-          spreadsheetId,
-          folderId: stationFolderId,
-          year: selectedYear,
-        });
+const inclination = await gasApi("getInclinationKarteSheets", {
+  spreadsheetId,
+  folderId: stationFolderId,
+  year: selectedYear,
+});
 
-        if (inclination.success) {
-        if (inclination.header) {
+console.log("inclination =", inclination);
 
-  console.log("evalType =", inclination.header.evalType);
+if (inclination.success) {
+  if (inclination.header) {
+
+    console.log("inclination.header =", inclination.header);
+    console.log("header.evalType =", inclination.header.evalType);
 
   if (
     inclination.header.evalType !== undefined &&
