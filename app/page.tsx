@@ -3049,7 +3049,7 @@ if (mode === 'inclination_menu') {
 
     <select
       className={`w-full outline-none text-center font-black bg-white ${
-        structEval === 'AA' || structEval === 'A1'
+        structEval === 'AA' || structEval === 'A1' || structEval === 'A2'
           ? 'text-red-600'
           : 'text-black'
       }`}
@@ -3094,7 +3094,7 @@ if (mode === 'inclination_menu') {
       readOnly
       value={totalEval}
       className={`w-full outline-none text-center font-black bg-white ${
-        totalEval === 'AA' || totalEval === 'A1' || totalEval === 'B'
+        totalEval === 'AA' || totalEval === 'A1' || totalEval === 'A2' || totalEval === 'B'
           ? 'text-red-600'
           : 'text-black'
       }`}
