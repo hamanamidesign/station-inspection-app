@@ -450,9 +450,6 @@ useEffect(() => {
   if (mode !== 'slope_table' && mode !== 'inclination_menu') return;
   if (!spreadsheetId) return;
 
-  console.log("stationName =", stationName);
-  console.log("selectedYear =", selectedYear);
-
   loadSlopeTable();
 
 }, [mode, spreadsheetId]);
@@ -1498,13 +1495,9 @@ const addFinishText = (
 };
 
 const loadSlopeTable = async () => {
-console.log("selectedRoute =", selectedRoute);
   setIsLoading(true);
 
   try {
-console.log("送信 stationName =", stationName);
-console.log("送信 year =", selectedYear);
-
 const result = await gasApi("getSlopeTableData", {
   spreadsheetId,
   stationName,
@@ -1533,7 +1526,6 @@ const result = await gasApi("getSlopeTableData", {
       ? result.rows.map((row: Partial<SlopeTableRow>, index: number) => normalizeSlopeRow(row, index))
       : createEmptySlopeRows();
 
-    console.log("loadedSlopeRows", loadedSlopeRows);
     setSlopeRows(loadedSlopeRows);
 
     if (mode === 'inclination_menu') {
@@ -1543,8 +1535,6 @@ const inclination = await gasApi("getInclinationKarteSheets", {
   folderId: stationFolderId,
   year: selectedYear,
 });
-
-console.log("inclination =", inclination);
 
 if (inclination.success) {
 
@@ -1575,8 +1565,6 @@ if (inclination.success) {
 
 if (Array.isArray(inclination.rows) && inclination.rows.length > 0) {
 
-  console.log("inclination.rows =", inclination.rows);
-
 const byPoint = new Map<string, Partial<SlopeTableRow>>(
   inclination.rows.map((row: Partial<SlopeTableRow>) => [
     String(row.point || '').trim(),
@@ -1588,15 +1576,6 @@ const byPoint = new Map<string, Partial<SlopeTableRow>>(
     rows.map((row: SlopeTableRow) => {
 
       const saved = byPoint.get(row.point.trim());
-
-      console.log(
-        "point=",
-        row.point,
-        "photo1=",
-        saved?.photo1,
-        "photo2=",
-        saved?.photo2
-      );
 
       if (!saved) return row;
 
@@ -1647,16 +1626,6 @@ const updateSlopeRow = (
         ...row,
         [field]: value
       };
-console.log(
-  "update",
-  updated.point,
-  updated.firstEwValue,
-  updated.currentEwValue,
-  updated.firstNsValue,
-  updated.currentNsValue
-);
-
-
       // 初回 東西
       if (
         field === 'firstEwValue' &&
@@ -1795,11 +1764,6 @@ const getSlopeCellStyle = (
   fallbackBackgroundColor?: string
 ): React.CSSProperties => {
   const source = row.cellStyles?.[field];
-console.log(
-  field,
-  source?.backgroundColor,
-  fallbackBackgroundColor
-);
   return {
     ...(fallbackBackgroundColor
       ? { backgroundColor: fallbackBackgroundColor }
@@ -2004,8 +1968,12 @@ const sendInclinationKarte = async () => {
       return;
     }
 
-    for (const group of inclinationGroups) {
-      const sheetName = getSlopeRangeLabel(group);
+    const createdSheetNames = Array.isArray(result.sheetNames)
+      ? result.sheetNames.map((name: unknown) => String(name || ''))
+      : [];
+
+    for (const [groupIndex, group] of inclinationGroups.entries()) {
+      const sheetName = createdSheetNames[groupIndex] || getSlopeRangeLabel(group);
 
       for (const row of group) {
         const firstPhotoFile = await toPhotoPayload(row.photo1, row.point, 'first');
@@ -2145,13 +2113,6 @@ if (mode === 'slope_table') {
               const ewChanged = hasSlopeDiff(row, 'ew');
               const nsChanged = hasSlopeDiff(row, 'ns');
               const noteValue = getSlopeNoteValue(row);
-console.log(
-    row.point,
-    "ewChanged=",
-    ewChanged,
-    row.firstEwValue,
-    row.currentEwValue
-  );
               return (
               <div
                 key={row.id}
