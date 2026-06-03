@@ -1915,19 +1915,24 @@ const sendSlopeTable = async () => {
 
 const toPhotoPayload = async (photo: string | null | undefined, point: string, kind: 'first' | 'current') => {
   if (!photo) return null;
+  const fileName = kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`;
 
-  const fileId = photo.match(/[?&]id=([^&]+)/)?.[1] || photo.match(/\/d\/([^/]+)/)?.[1] || "";
-  const resized = photo.startsWith("data:image")
-    ? await resizeImage(photo, 900, 500000, 0.5, 900000)
-    : photo;
+  if (!photo.startsWith("data:image")) {
+    return {
+      point,
+      kind,
+      fileName,
+      url: photo,
+    };
+  }
+
+  const resized = await resizeImage(photo, 900, 500000, 0.5, 900000);
 
   return {
     point,
     kind,
-    fileName: kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`,
+    fileName,
     base64: resized.includes(',') ? resized.split(',')[1] : "",
-    fileId,
-    url: resized.startsWith("http") ? resized : "",
   };
 };
 
