@@ -209,6 +209,8 @@ const INCLINATION_BLOCKS_ = [
   },
 ];
 
+const INCLINATION_CURRENT_BG_ = "#dbeafe";
+
 function writeInclinationHeader_(sheet, data, rangeLabel) {
   const values = [
     ["D1", rangeLabel],
@@ -233,9 +235,14 @@ function writeInclinationRows_(sheet, rows, data) {
 
     writePointValue_(sheet, block.firstPoint, row);
     writePointValue_(sheet, block.currentPoint, row);
+    sheet.getRange(block.currentPoint).setBackground(INCLINATION_CURRENT_BG_);
     sheet.getRange(block.firstDate).setNumberFormat("@").setValue(inclinationText_(data.firstDate));
     writeInclinationPlace_(sheet, [block.firstPlace, block.currentPlace], row.place, getInclinationCellStyle_(row, "place"));
-    sheet.getRange(block.currentDate).setNumberFormat("@").setValue(inclinationText_(data.inspectDate));
+    sheet.getRange(block.currentPlace).setBackground(INCLINATION_CURRENT_BG_);
+    sheet.getRange(block.currentDate)
+      .setNumberFormat("@")
+      .setValue(inclinationText_(data.inspectDate))
+      .setBackground(INCLINATION_CURRENT_BG_);
 
     writeSlopeValue_(sheet, block.firstEwDirection, row.firstEwDirection, undefined, getInclinationCellStyle_(row, "firstEwDirection"));
     writeSlopeValue_(sheet, block.firstEwValue, inclinationNumberText_(row.firstEwValue), undefined, getInclinationCellStyle_(row, "firstEwValue"), true);
@@ -277,6 +284,7 @@ function writeInclinationPlace_(sheet, ranges, value, style) {
       .setValue(text)
       .setFontSize(fontSize)
       .setWrap(false)
+      .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
       .setVerticalAlignment("middle");
 
     applyInclinationCellStyle_(range, style);
@@ -284,11 +292,14 @@ function writeInclinationPlace_(sheet, ranges, value, style) {
 }
 
 function getInclinationPlaceFontSize_(value) {
-  const length = String(value || "").replace(/\s+/g, "").length;
+  const length = Array.from(String(value || "").replace(/\s+/g, "")).length;
 
-  if (length >= 18) return 6;
-  if (length >= 14) return 7;
-  if (length >= 10) return 8;
+  if (length >= 16) return 3;
+  if (length >= 14) return 4;
+  if (length >= 12) return 5;
+  if (length >= 10) return 6;
+  if (length >= 8) return 7;
+  if (length >= 7) return 8;
   return 9;
 }
 
@@ -437,7 +448,8 @@ function clearInclinationBlocks_(sheet, rows) {
         .setFontColor("#000000")
         .setBackground("#ffffff")
         .setFontSize(9)
-        .setWrap(false);
+        .setWrap(false)
+        .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
     });
   });
 }
