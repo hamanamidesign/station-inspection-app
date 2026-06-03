@@ -3140,7 +3140,7 @@ if (mode === 'inclination_menu') {
                初回点検（過去参照・編集）
             </div>
             {/* 初回基本情報 */}
-            <div className="grid grid-cols-3 text-[11px] border-b border-slate-800">
+            <div className="grid grid-cols-[0.75fr_1fr_1fr] text-[11px] border-b border-slate-800">
             <div className="p-1 border-r border-slate-400 flex flex-col">
             <span className="text-[9px] font-bold text-black">初回カルテ番号</span>
             <input
