@@ -52,6 +52,18 @@ interface InspectorRegistration {
   inspectors: string[];
 }
 
+interface PdfSheetOption {
+  name: string;
+  label: string;
+  group: 'photo' | 'slope' | 'inclination';
+}
+
+interface PdfSheetGroups {
+  photo: PdfSheetOption[];
+  slope: PdfSheetOption[];
+  inclination: PdfSheetOption[];
+}
+
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 
 const createEmptySlopeRows = (count = 13): SlopeTableRow[] =>
@@ -158,7 +170,8 @@ type AppMode =
   | 'edit_list' 
   | 'editor'
   | 'route_select'
-  | 'photo_number_register';
+  | 'photo_number_register'
+  | 'pdf_export';
 
 const INCLINATION_CARD_WIDTH = 1152;
 
@@ -270,6 +283,8 @@ useEffect(() => {
   const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
+  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ photo: [], slope: [], inclination: [] });
+  const [selectedPdfSheets, setSelectedPdfSheets] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
   const [evalType, setEvalType] = useState('');
@@ -433,6 +448,12 @@ useEffect(() => {
 useEffect(() => {
   if (mode === 'photo_number_register' && spreadsheetId) {
     loadKarteNumberOptions().catch(e => console.error(e));
+  }
+}, [mode, spreadsheetId]);
+
+useEffect(() => {
+  if (mode === 'pdf_export' && spreadsheetId) {
+    loadPdfSheetOptions().catch(e => console.error(e));
   }
 }, [mode, spreadsheetId]);
 
@@ -998,6 +1019,80 @@ const loadKarteNumberOptions = async () => {
   }
 };
 
+const loadPdfSheetOptions = async () => {
+  if (!spreadsheetId) return;
+
+  setIsLoading(true);
+
+  try {
+    const result = await gasApi("getPdfSheetOptions", { spreadsheetId });
+    const groups: PdfSheetGroups = {
+      photo: Array.isArray(result.groups?.photo) ? result.groups.photo : [],
+      slope: Array.isArray(result.groups?.slope) ? result.groups.slope : [],
+      inclination: Array.isArray(result.groups?.inclination) ? result.groups.inclination : [],
+    };
+
+    setPdfSheets(groups);
+
+    const allSheetNames = [
+      ...groups.photo,
+      ...groups.slope,
+      ...groups.inclination,
+    ].map(sheet => sheet.name);
+
+    setSelectedPdfSheets(allSheetNames);
+  } catch (e) {
+    console.error(e);
+    alert("PDF作成用のシート一覧取得に失敗しました");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const togglePdfSheet = (sheetName: string) => {
+  setSelectedPdfSheets(current =>
+    current.includes(sheetName)
+      ? current.filter(name => name !== sheetName)
+      : [...current, sheetName]
+  );
+};
+
+const togglePdfGroup = (sheets: PdfSheetOption[]) => {
+  const names = sheets.map(sheet => sheet.name);
+  const allSelected = names.every(name => selectedPdfSheets.includes(name));
+
+  setSelectedPdfSheets(current => {
+    if (allSelected) {
+      return current.filter(name => !names.includes(name));
+    }
+
+    return Array.from(new Set([...current, ...names]));
+  });
+};
+
+const createPdf = async () => {
+  if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+  if (selectedPdfSheets.length === 0) return alert("PDF化するシートを選択してください");
+
+  setIsSending(true);
+
+  try {
+    const result = await gasApi("createInspectionPdf", {
+      spreadsheetId,
+      stationName,
+      year: selectedYear,
+      sheetNames: selectedPdfSheets,
+    });
+
+    alert(`PDFを作成しました。\n${result.fileName || ""}\n${result.url || ""}`);
+  } catch (e) {
+    console.error(e);
+    alert(`PDF作成に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+  } finally {
+    setIsSending(false);
+  }
+};
+
 const registerUnavailableKarteNumber = async () => {
   const no = registerKarteNo.trim();
 
@@ -1362,6 +1457,106 @@ if (mode === 'exist_select') return (
 
   if (mode === 'task_select') {
   return <TaskSelect goTo={goTo} Nav={Nav} />;
+}
+
+if (mode === 'pdf_export') {
+  const groups: { key: keyof PdfSheetGroups; title: string }[] = [
+    { key: 'photo', title: '写真カルテ' },
+    { key: 'slope', title: '傾斜表' },
+    { key: 'inclination', title: '傾斜測定カルテ' },
+  ];
+
+  return (
+    <div className="flex min-h-screen flex-col items-center bg-slate-50 p-6 text-black">
+      <Nav />
+      <LoadingOverlay />
+
+      <div className="w-full max-w-5xl rounded-2xl bg-white p-6 shadow-xl">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-black text-indigo-700">PDF作成</h2>
+            <p className="mt-1 text-sm font-bold text-slate-500">
+              {stationName || "---"} / {selectedYear || "---"}年度
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadPdfSheetOptions}
+            disabled={isLoading || !spreadsheetId}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 active:scale-95 disabled:opacity-50"
+          >
+            一覧を更新
+          </button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {groups.map(group => {
+            const sheets = pdfSheets[group.key];
+            const allSelected =
+              sheets.length > 0 &&
+              sheets.every(sheet => selectedPdfSheets.includes(sheet.name));
+
+            return (
+              <section key={group.key} className="border border-slate-300 bg-slate-50">
+                <div className="flex items-center justify-between border-b border-slate-300 bg-slate-100 px-3 py-2">
+                  <h3 className="text-sm font-black text-slate-800">{group.title}</h3>
+                  <button
+                    type="button"
+                    onClick={() => togglePdfGroup(sheets)}
+                    disabled={sheets.length === 0}
+                    className="rounded-md bg-white px-2 py-1 text-xs font-bold text-indigo-700 disabled:text-slate-300"
+                  >
+                    {allSelected ? "解除" : "全選択"}
+                  </button>
+                </div>
+
+                <div className="min-h-28 p-3">
+                  {sheets.length === 0 ? (
+                    <div className="flex h-20 items-center justify-center text-sm font-bold text-slate-400">
+                      作成済みシートなし
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-5 gap-2">
+                      {sheets.map(sheet => {
+                        const checked = selectedPdfSheets.includes(sheet.name);
+
+                        return (
+                          <button
+                            key={sheet.name}
+                            type="button"
+                            onClick={() => togglePdfSheet(sheet.name)}
+                            className={`min-h-10 border px-2 py-2 text-sm font-black active:scale-95 ${
+                              checked
+                                ? "border-indigo-600 bg-indigo-600 text-white"
+                                : "border-slate-300 bg-white text-slate-700"
+                            }`}
+                          >
+                            {sheet.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={createPdf}
+            disabled={isSending || selectedPdfSheets.length === 0}
+            className="w-full max-w-md rounded-xl bg-blue-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+          >
+            {isSending ? "PDF作成中..." : "PDFを作成する"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 if (mode === 'photo_number_register') return (

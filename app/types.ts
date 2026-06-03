@@ -11,4 +11,5 @@ export type AppMode =
   | 'inclination_edit'
   | 'edit_list'
   | 'editor'
-  | 'photo_number_register';
+  | 'photo_number_register'
+  | 'pdf_export';

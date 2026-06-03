@@ -15,7 +15,8 @@ export default function TaskSelect({ goTo, Nav }: Props) {
     "写真カルテ番号登録",
     "写真カルテ",
     "傾斜表",
-    "傾斜測定カルテ"
+    "傾斜測定カルテ",
+    "PDF作成"
   ];
 
   return (
@@ -35,10 +36,11 @@ export default function TaskSelect({ goTo, Nav }: Props) {
               else if (task === "写真カルテ番号登録") goTo('photo_number_register');
               else if (task === "写真カルテ") goTo('karte_menu');
               else if (task === "傾斜測定カルテ") goTo('inclination_menu');
+              else if (task === "PDF作成") goTo('pdf_export');
             }}
 
             className={`transition-all active:scale-95 active:brightness-90 p-6 rounded-2xl shadow-md font-bold text-center border-2 ${
-              ["傾斜表", "写真カルテ番号位置図", "写真カルテ番号登録", "写真カルテ", "傾斜測定カルテ"].includes(task)
+              ["傾斜表", "写真カルテ番号位置図", "写真カルテ番号登録", "写真カルテ", "傾斜測定カルテ", "PDF作成"].includes(task)
                 ? "bg-white border-indigo-500 text-indigo-700"
                 : "bg-slate-100 text-slate-400 opacity-60"
             }`}
