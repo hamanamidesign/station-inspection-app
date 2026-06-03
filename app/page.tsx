@@ -1917,6 +1917,7 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
   if (!photo) return null;
   const fileName = kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`;
 
+  if (!photo.startsWith("data:image")) return null;
   if (!photo.startsWith("data:image")) {
     const fileId = photo.match(/[?&]id=([^&]+)/)?.[1] || photo.match(/\/d\/([^/]+)/)?.[1] || "";
     if (!fileId) return null;
