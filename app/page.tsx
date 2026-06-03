@@ -173,6 +173,7 @@ export default function InspectorApp() {
   const [impactEval, setImpactEval] = useState('');    // ② 影響評価 (I3)
   const [totalEval, setTotalEval] = useState('');     // 総合評価 (L3)
   const [prevYearEval, setPrevYearEval] = useState(''); // 前年度評価 (Q3)
+  const [firstKarteNo, setFirstKarteNo] = useState(''); // 初回カルテ番号 (D8)
   const [firstDate, setFirstDate] = useState('');      // 初回点検日 (F5)
   const [firstInspector, setFirstInspector] = useState(''); // 初回点検者 (F6)
   const [firstFinish, setFirstFinish] = useState(''); // 初回 仕上げ材
@@ -753,6 +754,7 @@ const result = await gasApi("getKarteData", {
       setImpactEval(String(d.impactEval || ''));
       setTotalEval(String(d.totalEval || ''));
       setPrevYearEval(String(d.prevYearEval || ''));
+      setFirstKarteNo(String(d.firstKarteNo || ''));
       setFirstDate(normalizeDateForDateInput(d.firstDate));
       setFirstInspector(String(d.firstInspector || ''));
       setFirstFinish(String(d.firstFinish || ''));
@@ -851,6 +853,7 @@ const firstPhotoDataList = await Promise.all(
   impactEval,
   totalEval,
   prevYearEval,
+  firstKarteNo,
   firstDate,
   firstInspector,
   firstFinish,
@@ -906,6 +909,7 @@ const resetAllState = () => {
   setFinalImage(null);
   setExistingKartes([]);
   setIsEditMode(false);
+  setFirstKarteNo("");
   setContractor("");
   setInspector("");
   setInspectorOptions([]);
@@ -1455,6 +1459,7 @@ const resetKarteFields = () => {
   setStructEval('');
   setImpactEval('');
   setTotalEval('');
+  setFirstKarteNo('');
   setFirstDate('');
   setFirstInspector('');
 
@@ -3135,8 +3140,19 @@ if (mode === 'inclination_menu') {
                初回点検（過去参照・編集）
             </div>
             {/* 初回基本情報 */}
-            <div className="grid grid-cols-2 text-[11px] border-b border-slate-800">
+            <div className="grid grid-cols-3 text-[11px] border-b border-slate-800">
             <div className="p-1 border-r border-slate-400 flex flex-col">
+            <span className="text-[9px] font-bold text-black">初回カルテ番号</span>
+            <input
+            type="number"
+            inputMode="numeric"
+            className="bg-transparent outline-none placeholder-slate-400"
+            placeholder="番号"
+            value={firstKarteNo || ''}
+            onChange={e => setFirstKarteNo(e.target.value.replace(/\D/g, ''))}
+            />
+          </div>
+          <div className="p-1 border-r border-slate-400 flex flex-col">
             <span className="text-[9px] font-bold text-black">初回点検日</span>
             <input 
             type="text" 
@@ -3144,7 +3160,7 @@ if (mode === 'inclination_menu') {
             placeholder="2018/04/01" 
             value={firstDate || ''} // ★修正
             onChange={e => setFirstDate(e.target.value)} 
-            />
+           />
           </div>
           <div className="p-1 flex flex-col">
           <span className="text-[9px] font-bold text-black">初回点検者</span>
