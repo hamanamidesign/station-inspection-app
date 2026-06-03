@@ -628,7 +628,8 @@ const handleCreateNewSheet = async () => {
     base64Str: string,
     maxSize = 900,
     maxBytes = 1000000,
-    minQuality = 0.3
+    minQuality = 0.3,
+    maxPixels = 1000000
   ): Promise<string> => {
 
   return new Promise((resolve) => {
@@ -650,12 +651,18 @@ const handleCreateNewSheet = async () => {
         height = maxSize;
       }
 
+      if (width * height > maxPixels) {
+        const pixelScale = Math.sqrt(maxPixels / (width * height));
+        width = width * pixelScale;
+        height = height * pixelScale;
+      }
+
       const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = Math.floor(width);
+      canvas.height = Math.floor(height);
 
       const ctx = canvas.getContext("2d");
-      ctx?.drawImage(img, 0, 0, width, height);
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       let quality = 0.6;
       let result = canvas.toDataURL("image/jpeg", quality);
@@ -1911,7 +1918,7 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
 
   const fileId = photo.match(/[?&]id=([^&]+)/)?.[1] || photo.match(/\/d\/([^/]+)/)?.[1] || "";
   const resized = photo.startsWith("data:image")
-    ? await resizeImage(photo, 1200, 300000, 0.7)
+    ? await resizeImage(photo, 900, 500000, 0.5, 900000)
     : photo;
 
   return {
