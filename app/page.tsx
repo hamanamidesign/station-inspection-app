@@ -679,78 +679,6 @@ const handleCreateNewSheet = async () => {
 
 };
 
-const resizeImageUrl = async (
-  imageUrl: string,
-  maxSize = 700,
-  maxBytes = 350000,
-  minQuality = 0.4,
-  maxPixels = 490000
-): Promise<string> => {
-  const separator = imageUrl.includes("?") ? "&" : "?";
-  const url = imageUrl.includes("drive.google.com/thumbnail")
-    ? imageUrl.replace(/([?&]sz=)[^&]+/, "$1w800")
-    : `${imageUrl}${separator}t=${Date.now()}`;
-
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.referrerPolicy = "no-referrer";
-
-    img.onload = () => {
-      try {
-        let width = img.naturalWidth || img.width;
-        let height = img.naturalHeight || img.height;
-
-        if (!width || !height) {
-          reject(new Error("写真サイズを取得できませんでした"));
-          return;
-        }
-
-        if (width > height && width > maxSize) {
-          height = height * (maxSize / width);
-          width = maxSize;
-        } else if (height > maxSize) {
-          width = width * (maxSize / height);
-          height = maxSize;
-        }
-
-        if (width * height > maxPixels) {
-          const pixelScale = Math.sqrt(maxPixels / (width * height));
-          width = width * pixelScale;
-          height = height * pixelScale;
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.floor(width);
-        canvas.height = Math.floor(height);
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("写真を圧縮できませんでした"));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        let quality = 0.6;
-        let result = canvas.toDataURL("image/jpeg", quality);
-
-        while (result.length > maxBytes && quality > minQuality) {
-          quality -= 0.05;
-          result = canvas.toDataURL("image/jpeg", quality);
-        }
-
-        resolve(result);
-      } catch (error) {
-        reject(error instanceof Error ? error : new Error(String(error)));
-      }
-    };
-
-    img.onerror = () => reject(new Error("既存写真を読み込めませんでした"));
-    img.src = url;
-  });
-};
-
 let pressTimer: NodeJS.Timeout;
 
 const handlePressStart = (photo: string) => {
@@ -1990,20 +1918,14 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
   const fileName = kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`;
 
   if (!photo.startsWith("data:image")) {
-    let resizedUrlPhoto = "";
-    try {
-      resizedUrlPhoto = await resizeImageUrl(photo);
-    } catch (error) {
-      throw new Error(
-        `${point} の${kind === 'first' ? '初回' : '最新'}写真を圧縮できませんでした。写真を選び直してください。`
-      );
-    }
+    const fileId = photo.match(/[?&]id=([^&]+)/)?.[1] || photo.match(/\/d\/([^/]+)/)?.[1] || "";
+    if (!fileId) return null;
 
     return {
       point,
       kind,
       fileName,
-      base64: resizedUrlPhoto.includes(',') ? resizedUrlPhoto.split(',')[1] : "",
+      fileId,
     };
   }
 
