@@ -45,6 +45,13 @@ interface SlopeTableRow {
   cellStyles?: Partial<Record<keyof Omit<SlopeTableRow, 'id' | 'photo1' | 'photo2' | 'cellStyles'>, CellStyle>>;
 }
 
+interface InspectorRegistration {
+  routeName: string;
+  year: string;
+  contractor: string;
+  inspectors: string[];
+}
+
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 
 const createEmptySlopeRows = (count = 13): SlopeTableRow[] =>
@@ -97,6 +104,12 @@ const normalizeDateForDateInput = (value: unknown) => {
 
 const toDisplayText = (value: unknown) =>
   value === null || value === undefined ? '' : String(value);
+
+const normalizeMasterKey = (value: unknown) =>
+  String(value || '').replace(/\s+/g, '').trim();
+
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? value as Record<string, unknown> : {};
 
 const formatSlopeDisplayNumber = (value: unknown) => {
   const text = toDisplayText(value).trim();
@@ -239,8 +252,8 @@ useEffect(() => {
   // --- カルテ・傾斜共通入力用ステート ---
   const [karteNo, setKarteNo] = useState('1');
   const [inspectDate, setInspectDate] = useState('');
-  const [contractor, setContractor] = useState('南海辰村建設株式会社 / 奥');
-  const [inspector, setInspector] = useState('株式会社きんそく / 栗脇');
+  const [contractor, setContractor] = useState('');
+  const [inspector, setInspector] = useState('');
   const [buildingCategory, setBuildingCategory] = useState('');
   const [inspectionPlace, setInspectionPlace] = useState('');
   const [locationDetail, setLocationDetail] = useState('');
@@ -248,6 +261,8 @@ useEffect(() => {
   const [inspectionPlaceOptions, setInspectionPlaceOptions] = useState<string[]>([]);
   const [finishOptionsByPlace, setFinishOptionsByPlace] = useState<Record<string, string[]>>({});
   const [checkItemsByPlace, setCheckItemsByPlace] = useState<Record<string, string[][]>>({});
+  const [inspectorRegistrations, setInspectorRegistrations] = useState<InspectorRegistration[]>([]);
+  const [inspectorOptions, setInspectorOptions] = useState<string[]>([]);
   const [showCheckPanel, setShowCheckPanel] = useState(false);
   const [remarks1, setRemarks1] = useState('');
   const [remarks2, setRemarks2] = useState('');
@@ -352,6 +367,21 @@ useEffect(() => {
             ? result.checkItemsByPlace
             : {}
         );
+        setInspectorRegistrations(
+          Array.isArray(result.inspectorRegistrations)
+            ? result.inspectorRegistrations.map((item: unknown) => {
+                const record = toRecord(item);
+                return {
+                  routeName: String(record.routeName || ''),
+                  year: String(record.year || ''),
+                  contractor: String(record.contractor || ''),
+                  inspectors: Array.isArray(record.inspectors)
+                    ? record.inspectors.map((name: unknown) => String(name || '').trim()).filter(Boolean)
+                    : [],
+                };
+              })
+            : []
+        );
       }
     } catch (e) {
       console.error(e);
@@ -360,6 +390,35 @@ useEffect(() => {
 
   loadPulldownLists();
 }, []);
+
+useEffect(() => {
+  if (!selectedRoute || !selectedYear) {
+    setInspectorOptions([]);
+    setContractor('');
+    setInspector('');
+    return;
+  }
+
+  const registration = inspectorRegistrations.find(item =>
+    normalizeMasterKey(item.routeName) === normalizeMasterKey(selectedRoute) &&
+    String(item.year).trim() === String(selectedYear).trim()
+  );
+
+  if (!registration) {
+    setInspectorOptions([]);
+    setContractor('');
+    setInspector('');
+    return;
+  }
+
+  setInspectorOptions(registration.inspectors);
+  setContractor(registration.contractor);
+
+  setInspector(current => {
+    if (registration.inspectors.includes(current)) return current;
+    return registration.inspectors[0] || current || '';
+  });
+}, [inspectorRegistrations, selectedRoute, selectedYear]);
 
   // ★ここに入れる
   useEffect(() => {
@@ -491,10 +550,6 @@ const handleCreateNewSheet = async () => {
       setStationFolderId(duplicate.folderId || '');
       setStationNo(String(duplicate.stationNo || ''));
 
-      // ← ここで初期値セット
-      setContractor('南海辰村建設株式会社 / 奥');
-      setInspector('株式会社きんそく / 栗脇');
-
       goTo('task_select');
       return;
 
@@ -520,10 +575,6 @@ const handleCreateNewSheet = async () => {
 
       setSpreadsheetId(result.spreadsheetId);
       setStationFolderId(result.folderId);
-
-      // ← ここでも初期値セット
-      setContractor('南海辰村建設株式会社 / 奥');
-      setInspector('株式会社きんそく / 栗脇');
 
       goTo('task_select');
     }
@@ -707,7 +758,7 @@ const result = await gasApi("getKarteData", {
       setContractor(
       String(d.contractor || '').trim()
        ? String(d.contractor)
-       : '南海辰村建設株式会社 / 奥'
+       : contractor
         );
       setBuildingCategory(String(d.buildingCategory || ''));
       setInspectionPlace(String(d.inspectionPlace || ''));
@@ -851,6 +902,9 @@ const resetAllState = () => {
   setFinalImage(null);
   setExistingKartes([]);
   setIsEditMode(false);
+  setContractor("");
+  setInspector("");
+  setInspectorOptions([]);
 };
 
 const goTo = (next: AppMode) => {
@@ -2901,6 +2955,10 @@ if (mode === 'inclination_menu') {
     const isPhoto = mode === 'karte_edit';
     const finishOptions = getFinishOptions();
     const checkItems = getCheckItems();
+    const inspectorSelectOptions =
+      inspector && !inspectorOptions.includes(inspector)
+        ? [inspector, ...inspectorOptions]
+        : inspectorOptions;
     return (
       <div className="flex flex-col items-center justify-start min-h-screen bg-slate-300 text-black">
         <Nav />
@@ -3333,13 +3391,14 @@ if (mode === 'inclination_menu') {
     value={inspector}
     onChange={e => setInspector(e.target.value)}
   >
-    <option value="株式会社きんそく / 栗脇">
-      株式会社きんそく / 栗脇
+    <option value="">
+      {inspectorOptions.length ? "点検者を選択" : "点検者未登録"}
     </option>
-
-    <option value="株式会社きんそく / 桒内">
-      株式会社きんそく / 桒内
-    </option>
+    {inspectorSelectOptions.map(option => (
+      <option key={option} value={option}>
+        {option}
+      </option>
+    ))}
   </select>
 </div>
             </div>
