@@ -66,7 +66,7 @@ interface PdfSheetGroups {
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 
-const createEmptySlopeRows = (count = 13): SlopeTableRow[] =>
+const createEmptySlopeRows = (count = 16): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
     id: Date.now() + index,
     slopeType: '',
