@@ -1994,29 +1994,37 @@ const sendInclinationKarte = async () => {
       for (const row of group) {
         const firstPhotoFile = await toPhotoPayload(row.photo1, row.point, 'first');
         if (firstPhotoFile) {
-          await gasApi("uploadInclinationKartePhoto", {
-            spreadsheetId,
-            folderId: stationFolderId,
-            year: selectedYear,
-            sheetName,
-            point: row.point,
-            kind: 'first',
-            photoFile: firstPhotoFile,
-          });
+          try {
+            await gasApi("uploadInclinationKartePhoto", {
+              spreadsheetId,
+              folderId: stationFolderId,
+              year: selectedYear,
+              sheetName,
+              point: row.point,
+              kind: 'first',
+              photoFile: firstPhotoFile,
+            });
+          } catch (error) {
+            throw new Error(`${sheetName} / ${row.point} の初回写真貼り付けに失敗しました: ${error instanceof Error ? error.message : String(error)}`);
+          }
           uploadedPhotoCount += 1;
         }
 
         const currentPhotoFile = await toPhotoPayload(row.photo2, row.point, 'current');
         if (currentPhotoFile) {
-          await gasApi("uploadInclinationKartePhoto", {
-            spreadsheetId,
-            folderId: stationFolderId,
-            year: selectedYear,
-            sheetName,
-            point: row.point,
-            kind: 'current',
-            photoFile: currentPhotoFile,
-          });
+          try {
+            await gasApi("uploadInclinationKartePhoto", {
+              spreadsheetId,
+              folderId: stationFolderId,
+              year: selectedYear,
+              sheetName,
+              point: row.point,
+              kind: 'current',
+              photoFile: currentPhotoFile,
+            });
+          } catch (error) {
+            throw new Error(`${sheetName} / ${row.point} の最新写真貼り付けに失敗しました: ${error instanceof Error ? error.message : String(error)}`);
+          }
           uploadedPhotoCount += 1;
         }
       }
