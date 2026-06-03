@@ -1077,17 +1077,38 @@ const createPdf = async () => {
   setIsSending(true);
 
   try {
-    const result = await gasApi("createInspectionPdf", {
-      spreadsheetId,
-      stationName,
-      year: selectedYear,
-      sheetNames: selectedPdfSheets,
-    });
+    const pdfJobs = [
+      { suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
+      { suffix: "傾斜表", sheetNames: pdfSheets.slope.map(sheet => sheet.name) },
+      { suffix: "傾斜測定カルテ", sheetNames: pdfSheets.inclination.map(sheet => sheet.name) },
+    ]
+      .map(job => ({
+        ...job,
+        sheetNames: job.sheetNames.filter(name => selectedPdfSheets.includes(name)),
+      }))
+      .filter(job => job.sheetNames.length > 0);
 
-    const files = Array.isArray(result.files) ? result.files : [];
-    const message = files.length > 0
-      ? files.map((file: any) => `${file.fileName || ""}\n${file.url || ""}`).join("\n\n")
-      : `${result.fileName || ""}\n${result.url || ""}`;
+    const createdFiles = [];
+
+    for (const job of pdfJobs) {
+      const result = await gasApi("createInspectionPdf", {
+        spreadsheetId,
+        stationName,
+        year: selectedYear,
+        fileSuffix: pdfJobs.length > 1 ? job.suffix : "",
+        sheetNames: job.sheetNames,
+      });
+
+      if (Array.isArray(result.files) && result.files.length > 0) {
+        createdFiles.push(...result.files);
+      } else {
+        createdFiles.push(result);
+      }
+    }
+
+    const message = createdFiles
+      .map((file: any) => `${file.fileName || ""}\n${file.url || ""}`)
+      .join("\n\n");
 
     alert(`PDFを作成しました。\n${message}`);
   } catch (e) {
