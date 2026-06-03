@@ -1084,7 +1084,12 @@ const createPdf = async () => {
       sheetNames: selectedPdfSheets,
     });
 
-    alert(`PDFを作成しました。\n${result.fileName || ""}\n${result.url || ""}`);
+    const files = Array.isArray(result.files) ? result.files : [];
+    const message = files.length > 0
+      ? files.map((file: any) => `${file.fileName || ""}\n${file.url || ""}`).join("\n\n")
+      : `${result.fileName || ""}\n${result.url || ""}`;
+
+    alert(`PDFを作成しました。\n${message}`);
   } catch (e) {
     console.error(e);
     alert(`PDF作成に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
@@ -1484,7 +1489,7 @@ if (mode === 'pdf_export') {
             type="button"
             onClick={loadPdfSheetOptions}
             disabled={isLoading || !spreadsheetId}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 active:scale-95 disabled:opacity-50"
+            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 active:scale-95 disabled:opacity-50"
           >
             一覧を更新
           </button>
@@ -1498,14 +1503,14 @@ if (mode === 'pdf_export') {
               sheets.every(sheet => selectedPdfSheets.includes(sheet.name));
 
             return (
-              <section key={group.key} className="border border-slate-300 bg-slate-50">
+              <section key={group.key} className="overflow-hidden rounded-2xl border border-slate-300 bg-slate-50">
                 <div className="flex items-center justify-between border-b border-slate-300 bg-slate-100 px-3 py-2">
                   <h3 className="text-sm font-black text-slate-800">{group.title}</h3>
                   <button
                     type="button"
                     onClick={() => togglePdfGroup(sheets)}
                     disabled={sheets.length === 0}
-                    className="rounded-md bg-white px-2 py-1 text-xs font-bold text-indigo-700 disabled:text-slate-300"
+                    className="rounded-xl bg-white px-3 py-1 text-xs font-bold text-indigo-700 disabled:text-slate-300"
                   >
                     {allSelected ? "解除" : "全選択"}
                   </button>
@@ -1526,7 +1531,7 @@ if (mode === 'pdf_export') {
                             key={sheet.name}
                             type="button"
                             onClick={() => togglePdfSheet(sheet.name)}
-                            className={`min-h-10 border px-2 py-2 text-sm font-black active:scale-95 ${
+                            className={`min-h-10 rounded-xl border px-2 py-2 text-sm font-black active:scale-95 ${
                               checked
                                 ? "border-indigo-600 bg-indigo-600 text-white"
                                 : "border-slate-300 bg-white text-slate-700"
