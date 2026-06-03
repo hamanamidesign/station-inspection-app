@@ -1917,14 +1917,7 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
   if (!photo) return null;
   const fileName = kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`;
 
-  if (!photo.startsWith("data:image")) {
-    return {
-      point,
-      kind,
-      fileName,
-      url: photo,
-    };
-  }
+  if (!photo.startsWith("data:image")) return null;
 
   const resized = await resizeImage(photo, 900, 500000, 0.5, 900000);
 
