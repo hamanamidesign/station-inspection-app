@@ -1917,7 +1917,6 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
   if (!photo) return null;
   const fileName = kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`;
 
-  if (!photo.startsWith("data:image")) return null;
   if (!photo.startsWith("data:image")) {
     const fileId = photo.match(/[?&]id=([^&]+)/)?.[1] || photo.match(/\/d\/([^/]+)/)?.[1] || "";
     if (!fileId) return null;
@@ -1990,6 +1989,7 @@ const sendInclinationKarte = async () => {
 
     for (const [groupIndex, group] of inclinationGroups.entries()) {
       const sheetName = createdSheetNames[groupIndex] || getSlopeRangeLabel(group);
+      let uploadedPhotoCount = 0;
 
       for (const row of group) {
         const firstPhotoFile = await toPhotoPayload(row.photo1, row.point, 'first');
@@ -2003,6 +2003,7 @@ const sendInclinationKarte = async () => {
             kind: 'first',
             photoFile: firstPhotoFile,
           });
+          uploadedPhotoCount += 1;
         }
 
         const currentPhotoFile = await toPhotoPayload(row.photo2, row.point, 'current');
@@ -2016,7 +2017,12 @@ const sendInclinationKarte = async () => {
             kind: 'current',
             photoFile: currentPhotoFile,
           });
+          uploadedPhotoCount += 1;
         }
+      }
+
+      if (uploadedPhotoCount === 0 && group.some(row => row.photo1 || row.photo2)) {
+        throw new Error(`${sheetName} の写真データを送信できませんでした`);
       }
     }
 
