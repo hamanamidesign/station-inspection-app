@@ -2007,7 +2007,7 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
     };
   }
 
-  const resized = await resizeImage(photo, 700, 350000, 0.4, 490000);
+  const resized = await resizeImage(photo, 800, 350000, 0.4, 490000);
 
   return {
     point,
