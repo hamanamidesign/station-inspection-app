@@ -2253,7 +2253,7 @@ async function loadInspectionReport() {
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    if (message.includes("Unknown action")) {
+    if (message.toLowerCase().includes("unknown action")) {
       await loadInspectionReportLegacy(loadId);
       return;
     }
