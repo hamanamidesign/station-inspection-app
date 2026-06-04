@@ -63,6 +63,20 @@ interface PdfSheetGroups {
   slope: PdfSheetOption[];
   inclination: PdfSheetOption[];
 }
+interface InspectionReportRow {
+  id: number;
+  buildingName: string;
+  inspectionPlace: string;
+  photoNo: string;
+  finishType: string;
+  firstSituation: string;
+  firstEval: string;
+  previousYearEval: string;
+  currentSituation: string;
+  structEval: string;
+  impactEval: string;
+  totalEval: string;
+}
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 
@@ -123,6 +137,37 @@ const normalizeMasterKey = (value: unknown) =>
 const toRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? value as Record<string, unknown> : {};
 
+
+const createEmptyInspectionReportRows = (count = 23): InspectionReportRow[] =>
+  Array.from({ length: count }, (_, index) => ({
+    id: Date.now() + index,
+    buildingName: '',
+    inspectionPlace: '',
+    photoNo: '',
+    finishType: '',
+    firstSituation: '',
+    firstEval: '',
+    previousYearEval: '',
+    currentSituation: '',
+    structEval: '',
+    impactEval: '',
+    totalEval: '',
+  }));
+
+const normalizeInspectionReportRow = (row: Partial<InspectionReportRow>, index: number): InspectionReportRow => ({
+  id: Number(row.id) || Date.now() + index,
+  buildingName: toDisplayText(row.buildingName),
+  inspectionPlace: toDisplayText(row.inspectionPlace),
+  photoNo: toDisplayText(row.photoNo),
+  finishType: toDisplayText(row.finishType),
+  firstSituation: toDisplayText(row.firstSituation),
+  firstEval: toDisplayText(row.firstEval),
+  previousYearEval: toDisplayText(row.previousYearEval),
+  currentSituation: toDisplayText(row.currentSituation),
+  structEval: toDisplayText(row.structEval),
+  impactEval: toDisplayText(row.impactEval),
+  totalEval: toDisplayText(row.totalEval),
+});
 const formatSlopeDisplayNumber = (value: unknown) => {
   const text = toDisplayText(value).trim();
   if (!text) return '';
@@ -162,6 +207,7 @@ type AppMode =
   | 'new_entry' 
   | 'exist_select' 
   | 'task_select' 
+  | 'inspection_report' 
   | 'slope_table'
   | 'karte_menu' 
   | 'karte_edit' 
@@ -290,6 +336,7 @@ useEffect(() => {
   const [evalType, setEvalType] = useState('');
   const [inspectList, setInspectList] = useState<string[]>([]);
   const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
+  const [inspectionReportRows, setInspectionReportRows] = useState<InspectionReportRow[]>(() => createEmptyInspectionReportRows());
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
@@ -454,6 +501,12 @@ useEffect(() => {
 useEffect(() => {
   if (mode === 'pdf_export' && spreadsheetId) {
     loadPdfSheetOptions().catch(e => console.error(e));
+  }
+}, [mode, spreadsheetId]);
+
+useEffect(() => {
+  if (mode === 'inspection_report' && spreadsheetId) {
+    loadInspectionReport().catch(e => console.error(e));
   }
 }, [mode, spreadsheetId]);
 
@@ -1484,6 +1537,72 @@ if (mode === 'exist_select') return (
   if (mode === 'task_select') {
   return <TaskSelect goTo={goTo} Nav={Nav} />;
 }
+  if (mode === 'inspection_report') {
+    const previousYearLabel = Number.isFinite(Number(selectedYear))
+      ? `${Number(selectedYear) - 1}年評価`
+      : '前年度評価';
+
+    return (
+      <div className="min-h-screen overflow-x-auto bg-slate-100 p-4 text-black">
+        <Nav />
+        <LoadingOverlay />
+
+        <div className="mx-auto min-w-[1180px] max-w-[1280px] bg-white border-2 border-slate-900 text-[13px] shadow-sm">
+          <div className="relative border-b border-slate-900 px-4 py-4 text-center text-xl font-bold tracking-[0.45em]">
+            <span>〈 {selectedYear || '----'} 年 度 施 設 点 検 報 告 書 〉</span>
+          </div>
+
+          <div className="grid grid-cols-[90px_48px_90px_1fr_130px_1fr] border-b border-slate-900">
+            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">駅No.</div>
+            <input className="border-r border-slate-900 p-2 text-center outline-none" value={stationNo} onChange={e => setStationNo(e.target.value)} />
+            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">駅名</div>
+            <input className="border-r border-slate-900 p-2 outline-none" value={stationName} onChange={e => setStationName(e.target.value)} />
+            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">点検受注者</div>
+            <textarea className="min-h-9 resize-none p-2 outline-none" value={contractor} onChange={e => setContractor(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-[220px_1fr_130px_1fr] border-b-2 border-slate-900">
+            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">初回点検日</div>
+            <input className="border-r border-slate-900 p-2 text-center outline-none" value={firstDate} onChange={e => setFirstDate(e.target.value)} />
+            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">最新点検日</div>
+            <input className="p-2 text-center outline-none" value={inspectDate} onChange={e => setInspectDate(e.target.value)} />
+            <div className="border-r border-t border-slate-900 bg-slate-100 p-2 text-center font-bold">初回点検者</div>
+            <input className="border-r border-t border-slate-900 p-2 text-center outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} />
+            <div className="border-r border-t border-slate-900 bg-slate-100 p-2 text-center font-bold">点検者</div>
+            <input className="border-t border-slate-900 p-2 text-center outline-none" value={inspector} onChange={e => setInspector(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] bg-slate-50 text-center font-bold">
+            <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">建物名</div>
+            <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">点検場所</div>
+            <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">写真<br />番号</div>
+            <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">仕上げ<br />種別</div>
+            <div className="col-span-3 border-r border-b border-slate-900 p-2">初回点検</div>
+            <div className="col-span-4 border-b border-slate-900 p-2">{selectedYear || '----'}年度点検</div>
+            <div className="border-r border-b border-slate-900 p-2">状況説明</div>
+            <div className="border-r border-b border-slate-900 p-2">初回評価</div>
+            <div className="border-r border-b border-slate-900 p-2">{previousYearLabel}</div>
+            <div className="border-r border-b border-slate-900 p-2">状況説明</div>
+            <div className="border-r border-b border-slate-900 p-2">構造</div>
+            <div className="border-r border-b border-slate-900 p-2">影響</div>
+            <div className="border-b border-slate-900 p-2">総合評価</div>
+          </div>
+
+          <div>
+            {inspectionReportRows.map(row => (
+              <div key={row.id} className="grid min-h-8 grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] border-b border-slate-300 last:border-b-0">
+                {[row.buildingName, row.inspectionPlace, row.photoNo, row.finishType, row.firstSituation, row.firstEval, row.previousYearEval, row.currentSituation, row.structEval, row.impactEval, row.totalEval].map((value, index) => (
+                  <div key={index} className="border-r border-slate-300 p-1.5 last:border-r-0 whitespace-pre-wrap break-words">
+                    {value}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
 if (mode === 'pdf_export') {
   const groups: { key: keyof PdfSheetGroups; title: string }[] = [
@@ -1727,6 +1846,100 @@ const addFinishText = (
   setter(`${current.trim()}、${finish}`);
 };
 
+
+async function loadInspectionReport() {
+  if (!spreadsheetId) return;
+
+  setIsLoading(true);
+
+  try {
+    const result = await gasApi("getInspectionReportData", {
+      spreadsheetId,
+      masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+      routeName: selectedRoute,
+      station: stationName,
+      year: selectedYear,
+    });
+
+    if (!result.success) {
+      alert("施設点検報告書の読み込みに失敗しました");
+      return;
+    }
+
+    const header = toRecord(result.header);
+    if (header.stationNo !== undefined) setStationNo(String(header.stationNo || ''));
+    if (header.stationName !== undefined && String(header.stationName || '').trim()) setStationName(String(header.stationName));
+    if (header.firstDate !== undefined) setFirstDate(formatSheetDateText(header.firstDate));
+    if (header.inspectDate !== undefined) setInspectDate(formatSheetDateText(header.inspectDate));
+    if (header.contractor !== undefined) setContractor(String(header.contractor || ''));
+    if (header.firstInspector !== undefined) setFirstInspector(String(header.firstInspector || ''));
+    if (header.inspector !== undefined) setInspector(String(header.inspector || ''));
+
+    const loadedRows = Array.isArray(result.rows)
+      ? result.rows.map((row: Partial<InspectionReportRow>, index: number) => normalizeInspectionReportRow(row, index))
+      : [];
+
+    const minRows = createEmptyInspectionReportRows(Math.max(23 - loadedRows.length, 0));
+    setInspectionReportRows([...loadedRows, ...minRows]);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes("Unknown action")) {
+      await loadInspectionReportLegacy();
+      return;
+    }
+    console.error(e);
+    alert(`施設点検報告書の読み込みに失敗しました: ${message}`);
+  } finally {
+    setIsLoading(false);
+  }
+};
+async function loadInspectionReportLegacy() {
+  const dateResult = await gasApi("getInspectionListDates", {
+    masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+    routeName: selectedRoute,
+    station: stationName,
+    year: selectedYear,
+  });
+
+  if (dateResult.stationNo !== undefined) setStationNo(String(dateResult.stationNo || ''));
+  setFirstDate(formatSheetDateText(dateResult.firstDate));
+  setInspectDate(formatSheetDateText(dateResult.latestDate));
+
+  const listResult = await gasApi("getKarteList", {
+    spreadsheetId,
+    type: "photo",
+  });
+
+  const list = Array.isArray(listResult.list)
+    ? listResult.list.map((no: unknown) => String(no || '').trim()).filter(Boolean)
+    : [];
+
+  const headerKarteNo = list.includes('1') ? '1' : list[0];
+
+  if (headerKarteNo) {
+    const karteResult = await gasApi("getKarteData", {
+      spreadsheetId,
+      karteNo: headerKarteNo,
+      station: stationName,
+      year: selectedYear,
+      routeFolderId,
+    });
+
+    if (karteResult.success && karteResult.data) {
+      const data = karteResult.data;
+      setContractor(String(data.contractor || ''));
+      setFirstInspector(String(data.firstInspector || ''));
+      setInspector(String(data.inspector || ''));
+    }
+  }
+
+  const rows = list.map((no: string, index: number) => normalizeInspectionReportRow({
+    photoNo: no,
+  }, index));
+
+  const minRows = createEmptyInspectionReportRows(Math.max(23 - rows.length, 0));
+  setInspectionReportRows([...rows, ...minRows]);
+}
 const loadSlopeTable = async () => {
   setIsLoading(true);
 
