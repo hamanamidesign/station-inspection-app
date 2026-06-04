@@ -2030,6 +2030,8 @@ async function loadInspectionReportLegacy(loadId: number) {
     if (karteResult.success && karteResult.data) {
       const data = karteResult.data;
       setContractor(String(data.contractor || ''));
+      setFirstDate(formatSheetDateText(data.firstDate));
+      setInspectDate(formatSheetDateText(data.inspectDate));
       setFirstInspector(String(data.firstInspector || ''));
       setInspector(String(data.inspector || ''));
     }
