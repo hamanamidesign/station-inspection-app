@@ -195,7 +195,8 @@ const inspectionReportRowHasValue = (row: InspectionReportRow) =>
     row.totalEval,
   ].some(value => String(value || '').trim());
 
-type InspectionReportSortKey = 'buildingName' | 'inspectionPlace' | 'totalEval';
+type InspectionReportSortKey = 'buildingName' | 'inspectionPlace' | 'photoNo' | 'totalEval';
+type SortDirection = 'asc' | 'desc';
 
 const compareInspectionReportText = (a: string, b: string) =>
   String(a || '').localeCompare(String(b || ''), 'ja', {
@@ -382,6 +383,10 @@ useEffect(() => {
   const [inspectList, setInspectList] = useState<string[]>([]);
   const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
   const [inspectionReportRows, setInspectionReportRows] = useState<InspectionReportRow[]>(() => createEmptyInspectionReportRows());
+  const [inspectionReportSort, setInspectionReportSort] = useState<{
+    key: InspectionReportSortKey | null;
+    direction: SortDirection;
+  }>({ key: null, direction: 'asc' });
   const pulldownListsLoadedRef = useRef(false);
   const existingDataLoadedRouteRef = useRef('');
   const inspectionReportLoadIdRef = useRef(0);
@@ -418,6 +423,11 @@ const updateInspectionReportRow = (
   );
 };
 const sortInspectionReportRows = (key: InspectionReportSortKey) => {
+  const direction: SortDirection =
+    inspectionReportSort.key === key && inspectionReportSort.direction === 'asc'
+      ? 'desc'
+      : 'asc';
+
   setInspectionReportRows(rows => {
     const filledRows = rows.filter(inspectionReportRowHasValue);
     const emptyRows = rows.filter(row => !inspectionReportRowHasValue(row));
@@ -430,12 +440,19 @@ const sortInspectionReportRows = (key: InspectionReportSortKey) => {
             ? compareInspectionReportTotalEval(a.row.totalEval, b.row.totalEval)
             : compareInspectionReportText(a.row[key], b.row[key]);
 
-        return result || a.index - b.index;
+        const directedResult = direction === 'asc' ? result : -result;
+        return directedResult || a.index - b.index;
       })
       .map(item => item.row);
 
     return [...sortedRows, ...emptyRows];
   });
+
+  setInspectionReportSort({ key, direction });
+};
+const getInspectionReportSortMark = (key: InspectionReportSortKey) => {
+  if (inspectionReportSort.key !== key) return '';
+  return inspectionReportSort.direction === 'asc' ? ' ↑' : ' ↓';
 };
 const loadRoutes = useCallback(async () => {
 
@@ -1696,21 +1713,28 @@ if (mode === 'exist_select') return (
               onClick={() => sortInspectionReportRows('buildingName')}
               className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 active:scale-95"
             >
-              建物名
+              建物名{getInspectionReportSortMark('buildingName')}
             </button>
             <button
               type="button"
               onClick={() => sortInspectionReportRows('inspectionPlace')}
               className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 active:scale-95"
             >
-              点検場所
+              点検場所{getInspectionReportSortMark('inspectionPlace')}
+            </button>
+            <button
+              type="button"
+              onClick={() => sortInspectionReportRows('photoNo')}
+              className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 active:scale-95"
+            >
+              写真番号{getInspectionReportSortMark('photoNo')}
             </button>
             <button
               type="button"
               onClick={() => sortInspectionReportRows('totalEval')}
               className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 active:scale-95"
             >
-              総合評価
+              総合評価{getInspectionReportSortMark('totalEval')}
             </button>
           </div>
 
