@@ -2118,7 +2118,7 @@ async function loadInspectionReport() {
   try {
     const allRows: InspectionReportRow[] = [];
     let offset = 0;
-    const limit = 10;
+    const limit = 5;
     let hasMore = true;
     let mergedFirstDate = "";
     let mergedInspectDate = "";
