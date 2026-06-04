@@ -17,7 +17,11 @@ export async function gasApi(action: string, data: any = {}) {
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error(text || `GAS proxy error (${res.status})`);
+    const message = /<!DOCTYPE html|<html|Google Drive|Page Not Found/i.test(text)
+      ? `GASへの接続が一時的に失敗しました。少し待ってからもう一度お試しください。HTTP ${res.status}`
+      : text || `GAS proxy error (${res.status})`;
+
+    throw new Error(message);
   }
 
   if (!json.success) {
