@@ -139,13 +139,13 @@ const toRecord = (value: unknown): Record<string, unknown> =>
 
 const mergeUniqueMultilineText = (current: string, next: unknown) => {
   const items = [
-    ...String(current || '').split(/\r?\n/),
-    ...String(next || '').split(/\r?\n/),
+    ...String(current || '').split(/[,\r\n]+/),
+    ...String(next || '').split(/[,\r\n]+/),
   ]
     .map(value => value.trim())
     .filter(Boolean);
 
-  return Array.from(new Set(items)).join('\n');
+  return Array.from(new Set(items)).join(',');
 };
 
 
