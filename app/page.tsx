@@ -389,6 +389,8 @@ useEffect(() => {
   }>({ key: null, direction: 'asc' });
   const pulldownListsLoadedRef = useRef(false);
   const existingDataLoadedRouteRef = useRef('');
+  const routesLoadedRef = useRef(false);
+  const routesLoadingRef = useRef(false);
   const inspectionReportLoadIdRef = useRef(0);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
@@ -455,20 +457,29 @@ const getInspectionReportSortMark = (key: InspectionReportSortKey) => {
   return inspectionReportSort.direction === 'asc' ? ' ↑' : ' ↓';
 };
 const loadRoutes = useCallback(async () => {
+  if (routesLoadedRef.current) return;
+  if (routesLoadingRef.current) return;
 
   try {
+    routesLoadingRef.current = true;
 
     const result = await gasApi("getRouteList");
 
     if (result.success) {
 
       setRouteList(result.list);
+      routesLoadedRef.current = true;
 
     }
 
   } catch (e) {
 
     console.error(e);
+    alert(`路線一覧の読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+
+  } finally {
+
+    routesLoadingRef.current = false;
 
   }
 
