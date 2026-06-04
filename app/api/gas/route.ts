@@ -3,7 +3,7 @@ const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL!;
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const DEFAULT_GAS_TIMEOUT_MS = 12000;
+const DEFAULT_GAS_TIMEOUT_MS = 30000;
 const GAS_RETRY_COUNT = 0;
 const GAS_RETRY_DELAY_MS = 900;
 const GAS_TIMEOUT_MESSAGE =
@@ -14,10 +14,31 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const getGasTimeoutMs = (action?: string | null) => {
   switch (action) {
     case "getRouteList":
-      return 8000;
+      return 20000;
+    case "getExistingData":
+    case "getPulldownLists":
+    case "getInspectionListDates":
+    case "getKarteList":
+    case "getUnavailableKarteNumbers":
+    case "getPdfSheetOptions":
+    case "getMaps":
+      return 30000;
+    case "getKarteData":
+    case "getSlopeTableData":
+    case "getInclinationKarteSheets":
     case "getInspectionReportData":
-      return 25000;
+    case "getMapBase64":
+      return 45000;
+    case "createNew":
+    case "uploadKarte":
+    case "uploadInclination":
+    case "uploadSlopeTable":
+    case "uploadInclinationKarteSheets":
+    case "uploadInclinationKartePhoto":
     case "uploadInspectionReport":
+    case "createInspectionPdf":
+    case "uploadPhotos":
+    case "saveMarkers":
       return 45000;
     default:
       return DEFAULT_GAS_TIMEOUT_MS;

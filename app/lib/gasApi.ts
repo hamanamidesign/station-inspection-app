@@ -1,4 +1,25 @@
-export async function gasApi(action: string, data: any = {}) {
+const RETRYABLE_ACTIONS = new Set([
+  "getRouteList",
+  "getExistingData",
+  "getPulldownLists",
+  "getInspectionListDates",
+  "getKarteList",
+  "getUnavailableKarteNumbers",
+  "getPdfSheetOptions",
+  "getMaps",
+  "getKarteData",
+  "getSlopeTableData",
+  "getInclinationKarteSheets",
+  "getInspectionReportData",
+  "getMapBase64",
+]);
+
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const isRetryableGasError = (message: string) =>
+  /タイムアウト|一時的|HTTP 429|HTTP 5\d\d|Gateway Timeout|FUNCTION_INVOCATION_TIMEOUT/i.test(message);
+
+async function gasApiOnce(action: string, data: any = {}) {
 
   const res = await fetch("/api/gas", {
 
@@ -30,5 +51,20 @@ export async function gasApi(action: string, data: any = {}) {
   }
 
   return json;
+}
+
+export async function gasApi(action: string, data: any = {}) {
+  try {
+    return await gasApiOnce(action, data);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    if (!RETRYABLE_ACTIONS.has(action) || !isRetryableGasError(message)) {
+      throw error;
+    }
+
+    await wait(1200);
+    return gasApiOnce(action, data);
+  }
 }
 

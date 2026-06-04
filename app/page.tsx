@@ -216,6 +216,7 @@ const compareInspectionReportTotalEval = (a: string, b: string) => {
 };
 
 const ROUTE_LIST_CACHE_KEY = 'station-check-route-list-v1';
+const EXISTING_DATA_CACHE_PREFIX = 'station-check-existing-data-v1:';
 const formatSlopeDisplayNumber = (value: unknown) => {
   const text = toDisplayText(value).trim();
   if (!text) return '';
@@ -510,7 +511,28 @@ const loadRoutes = useCallback(async () => {
   if (!routeFolderId) return [];
   if (!force && existingDataLoadedRouteRef.current === routeFolderId) return existingData;
 
-  setIsLoading(true);
+  const cacheKey = `${EXISTING_DATA_CACHE_PREFIX}${routeFolderId}`;
+  let cachedList: ExistingStation[] = [];
+
+  if (!force) {
+    try {
+      const cached = window.localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          cachedList = parsed as ExistingStation[];
+          setExistingData(cachedList);
+          existingDataLoadedRouteRef.current = routeFolderId;
+        }
+      }
+    } catch {
+      // キャッシュが壊れていてもGASから再取得する
+    }
+  }
+
+  if (cachedList.length === 0) {
+    setIsLoading(true);
+  }
 
   try {
     const result = await gasApi("getExistingData", {
@@ -519,6 +541,7 @@ const loadRoutes = useCallback(async () => {
 
     if (result.success && Array.isArray(result.list)) {
       setExistingData(result.list);
+      window.localStorage.setItem(cacheKey, JSON.stringify(result.list));
       existingDataLoadedRouteRef.current = routeFolderId;
       return result.list as ExistingStation[];
     } else {
@@ -528,7 +551,11 @@ const loadRoutes = useCallback(async () => {
     }
   } catch (e) {
     console.error(e);
+    if (cachedList.length > 0) {
+      return cachedList;
+    }
     setExistingData([]);
+    alert(`駅一覧の読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     return [];
   } finally {
     setIsLoading(false);
