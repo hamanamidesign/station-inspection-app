@@ -349,6 +349,7 @@ useEffect(() => {
   const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
   const [inspectionReportRows, setInspectionReportRows] = useState<InspectionReportRow[]>(() => createEmptyInspectionReportRows());
   const pulldownListsLoadedRef = useRef(false);
+  const existingDataLoadedRouteRef = useRef('');
   const inspectionReportLoadIdRef = useRef(0);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
@@ -403,7 +404,10 @@ const loadRoutes = useCallback(async () => {
 }, []);
 
 // --- 初期化 ---
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (force = false) => {
+  if (!routeFolderId) return [];
+  if (!force && existingDataLoadedRouteRef.current === routeFolderId) return existingData;
+
   setIsLoading(true);
 
   try {
@@ -413,16 +417,21 @@ const loadRoutes = useCallback(async () => {
 
     if (result.success && Array.isArray(result.list)) {
       setExistingData(result.list);
+      existingDataLoadedRouteRef.current = routeFolderId;
+      return result.list as ExistingStation[];
     } else {
       setExistingData([]);
+      existingDataLoadedRouteRef.current = routeFolderId;
+      return [];
     }
   } catch (e) {
     console.error(e);
     setExistingData([]);
+    return [];
   } finally {
     setIsLoading(false);
   }
-}, [routeFolderId]);
+}, [existingData, routeFolderId]);
 
 const loadInspectionListDates = useCallback(async () => {
   if (!selectedRoute || !stationName || !selectedYear) return;
@@ -534,13 +543,11 @@ useEffect(() => {
 }, [inspectorRegistrations, selectedRoute, selectedYear, mode]);
 
   // ★ここに入れる
-  useEffect(() => {
-
-  if (routeFolderId) {
-  refreshData();
-}
-
-}, [refreshData, routeFolderId]);
+useEffect(() => {
+  if (mode === 'exist_select') {
+    refreshData();
+  }
+}, [mode, refreshData]);
 
 useEffect(() => {
   if (mode === 'photo_number_register' && spreadsheetId) {
@@ -654,7 +661,12 @@ useEffect(() => {
 const handleCreateNewSheet = async () => {
   if (!stationName || !selectedYear) return alert("駅名と年度を入力してください");
 
-  const duplicate = existingData.find(
+  const currentExistingData =
+    existingDataLoadedRouteRef.current === routeFolderId
+      ? existingData
+      : await refreshData();
+
+  const duplicate = currentExistingData.find(
     d =>
       d.stationName === stationName &&
       String(d.year) === String(selectedYear) &&
@@ -1358,6 +1370,7 @@ if (mode === 'route_select') return (
             setSpreadsheetId('');
             setStationFolderId('');
             setExistingData([]);
+            existingDataLoadedRouteRef.current = '';
             setExistingKartes([]);
 
             setMode('menu');

@@ -6,6 +6,8 @@ export const maxDuration = 60;
 const GAS_TIMEOUT_MS = 55000;
 const GAS_RETRY_COUNT = 2;
 const GAS_RETRY_DELAY_MS = 900;
+const GAS_TIMEOUT_MESSAGE =
+  "GASの応答が遅く、Vercelの中継APIがタイムアウトしました。処理対象が多い場合は少し待ってからもう一度お試しください。";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -74,12 +76,16 @@ const jsonResponse = (obj: unknown, status = 200) =>
     },
   });
 
+const withActionLabel = (message: string, action?: string | null) =>
+  action ? `${message} action=${action}` : message;
+
 // ===============================
 // GET (一覧取得など)
 // ===============================
 export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
+  const action = searchParams.get("action");
 
   const params = new URLSearchParams(searchParams);
 
@@ -98,9 +104,9 @@ export async function GET(req: Request) {
     return jsonResponse({
       success: false,
       error: error instanceof Error && error.name === "AbortError"
-        ? "GASの応答が遅く、Vercelの中継APIがタイムアウトしました。写真枚数を減らすか、もう一度保存してください。"
+        ? withActionLabel(GAS_TIMEOUT_MESSAGE, action)
         : error instanceof Error
-          ? error.message
+          ? withActionLabel(error.message, action)
           : String(error),
     }, 504);
   }
@@ -113,6 +119,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
 
   const body = await req.text();
+  let action: string | null = null;
+
+  try {
+    const parsed = JSON.parse(body);
+    action = typeof parsed?.action === "string" ? parsed.action : null;
+  } catch {
+    action = null;
+  }
 
   try {
     const { status, text } = await fetchGasTextWithRetry(GAS_URL, {
@@ -130,9 +144,9 @@ export async function POST(req: Request) {
     return jsonResponse({
       success: false,
       error: error instanceof Error && error.name === "AbortError"
-        ? "GASの応答が遅く、Vercelの中継APIがタイムアウトしました。写真枚数を減らすか、もう一度保存してください。"
+        ? withActionLabel(GAS_TIMEOUT_MESSAGE, action)
         : error instanceof Error
-          ? error.message
+          ? withActionLabel(error.message, action)
           : String(error),
     }, 504);
   }
