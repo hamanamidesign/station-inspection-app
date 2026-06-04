@@ -3,7 +3,7 @@ const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL!;
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const GAS_TIMEOUT_MS = 8000;
+const DEFAULT_GAS_TIMEOUT_MS = 12000;
 const GAS_RETRY_COUNT = 0;
 const GAS_RETRY_DELAY_MS = 900;
 const GAS_TIMEOUT_MESSAGE =
@@ -11,9 +11,22 @@ const GAS_TIMEOUT_MESSAGE =
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const fetchGas = async (url: string, init?: RequestInit) => {
+const getGasTimeoutMs = (action?: string | null) => {
+  switch (action) {
+    case "getRouteList":
+      return 8000;
+    case "getInspectionReportData":
+      return 25000;
+    case "uploadInspectionReport":
+      return 45000;
+    default:
+      return DEFAULT_GAS_TIMEOUT_MS;
+  }
+};
+
+const fetchGas = async (url: string, init: RequestInit | undefined, timeoutMs: number) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GAS_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(url, {
@@ -39,12 +52,12 @@ const normalizeGasErrorText = (status: number, text: string) => {
   return text || `GAS proxy error (${status})`;
 };
 
-const fetchGasTextWithRetry = async (url: string, init?: RequestInit) => {
+const fetchGasTextWithRetry = async (url: string, init: RequestInit | undefined, timeoutMs: number) => {
   let lastStatus = 0;
   let lastText = "";
 
   for (let attempt = 0; attempt <= GAS_RETRY_COUNT; attempt += 1) {
-    const res = await fetchGas(url, init);
+    const res = await fetchGas(url, init, timeoutMs);
     const text = await res.text();
 
     lastStatus = res.status;
@@ -92,7 +105,7 @@ export async function GET(req: Request) {
   const url = `${GAS_URL}?${params.toString()}`;
 
   try {
-    const { status, text } = await fetchGasTextWithRetry(url);
+    const { status, text } = await fetchGasTextWithRetry(url, undefined, getGasTimeoutMs(action));
 
     return new Response(text, {
       status,
@@ -132,7 +145,7 @@ export async function POST(req: Request) {
     const { status, text } = await fetchGasTextWithRetry(GAS_URL, {
       method: "POST",
       body,
-    });
+    }, getGasTimeoutMs(action));
 
     return new Response(text, {
       status,

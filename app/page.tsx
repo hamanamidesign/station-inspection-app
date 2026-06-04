@@ -1668,6 +1668,7 @@ if (mode === 'exist_select') return (
               if (target?.spreadsheetId) {
                 setSpreadsheetId(target.spreadsheetId);
                 setStationFolderId(target.folderId || '');
+                setStationNo(String(target.stationNo || ''));
               }
             }}
             disabled={!stationName}
@@ -2149,7 +2150,7 @@ async function loadInspectionReport() {
   try {
     const allRows: InspectionReportRow[] = [];
     let offset = 0;
-    const limit = 2;
+    const limit = 5;
     let hasMore = true;
     let mergedFirstDate = "";
     let mergedInspectDate = "";
@@ -2162,6 +2163,7 @@ async function loadInspectionReport() {
         masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
         routeName: selectedRoute,
         station: stationName,
+        stationNo,
         year: selectedYear,
         offset,
         limit,

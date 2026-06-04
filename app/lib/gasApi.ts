@@ -26,7 +26,7 @@ export async function gasApi(action: string, data: any = {}) {
 
   if (!json.success) {
     const message = json.error || "GAS Error";
-    throw new Error(`${message} action=${action}`);
+    throw new Error(String(message).includes("action=") ? message : `${message} action=${action}`);
   }
 
   return json;
