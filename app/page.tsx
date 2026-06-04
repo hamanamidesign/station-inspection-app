@@ -1745,6 +1745,50 @@ if (mode === 'exist_select') return (
             <span>〈 {selectedYear || '----'} 年 度 施 設 点 検 報 告 書 〉</span>
           </div>
 
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-2 bg-white px-3 py-2 shadow-sm">
+            <span className="mr-1 text-xs font-bold text-slate-500">並び替え</span>
+            <button
+              type="button"
+              onClick={() => sortInspectionReportRows('buildingName')}
+              className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-bold active:scale-95 ${inspectionReportSort.key === 'buildingName' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-800'}`}
+            >
+              建物名
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-current bg-white/20 text-[12px] font-black">
+                {getInspectionReportSortIcon('buildingName')}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => sortInspectionReportRows('inspectionPlace')}
+              className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-bold active:scale-95 ${inspectionReportSort.key === 'inspectionPlace' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-800'}`}
+            >
+              点検場所
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-current bg-white/20 text-[12px] font-black">
+                {getInspectionReportSortIcon('inspectionPlace')}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => sortInspectionReportRows('photoNo')}
+              className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-bold active:scale-95 ${inspectionReportSort.key === 'photoNo' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 bg-slate-100 text-slate-800'}`}
+            >
+              写真番号
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-current bg-white/20 text-[12px] font-black">
+                {getInspectionReportSortIcon('photoNo')}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => sortInspectionReportRows('totalEval')}
+              className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-bold active:scale-95 ${inspectionReportSort.key === 'totalEval' ? 'border-blue-700 bg-blue-700 text-white' : 'border-blue-300 bg-blue-50 text-blue-800'}`}
+            >
+              総合評価
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded border border-current bg-white/20 text-[12px] font-black">
+                {getInspectionReportSortIcon('totalEval')}
+              </span>
+            </button>
+          </div>
+
           <div className="mb-3 grid grid-cols-[100px_120px_60px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
             <div className="border-r-2 border-slate-800 bg-slate-200 px-2 py-1 text-center text-[15px] font-bold flex items-center justify-center">駅No.</div>
             <input className="border-r-2 border-slate-800 px-2 py-1 text-center text-[15px] font-bold outline-none" value={stationNo} onChange={e => setStationNo(e.target.value)} />
@@ -1767,24 +1811,9 @@ if (mode === 'exist_select') return (
 
           <div className="overflow-hidden border-2 border-slate-800 bg-white shadow-sm">
           <div className="grid grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] bg-slate-100 text-center font-bold">
-            <button type="button" onClick={() => sortInspectionReportRows('buildingName')} className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center gap-1 bg-slate-100 active:bg-slate-200">
-              <span>建物名</span>
-              <span className={`inline-flex h-5 w-5 items-center justify-center rounded border text-[12px] font-black ${inspectionReportSort.key === 'buildingName' ? 'border-indigo-700 bg-indigo-600 text-white' : 'border-slate-500 bg-white text-slate-700'}`}>
-                {getInspectionReportSortIcon('buildingName')}
-              </span>
-            </button>
-            <button type="button" onClick={() => sortInspectionReportRows('inspectionPlace')} className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center gap-1 bg-slate-100 active:bg-slate-200">
-              <span>点検場所</span>
-              <span className={`inline-flex h-5 w-5 items-center justify-center rounded border text-[12px] font-black ${inspectionReportSort.key === 'inspectionPlace' ? 'border-indigo-700 bg-indigo-600 text-white' : 'border-slate-500 bg-white text-slate-700'}`}>
-                {getInspectionReportSortIcon('inspectionPlace')}
-              </span>
-            </button>
-            <button type="button" onClick={() => sortInspectionReportRows('photoNo')} className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center gap-1 bg-slate-100 active:bg-slate-200">
-              <span>写真<br />番号</span>
-              <span className={`inline-flex h-5 w-5 items-center justify-center rounded border text-[12px] font-black ${inspectionReportSort.key === 'photoNo' ? 'border-indigo-700 bg-indigo-600 text-white' : 'border-slate-500 bg-white text-slate-700'}`}>
-                {getInspectionReportSortIcon('photoNo')}
-              </span>
-            </button>
+            <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">建物名</div>
+            <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">点検場所</div>
+            <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">写真<br />番号</div>
             <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">仕上げ<br />種別</div>
             <div className="col-span-3 border-r border-b border-slate-900 p-2">初回点検</div>
             <div className="col-span-4 border-b border-slate-900 bg-blue-700 p-2 text-white">{selectedYear || '----'}年度点検</div>
@@ -1794,12 +1823,7 @@ if (mode === 'exist_select') return (
             <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">状況説明</div>
             <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">構造</div>
             <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">影響</div>
-            <button type="button" onClick={() => sortInspectionReportRows('totalEval')} className="flex items-center justify-center gap-1 border-b border-slate-900 bg-blue-700 p-2 text-white active:bg-blue-800">
-              <span>総合評価</span>
-              <span className={`inline-flex h-5 w-5 items-center justify-center rounded border text-[12px] font-black ${inspectionReportSort.key === 'totalEval' ? 'border-white bg-white text-blue-800' : 'border-blue-100 bg-blue-50 text-blue-800'}`}>
-                {getInspectionReportSortIcon('totalEval')}
-              </span>
-            </button>
+            <div className="border-b border-slate-900 bg-blue-700 p-2 text-white">総合評価</div>
           </div>
 
           <div>
