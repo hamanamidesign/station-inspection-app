@@ -1923,36 +1923,58 @@ async function loadInspectionReport() {
   setIsLoading(true);
 
   try {
-    const result = await gasApi("getInspectionReportData", {
-      spreadsheetId,
-      masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
-      routeName: selectedRoute,
-      station: stationName,
-      year: selectedYear,
-    });
+    const allRows: InspectionReportRow[] = [];
+    let offset = 0;
+    const limit = 10;
+    let headerLoaded = false;
+    let hasMore = true;
 
-    if (!result.success) {
-      alert("施設点検報告書の読み込みに失敗しました");
-      return;
+    while (hasMore) {
+      const result = await gasApi("getInspectionReportData", {
+        spreadsheetId,
+        masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+        routeName: selectedRoute,
+        station: stationName,
+        year: selectedYear,
+        offset,
+        limit,
+      });
+
+      if (!result.success) {
+        alert("施設点検報告書の読み込みに失敗しました");
+        return;
+      }
+
+      if (inspectionReportLoadIdRef.current !== loadId) return;
+
+      if (!headerLoaded) {
+        const header = toRecord(result.header);
+        if (header.stationNo !== undefined) setStationNo(String(header.stationNo || ''));
+        if (header.stationName !== undefined && String(header.stationName || '').trim()) setStationName(String(header.stationName));
+        if (header.firstDate !== undefined) setFirstDate(formatSheetDateText(header.firstDate));
+        if (header.inspectDate !== undefined) setInspectDate(formatSheetDateText(header.inspectDate));
+        if (header.contractor !== undefined) setContractor(String(header.contractor || ''));
+        if (header.firstInspector !== undefined) setFirstInspector(String(header.firstInspector || ''));
+        if (header.inspector !== undefined) setInspector(String(header.inspector || ''));
+        headerLoaded = true;
+      }
+
+      const pageRows = Array.isArray(result.rows)
+        ? result.rows.map((row: Partial<InspectionReportRow>, index: number) =>
+            normalizeInspectionReportRow(row, allRows.length + index)
+          )
+        : [];
+
+      allRows.push(...pageRows);
+      const minRows = createEmptyInspectionReportRows(Math.max(23 - allRows.length, 0));
+      setInspectionReportRows([...allRows, ...minRows]);
+
+      offset = Number(result.nextOffset);
+      hasMore =
+        Boolean(result.hasMore) &&
+        pageRows.length > 0 &&
+        Number.isFinite(offset);
     }
-
-    if (inspectionReportLoadIdRef.current !== loadId) return;
-
-    const header = toRecord(result.header);
-    if (header.stationNo !== undefined) setStationNo(String(header.stationNo || ''));
-    if (header.stationName !== undefined && String(header.stationName || '').trim()) setStationName(String(header.stationName));
-    if (header.firstDate !== undefined) setFirstDate(formatSheetDateText(header.firstDate));
-    if (header.inspectDate !== undefined) setInspectDate(formatSheetDateText(header.inspectDate));
-    if (header.contractor !== undefined) setContractor(String(header.contractor || ''));
-    if (header.firstInspector !== undefined) setFirstInspector(String(header.firstInspector || ''));
-    if (header.inspector !== undefined) setInspector(String(header.inspector || ''));
-
-    const loadedRows = Array.isArray(result.rows)
-      ? result.rows.map((row: Partial<InspectionReportRow>, index: number) => normalizeInspectionReportRow(row, index))
-      : [];
-
-    const minRows = createEmptyInspectionReportRows(Math.max(23 - loadedRows.length, 0));
-    setInspectionReportRows([...loadedRows, ...minRows]);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes("Unknown action")) {
