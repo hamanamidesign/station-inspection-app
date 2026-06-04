@@ -340,6 +340,18 @@ useEffect(() => {
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
+
+const updateInspectionReportRow = (
+  rowId: number,
+  field: keyof Omit<InspectionReportRow, 'id'>,
+  value: string
+) => {
+  setInspectionReportRows(rows =>
+    rows.map(row =>
+      row.id === rowId ? { ...row, [field]: value } : row
+    )
+  );
+};
 const loadRoutes = useCallback(async () => {
 
   try {
@@ -1589,15 +1601,35 @@ if (mode === 'exist_select') return (
           </div>
 
           <div>
-            {inspectionReportRows.map(row => (
-              <div key={row.id} className="grid min-h-8 grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] border-b border-slate-300 last:border-b-0">
-                {[row.buildingName, row.inspectionPlace, row.photoNo, row.finishType, row.firstSituation, row.firstEval, row.previousYearEval, row.currentSituation, row.structEval, row.impactEval, row.totalEval].map((value, index) => (
-                  <div key={index} className="border-r border-slate-300 p-1.5 last:border-r-0 whitespace-pre-wrap break-words">
-                    {value}
-                  </div>
-                ))}
-              </div>
-            ))}
+            {inspectionReportRows.map(row => {
+              const fields: (keyof Omit<InspectionReportRow, 'id'>)[] = [
+                'buildingName',
+                'inspectionPlace',
+                'photoNo',
+                'finishType',
+                'firstSituation',
+                'firstEval',
+                'previousYearEval',
+                'currentSituation',
+                'structEval',
+                'impactEval',
+                'totalEval',
+              ];
+
+              return (
+                <div key={row.id} className="grid min-h-8 grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] border-b border-slate-300 last:border-b-0">
+                  {fields.map(field => (
+                    <textarea
+                      key={field}
+                      className="min-h-8 resize-y border-r border-slate-300 bg-white p-1.5 text-[13px] outline-none last:border-r-0 focus:bg-yellow-50"
+                      value={row[field]}
+                      onChange={e => updateInspectionReportRow(row.id, field, e.target.value)}
+                      rows={field === 'firstSituation' || field === 'currentSituation' ? 2 : 1}
+                    />
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
