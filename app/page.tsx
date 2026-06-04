@@ -179,6 +179,40 @@ const normalizeInspectionReportRow = (row: Partial<InspectionReportRow>, index: 
   impactEval: toDisplayText(row.impactEval),
   totalEval: toDisplayText(row.totalEval),
 });
+
+const inspectionReportRowHasValue = (row: InspectionReportRow) =>
+  [
+    row.buildingName,
+    row.inspectionPlace,
+    row.photoNo,
+    row.finishType,
+    row.firstSituation,
+    row.firstEval,
+    row.previousYearEval,
+    row.currentSituation,
+    row.structEval,
+    row.impactEval,
+    row.totalEval,
+  ].some(value => String(value || '').trim());
+
+type InspectionReportSortKey = 'buildingName' | 'inspectionPlace' | 'totalEval';
+
+const compareInspectionReportText = (a: string, b: string) =>
+  String(a || '').localeCompare(String(b || ''), 'ja', {
+    numeric: true,
+    sensitivity: 'base',
+  });
+
+const compareInspectionReportTotalEval = (a: string, b: string) => {
+  const order = ['AA', 'A2', 'A1', 'B', 'C', 'S'];
+  const rank = (value: string) => {
+    const index = order.indexOf(String(value || '').trim());
+    return index === -1 ? order.length : index;
+  };
+
+  const rankDiff = rank(a) - rank(b);
+  return rankDiff || compareInspectionReportText(a, b);
+};
 const formatSlopeDisplayNumber = (value: unknown) => {
   const text = toDisplayText(value).trim();
   if (!text) return '';
@@ -382,6 +416,26 @@ const updateInspectionReportRow = (
       row.id === rowId ? { ...row, [field]: value } : row
     )
   );
+};
+const sortInspectionReportRows = (key: InspectionReportSortKey) => {
+  setInspectionReportRows(rows => {
+    const filledRows = rows.filter(inspectionReportRowHasValue);
+    const emptyRows = rows.filter(row => !inspectionReportRowHasValue(row));
+
+    const sortedRows = filledRows
+      .map((row, index) => ({ row, index }))
+      .sort((a, b) => {
+        const result =
+          key === 'totalEval'
+            ? compareInspectionReportTotalEval(a.row.totalEval, b.row.totalEval)
+            : compareInspectionReportText(a.row[key], b.row[key]);
+
+        return result || a.index - b.index;
+      })
+      .map(item => item.row);
+
+    return [...sortedRows, ...emptyRows];
+  });
 };
 const loadRoutes = useCallback(async () => {
 
@@ -1633,6 +1687,31 @@ if (mode === 'exist_select') return (
             <textarea className="min-h-10 resize-y border-r-2 border-t-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} rows={2} />
             <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">点検者</div>
             <textarea className="min-h-10 resize-y border-t-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={inspector} onChange={e => setInspector(e.target.value)} rows={2} />
+          </div>
+
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-2 bg-white px-3 py-2 shadow-sm">
+            <span className="mr-1 text-xs font-bold text-slate-500">並び替え</span>
+            <button
+              type="button"
+              onClick={() => sortInspectionReportRows('buildingName')}
+              className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 active:scale-95"
+            >
+              建物名
+            </button>
+            <button
+              type="button"
+              onClick={() => sortInspectionReportRows('inspectionPlace')}
+              className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 active:scale-95"
+            >
+              点検場所
+            </button>
+            <button
+              type="button"
+              onClick={() => sortInspectionReportRows('totalEval')}
+              className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 active:scale-95"
+            >
+              総合評価
+            </button>
           </div>
 
           <div className="overflow-hidden border-2 border-slate-800 bg-white shadow-sm">
