@@ -145,7 +145,7 @@ const mergeUniqueMultilineText = (current: string, next: unknown) => {
     .map(value => value.trim())
     .filter(Boolean);
 
-  return Array.from(new Set(items)).join(',');
+  return Array.from(new Set(items)).join(',　');
 };
 
 
