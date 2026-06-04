@@ -341,6 +341,23 @@ useEffect(() => {
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
 
+
+const getInspectionReportEvalClass = (
+  field: keyof Omit<InspectionReportRow, 'id'>,
+  value: string
+) => {
+  const text = String(value || '').trim();
+
+  if (field === 'structEval') {
+    return ['AA', 'A1', 'A2'].includes(text) ? 'text-red-600 font-black' : 'text-black';
+  }
+
+  if (field === 'firstEval' || field === 'totalEval') {
+    return ['AA', 'A1', 'A2', 'B'].includes(text) ? 'text-red-600 font-black' : 'text-black';
+  }
+
+  return 'text-black';
+};
 const updateInspectionReportRow = (
   rowId: number,
   field: keyof Omit<InspectionReportRow, 'id'>,
@@ -1565,12 +1582,12 @@ if (mode === 'exist_select') return (
           </div>
 
           <div className="mb-3 grid grid-cols-[100px_120px_60px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
-            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold flex items-center justify-center">駅No.</div>
-            <input className="border-r-2 border-slate-800 p-2 text-center font-bold outline-none" value={stationNo} onChange={e => setStationNo(e.target.value)} />
-            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold flex items-center justify-center">駅名</div>
-            <input className="border-r-2 border-slate-800 p-2 text-center font-bold outline-none" value={stationName} onChange={e => setStationName(e.target.value)} />
-            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold flex items-center justify-center">点検受注者</div>
-            <textarea className="min-h-9 resize-none p-2 text-center leading-9 outline-none" value={contractor} onChange={e => setContractor(e.target.value)} />
+            <div className="border-r-2 border-slate-800 bg-slate-200 px-2 py-1 text-center text-[15px] font-bold flex items-center justify-center">駅No.</div>
+            <input className="border-r-2 border-slate-800 px-2 py-1 text-center text-[15px] font-bold outline-none" value={stationNo} onChange={e => setStationNo(e.target.value)} />
+            <div className="border-r-2 border-slate-800 bg-slate-200 px-2 py-1 text-center text-[15px] font-bold flex items-center justify-center">駅名</div>
+            <input className="border-r-2 border-slate-800 px-2 py-1 text-center text-[15px] font-bold outline-none" value={stationName} onChange={e => setStationName(e.target.value)} />
+            <div className="border-r-2 border-slate-800 bg-slate-200 px-2 py-1 text-center font-bold flex items-center justify-center">点検受注者</div>
+            <input className="px-2 py-1 text-center outline-none" value={contractor} onChange={e => setContractor(e.target.value)} />
           </div>
 
           <div className="mb-3 grid grid-cols-[220px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
@@ -1629,7 +1646,7 @@ if (mode === 'exist_select') return (
                         rows={2}
                       />
                     ) : (
-                      <div key={cell.field} className="flex items-center justify-center border-r border-slate-300 p-1.5 text-center last:border-r-0 whitespace-pre-wrap break-words">
+                      <div key={cell.field} className={`flex items-center justify-center border-r border-slate-300 p-1.5 text-center last:border-r-0 whitespace-pre-wrap break-words ${getInspectionReportEvalClass(cell.field, row[cell.field])}`}>
                         {row[cell.field]}
                       </div>
                     )
