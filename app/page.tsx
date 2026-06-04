@@ -1564,13 +1564,13 @@ if (mode === 'exist_select') return (
             <span>〈 {selectedYear || '----'} 年 度 施 設 点 検 報 告 書 〉</span>
           </div>
 
-          <div className="mb-3 grid grid-cols-[90px_48px_90px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
-            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">駅No.</div>
+          <div className="mb-3 grid grid-cols-[100px_120px_60px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold flex items-center justify-center">駅No.</div>
             <input className="border-r-2 border-slate-800 p-2 text-center font-bold outline-none" value={stationNo} onChange={e => setStationNo(e.target.value)} />
-            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">駅名</div>
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold flex items-center justify-center">駅名</div>
             <input className="border-r-2 border-slate-800 p-2 text-center font-bold outline-none" value={stationName} onChange={e => setStationName(e.target.value)} />
-            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">点検受注者</div>
-            <textarea className="min-h-9 resize-none p-2 text-center outline-none" value={contractor} onChange={e => setContractor(e.target.value)} />
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold flex items-center justify-center">点検受注者</div>
+            <textarea className="min-h-9 resize-none p-2 text-center leading-9 outline-none" value={contractor} onChange={e => setContractor(e.target.value)} />
           </div>
 
           <div className="mb-3 grid grid-cols-[220px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
@@ -1591,14 +1591,14 @@ if (mode === 'exist_select') return (
             <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">写真<br />番号</div>
             <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">仕上げ<br />種別</div>
             <div className="col-span-3 border-r border-b border-slate-900 p-2">初回点検</div>
-            <div className="col-span-4 border-b border-slate-900 p-2">{selectedYear || '----'}年度点検</div>
+            <div className="col-span-4 border-b border-slate-900 bg-blue-700 p-2 text-white">{selectedYear || '----'}年度点検</div>
             <div className="border-r border-b border-slate-900 p-2">状況説明</div>
             <div className="border-r border-b border-slate-900 p-2">初回評価</div>
             <div className="border-r border-b border-slate-900 p-2">{previousYearLabel}</div>
-            <div className="border-r border-b border-slate-900 p-2">状況説明</div>
-            <div className="border-r border-b border-slate-900 p-2">構造</div>
-            <div className="border-r border-b border-slate-900 p-2">影響</div>
-            <div className="border-b border-slate-900 p-2">総合評価</div>
+            <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">状況説明</div>
+            <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">構造</div>
+            <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">影響</div>
+            <div className="border-b border-slate-900 bg-blue-700 p-2 text-white">総合評価</div>
           </div>
 
           <div>
