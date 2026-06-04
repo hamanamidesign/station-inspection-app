@@ -3,8 +3,8 @@ const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL!;
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const GAS_TIMEOUT_MS = 55000;
-const GAS_RETRY_COUNT = 2;
+const GAS_TIMEOUT_MS = 8000;
+const GAS_RETRY_COUNT = 0;
 const GAS_RETRY_DELAY_MS = 900;
 const GAS_TIMEOUT_MESSAGE =
   "GASの応答が遅く、Vercelの中継APIがタイムアウトしました。処理対象が多い場合は少し待ってからもう一度お試しください。";

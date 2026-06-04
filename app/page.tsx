@@ -214,6 +214,8 @@ const compareInspectionReportTotalEval = (a: string, b: string) => {
   const rankDiff = rank(a) - rank(b);
   return rankDiff || compareInspectionReportText(a, b);
 };
+
+const ROUTE_LIST_CACHE_KEY = 'station-check-route-list-v1';
 const formatSlopeDisplayNumber = (value: unknown) => {
   const text = toDisplayText(value).trim();
   if (!text) return '';
@@ -459,6 +461,20 @@ const getInspectionReportSortMark = (key: InspectionReportSortKey) => {
 const loadRoutes = useCallback(async () => {
   if (routesLoadedRef.current) return;
   if (routesLoadingRef.current) return;
+  let hasUsableCache = false;
+
+  try {
+    const cached = window.localStorage.getItem(ROUTE_LIST_CACHE_KEY);
+    if (cached) {
+      const list = JSON.parse(cached);
+      if (Array.isArray(list) && list.length > 0) {
+        setRouteList(list);
+        hasUsableCache = true;
+      }
+    }
+  } catch {
+    // キャッシュが壊れていてもGASから再取得する
+  }
 
   try {
     routesLoadingRef.current = true;
@@ -467,7 +483,9 @@ const loadRoutes = useCallback(async () => {
 
     if (result.success) {
 
-      setRouteList(result.list);
+      const list = Array.isArray(result.list) ? result.list : [];
+      setRouteList(list);
+      window.localStorage.setItem(ROUTE_LIST_CACHE_KEY, JSON.stringify(list));
       routesLoadedRef.current = true;
 
     }
@@ -475,7 +493,9 @@ const loadRoutes = useCallback(async () => {
   } catch (e) {
 
     console.error(e);
-    alert(`路線一覧の読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    if (!hasUsableCache) {
+      alert(`路線一覧の読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
   } finally {
 
@@ -2129,7 +2149,7 @@ async function loadInspectionReport() {
   try {
     const allRows: InspectionReportRow[] = [];
     let offset = 0;
-    const limit = 5;
+    const limit = 2;
     let hasMore = true;
     let mergedFirstDate = "";
     let mergedInspectDate = "";
