@@ -137,6 +137,17 @@ const normalizeMasterKey = (value: unknown) =>
 const toRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? value as Record<string, unknown> : {};
 
+const mergeUniqueMultilineText = (current: string, next: unknown) => {
+  const items = [
+    ...String(current || '').split(/\r?\n/),
+    ...String(next || '').split(/\r?\n/),
+  ]
+    .map(value => value.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(items)).join('\n');
+};
+
 
 const createEmptyInspectionReportRows = (count = 23): InspectionReportRow[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -1595,13 +1606,13 @@ if (mode === 'exist_select') return (
 
           <div className="mb-3 grid grid-cols-[220px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
             <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">初回点検日</div>
-            <input className="border-r-2 border-slate-800 p-2 text-center outline-none" value={firstDate} onChange={e => setFirstDate(e.target.value)} />
+            <textarea className="min-h-10 resize-y border-r-2 border-slate-800 p-2 text-center outline-none" value={firstDate} onChange={e => setFirstDate(e.target.value)} rows={2} />
             <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">最新点検日</div>
-            <input className="p-2 text-center outline-none" value={inspectDate} onChange={e => setInspectDate(e.target.value)} />
+            <textarea className="min-h-10 resize-y p-2 text-center outline-none" value={inspectDate} onChange={e => setInspectDate(e.target.value)} rows={2} />
             <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">初回点検者</div>
-            <input className="border-r-2 border-t-2 border-slate-800 p-2 text-center outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} />
+            <textarea className="min-h-10 resize-y border-r-2 border-t-2 border-slate-800 p-2 text-center outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} rows={2} />
             <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">点検者</div>
-            <input className="border-t-2 border-slate-800 p-2 text-center outline-none" value={inspector} onChange={e => setInspector(e.target.value)} />
+            <textarea className="min-h-10 resize-y border-t-2 border-slate-800 p-2 text-center outline-none" value={inspector} onChange={e => setInspector(e.target.value)} rows={2} />
           </div>
 
           <div className="overflow-hidden border-2 border-slate-800 bg-white shadow-sm">
@@ -1926,8 +1937,11 @@ async function loadInspectionReport() {
     const allRows: InspectionReportRow[] = [];
     let offset = 0;
     const limit = 10;
-    let headerLoaded = false;
     let hasMore = true;
+    let mergedFirstDate = "";
+    let mergedInspectDate = "";
+    let mergedFirstInspector = "";
+    let mergedInspector = "";
 
     while (hasMore) {
       const result = await gasApi("getInspectionReportData", {
@@ -1947,17 +1961,22 @@ async function loadInspectionReport() {
 
       if (inspectionReportLoadIdRef.current !== loadId) return;
 
-      if (!headerLoaded) {
-        const header = toRecord(result.header);
+      const header = toRecord(result.header);
+      if (offset === 0) {
         if (header.stationNo !== undefined) setStationNo(String(header.stationNo || ''));
         if (header.stationName !== undefined && String(header.stationName || '').trim()) setStationName(String(header.stationName));
-        if (header.firstDate !== undefined) setFirstDate(formatSheetDateText(header.firstDate));
-        if (header.inspectDate !== undefined) setInspectDate(formatSheetDateText(header.inspectDate));
         if (header.contractor !== undefined) setContractor(String(header.contractor || ''));
-        if (header.firstInspector !== undefined) setFirstInspector(String(header.firstInspector || ''));
-        if (header.inspector !== undefined) setInspector(String(header.inspector || ''));
-        headerLoaded = true;
       }
+
+      mergedFirstDate = mergeUniqueMultilineText(mergedFirstDate, header.firstDate);
+      mergedInspectDate = mergeUniqueMultilineText(mergedInspectDate, header.inspectDate);
+      mergedFirstInspector = mergeUniqueMultilineText(mergedFirstInspector, header.firstInspector);
+      mergedInspector = mergeUniqueMultilineText(mergedInspector, header.inspector);
+
+      setFirstDate(mergedFirstDate);
+      setInspectDate(mergedInspectDate);
+      setFirstInspector(mergedFirstInspector);
+      setInspector(mergedInspector);
 
       const pageRows = Array.isArray(result.rows)
         ? result.rows.map((row: Partial<InspectionReportRow>, index: number) =>
