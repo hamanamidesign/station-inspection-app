@@ -1668,7 +1668,17 @@ if (mode === 'exist_select') return (
                 </div>
               );
             })}
+            </div>
           </div>
+          <div className="mt-6 flex justify-center pb-10">
+            <button
+              type="button"
+              onClick={sendInspectionReport}
+              disabled={isSending || isLoading || !spreadsheetId}
+              className="w-[460px] rounded-xl bg-blue-700 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+            >
+              {isSending ? "反映中..." : "施設点検報告書作成"}
+            </button>
           </div>
         </div>
       </div>
@@ -1916,6 +1926,55 @@ const addFinishText = (
 
   setter(`${current.trim()}、${finish}`);
 };
+
+async function sendInspectionReport() {
+  if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+  if (isSending) return;
+
+  const rows = inspectionReportRows.filter(row =>
+    [
+      row.buildingName,
+      row.inspectionPlace,
+      row.photoNo,
+      row.finishType,
+      row.firstSituation,
+      row.firstEval,
+      row.previousYearEval,
+      row.currentSituation,
+      row.structEval,
+      row.impactEval,
+      row.totalEval,
+    ].some(value => String(value || '').trim())
+  );
+
+  setIsSending(true);
+
+  try {
+    const result = await gasApi("uploadInspectionReport", {
+      spreadsheetId,
+      stationNo,
+      stationName,
+      year: selectedYear,
+      contractor,
+      firstDate,
+      firstInspector,
+      inspectDate,
+      inspector,
+      rows,
+    });
+
+    if (result.success) {
+      alert("施設点検報告書をスプレッドシートへ反映しました");
+    } else {
+      alert("施設点検報告書の反映に失敗しました: " + (result.error || "不明なエラー"));
+    }
+  } catch (e) {
+    console.error(e);
+    alert(`施設点検報告書の反映に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+  } finally {
+    setIsSending(false);
+  }
+}
 
 
 async function loadInspectionReport() {
