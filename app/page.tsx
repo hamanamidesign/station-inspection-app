@@ -348,6 +348,7 @@ useEffect(() => {
   const [inspectList, setInspectList] = useState<string[]>([]);
   const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
   const [inspectionReportRows, setInspectionReportRows] = useState<InspectionReportRow[]>(() => createEmptyInspectionReportRows());
+  const pulldownListsLoadedRef = useRef(false);
   const inspectionReportLoadIdRef = useRef(0);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
@@ -444,56 +445,62 @@ const loadInspectionListDates = useCallback(async () => {
   }
 }, [selectedRoute, stationName, selectedYear]);
 
+const loadPulldownLists = useCallback(async () => {
+  if (pulldownListsLoadedRef.current) return;
+
+  try {
+    const result = await gasApi("getPulldownLists");
+
+    if (result.success) {
+      setBuildingCategoryOptions(
+        Array.isArray(result.buildingCategories) ? result.buildingCategories : []
+      );
+      setInspectionPlaceOptions(
+        Array.isArray(result.inspectionPlaces) ? result.inspectionPlaces : []
+      );
+      setFinishOptionsByPlace(
+        result.finishOptionsByPlace && typeof result.finishOptionsByPlace === "object"
+          ? result.finishOptionsByPlace
+          : {}
+      );
+      setCheckItemsByPlace(
+        result.checkItemsByPlace && typeof result.checkItemsByPlace === "object"
+          ? result.checkItemsByPlace
+          : {}
+      );
+      setInspectorRegistrations(
+        Array.isArray(result.inspectorRegistrations)
+          ? result.inspectorRegistrations.map((item: unknown) => {
+              const record = toRecord(item);
+              return {
+                routeName: String(record.routeName || ''),
+                year: String(record.year || ''),
+                contractor: String(record.contractor || ''),
+                inspectors: Array.isArray(record.inspectors)
+                  ? record.inspectors.map((name: unknown) => String(name || '').trim()).filter(Boolean)
+                  : [],
+              };
+            })
+          : []
+      );
+
+      pulldownListsLoadedRef.current = true;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}, []);
+
 
 useEffect(() => {
   loadRoutes();
 }, [loadRoutes]);
 
 useEffect(() => {
-  const loadPulldownLists = async () => {
-    try {
-      const result = await gasApi("getPulldownLists");
-
-      if (result.success) {
-        setBuildingCategoryOptions(
-          Array.isArray(result.buildingCategories) ? result.buildingCategories : []
-        );
-        setInspectionPlaceOptions(
-          Array.isArray(result.inspectionPlaces) ? result.inspectionPlaces : []
-        );
-        setFinishOptionsByPlace(
-          result.finishOptionsByPlace && typeof result.finishOptionsByPlace === "object"
-            ? result.finishOptionsByPlace
-            : {}
-        );
-        setCheckItemsByPlace(
-          result.checkItemsByPlace && typeof result.checkItemsByPlace === "object"
-            ? result.checkItemsByPlace
-            : {}
-        );
-        setInspectorRegistrations(
-          Array.isArray(result.inspectorRegistrations)
-            ? result.inspectorRegistrations.map((item: unknown) => {
-                const record = toRecord(item);
-                return {
-                  routeName: String(record.routeName || ''),
-                  year: String(record.year || ''),
-                  contractor: String(record.contractor || ''),
-                  inspectors: Array.isArray(record.inspectors)
-                    ? record.inspectors.map((name: unknown) => String(name || '').trim()).filter(Boolean)
-                    : [],
-                };
-              })
-            : []
-        );
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  loadPulldownLists();
-}, []);
+  if (mode === 'karte_edit' || mode === 'slope_table' || mode === 'inclination_menu' || mode === 'inclination_edit') {
+    loadPulldownLists();
+  }
+}, [mode, loadPulldownLists]);
 
 useEffect(() => {
   if (mode === 'inspection_report') return;
