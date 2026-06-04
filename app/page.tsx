@@ -1602,31 +1602,37 @@ if (mode === 'exist_select') return (
 
           <div>
             {inspectionReportRows.map(row => {
-              const fields: (keyof Omit<InspectionReportRow, 'id'>)[] = [
-                'buildingName',
-                'inspectionPlace',
-                'photoNo',
-                'finishType',
-                'firstSituation',
-                'firstEval',
-                'previousYearEval',
-                'currentSituation',
-                'structEval',
-                'impactEval',
-                'totalEval',
+              const cells: { field: keyof Omit<InspectionReportRow, 'id'>; editable?: boolean }[] = [
+                { field: 'buildingName' },
+                { field: 'inspectionPlace' },
+                { field: 'photoNo' },
+                { field: 'finishType' },
+                { field: 'firstSituation', editable: true },
+                { field: 'firstEval' },
+                { field: 'previousYearEval' },
+                { field: 'currentSituation', editable: true },
+                { field: 'structEval' },
+                { field: 'impactEval' },
+                { field: 'totalEval' },
               ];
 
               return (
                 <div key={row.id} className="grid min-h-8 grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] border-b border-slate-300 last:border-b-0">
-                  {fields.map(field => (
-                    <textarea
-                      key={field}
-                      className="min-h-8 resize-y border-r border-slate-300 bg-white p-1.5 text-[13px] outline-none last:border-r-0 focus:bg-yellow-50"
-                      value={row[field]}
-                      onChange={e => updateInspectionReportRow(row.id, field, e.target.value)}
-                      rows={field === 'firstSituation' || field === 'currentSituation' ? 2 : 1}
-                    />
-                  ))}
+                  {cells.map(cell =>
+                    cell.editable ? (
+                      <textarea
+                        key={cell.field}
+                        className="min-h-8 resize-y border-r border-slate-300 bg-white p-1.5 text-[13px] outline-none focus:bg-yellow-50"
+                        value={row[cell.field]}
+                        onChange={e => updateInspectionReportRow(row.id, cell.field, e.target.value)}
+                        rows={2}
+                      />
+                    ) : (
+                      <div key={cell.field} className="border-r border-slate-300 p-1.5 last:border-r-0 whitespace-pre-wrap break-words">
+                        {row[cell.field]}
+                      </div>
+                    )
+                  )}
                 </div>
               );
             })}
