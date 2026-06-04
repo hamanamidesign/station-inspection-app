@@ -149,9 +149,9 @@ const mergeUniqueMultilineText = (current: string, next: unknown) => {
 };
 
 
-const createEmptyInspectionReportRows = (count = 23): InspectionReportRow[] =>
+const createEmptyInspectionReportRows = (count = 23, startIndex = 0): InspectionReportRow[] =>
   Array.from({ length: count }, (_, index) => ({
-    id: Date.now() + index,
+    id: -(startIndex + index + 1),
     buildingName: '',
     inspectionPlace: '',
     photoNo: '',
@@ -166,7 +166,7 @@ const createEmptyInspectionReportRows = (count = 23): InspectionReportRow[] =>
   }));
 
 const normalizeInspectionReportRow = (row: Partial<InspectionReportRow>, index: number): InspectionReportRow => ({
-  id: Number(row.id) || Date.now() + index,
+  id: Number(row.id) || index + 1,
   buildingName: toDisplayText(row.buildingName),
   inspectionPlace: toDisplayText(row.inspectionPlace),
   photoNo: toDisplayText(row.photoNo),
@@ -1606,13 +1606,13 @@ if (mode === 'exist_select') return (
 
           <div className="mb-3 grid grid-cols-[220px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
             <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">初回点検日</div>
-            <textarea className="min-h-10 resize-y border-r-2 border-slate-800 p-2 text-center outline-none" value={firstDate} onChange={e => setFirstDate(e.target.value)} rows={2} />
+            <textarea className="min-h-10 resize-y border-r-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={firstDate} onChange={e => setFirstDate(e.target.value)} rows={2} />
             <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">最新点検日</div>
-            <textarea className="min-h-10 resize-y p-2 text-center outline-none" value={inspectDate} onChange={e => setInspectDate(e.target.value)} rows={2} />
+            <textarea className="min-h-10 resize-y px-2 py-3 text-center leading-5 outline-none" value={inspectDate} onChange={e => setInspectDate(e.target.value)} rows={2} />
             <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">初回点検者</div>
-            <textarea className="min-h-10 resize-y border-r-2 border-t-2 border-slate-800 p-2 text-center outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} rows={2} />
+            <textarea className="min-h-10 resize-y border-r-2 border-t-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} rows={2} />
             <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">点検者</div>
-            <textarea className="min-h-10 resize-y border-t-2 border-slate-800 p-2 text-center outline-none" value={inspector} onChange={e => setInspector(e.target.value)} rows={2} />
+            <textarea className="min-h-10 resize-y border-t-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={inspector} onChange={e => setInspector(e.target.value)} rows={2} />
           </div>
 
           <div className="overflow-hidden border-2 border-slate-800 bg-white shadow-sm">
@@ -2044,7 +2044,10 @@ async function loadInspectionReport() {
         : [];
 
       allRows.push(...pageRows);
-      const minRows = createEmptyInspectionReportRows(Math.max(23 - allRows.length, 0));
+      const minRows = createEmptyInspectionReportRows(
+        Math.max(23 - allRows.length, 0),
+        allRows.length
+      );
       setInspectionReportRows([...allRows, ...minRows]);
 
       offset = Number(result.nextOffset);
@@ -2121,7 +2124,10 @@ async function loadInspectionReportLegacy(loadId: number) {
     photoNo: no,
   }, index));
 
-  const minRows = createEmptyInspectionReportRows(Math.max(23 - rows.length, 0));
+  const minRows = createEmptyInspectionReportRows(
+    Math.max(23 - rows.length, 0),
+    rows.length
+  );
   setInspectionReportRows([...rows, ...minRows]);
 }
 const loadSlopeTable = async () => {
