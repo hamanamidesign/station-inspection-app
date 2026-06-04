@@ -1555,36 +1555,37 @@ if (mode === 'exist_select') return (
       : '前年度評価';
 
     return (
-      <div className="min-h-screen overflow-x-auto bg-slate-100 p-4 text-black">
+      <div className="min-h-screen overflow-x-auto bg-slate-300 p-4 text-black">
         <Nav />
         <LoadingOverlay />
 
-        <div className="mx-auto min-w-[1180px] max-w-[1280px] bg-white border-2 border-slate-900 text-[13px] shadow-sm">
-          <div className="relative border-b border-slate-900 px-4 py-4 text-center text-xl font-bold tracking-[0.45em]">
+        <div className="mx-auto min-w-[1180px] max-w-[1280px] text-[13px]">
+          <div className="mb-3 border-2 border-slate-800 bg-white px-4 py-4 text-center text-xl font-black tracking-[0.45em] shadow-sm">
             <span>〈 {selectedYear || '----'} 年 度 施 設 点 検 報 告 書 〉</span>
           </div>
 
-          <div className="grid grid-cols-[90px_48px_90px_1fr_130px_1fr] border-b border-slate-900">
-            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">駅No.</div>
-            <input className="border-r border-slate-900 p-2 text-center outline-none" value={stationNo} onChange={e => setStationNo(e.target.value)} />
-            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">駅名</div>
-            <input className="border-r border-slate-900 p-2 outline-none" value={stationName} onChange={e => setStationName(e.target.value)} />
-            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">点検受注者</div>
-            <textarea className="min-h-9 resize-none p-2 outline-none" value={contractor} onChange={e => setContractor(e.target.value)} />
+          <div className="mb-3 grid grid-cols-[90px_48px_90px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">駅No.</div>
+            <input className="border-r-2 border-slate-800 p-2 text-center font-bold outline-none" value={stationNo} onChange={e => setStationNo(e.target.value)} />
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">駅名</div>
+            <input className="border-r-2 border-slate-800 p-2 text-center font-bold outline-none" value={stationName} onChange={e => setStationName(e.target.value)} />
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">点検受注者</div>
+            <textarea className="min-h-9 resize-none p-2 text-center outline-none" value={contractor} onChange={e => setContractor(e.target.value)} />
           </div>
 
-          <div className="grid grid-cols-[220px_1fr_130px_1fr] border-b-2 border-slate-900">
-            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">初回点検日</div>
-            <input className="border-r border-slate-900 p-2 text-center outline-none" value={firstDate} onChange={e => setFirstDate(e.target.value)} />
-            <div className="border-r border-slate-900 bg-slate-100 p-2 text-center font-bold">最新点検日</div>
+          <div className="mb-3 grid grid-cols-[220px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">初回点検日</div>
+            <input className="border-r-2 border-slate-800 p-2 text-center outline-none" value={firstDate} onChange={e => setFirstDate(e.target.value)} />
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">最新点検日</div>
             <input className="p-2 text-center outline-none" value={inspectDate} onChange={e => setInspectDate(e.target.value)} />
-            <div className="border-r border-t border-slate-900 bg-slate-100 p-2 text-center font-bold">初回点検者</div>
-            <input className="border-r border-t border-slate-900 p-2 text-center outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} />
-            <div className="border-r border-t border-slate-900 bg-slate-100 p-2 text-center font-bold">点検者</div>
-            <input className="border-t border-slate-900 p-2 text-center outline-none" value={inspector} onChange={e => setInspector(e.target.value)} />
+            <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">初回点検者</div>
+            <input className="border-r-2 border-t-2 border-slate-800 p-2 text-center outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} />
+            <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">点検者</div>
+            <input className="border-t-2 border-slate-800 p-2 text-center outline-none" value={inspector} onChange={e => setInspector(e.target.value)} />
           </div>
 
-          <div className="grid grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] bg-slate-50 text-center font-bold">
+          <div className="overflow-hidden border-2 border-slate-800 bg-white shadow-sm">
+          <div className="grid grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] bg-slate-100 text-center font-bold">
             <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">建物名</div>
             <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">点検場所</div>
             <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center">写真<br />番号</div>
@@ -1622,13 +1623,13 @@ if (mode === 'exist_select') return (
                     cell.editable ? (
                       <textarea
                         key={cell.field}
-                        className="min-h-8 resize-y border-r border-slate-300 bg-white p-1.5 text-[13px] outline-none focus:bg-yellow-50"
+                        className="min-h-8 resize-y border-r border-slate-300 bg-white p-1.5 text-left text-[13px] outline-none focus:bg-yellow-50"
                         value={row[cell.field]}
                         onChange={e => updateInspectionReportRow(row.id, cell.field, e.target.value)}
                         rows={2}
                       />
                     ) : (
-                      <div key={cell.field} className="border-r border-slate-300 p-1.5 last:border-r-0 whitespace-pre-wrap break-words">
+                      <div key={cell.field} className="flex items-center justify-center border-r border-slate-300 p-1.5 text-center last:border-r-0 whitespace-pre-wrap break-words">
                         {row[cell.field]}
                       </div>
                     )
@@ -1636,6 +1637,7 @@ if (mode === 'exist_select') return (
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       </div>
