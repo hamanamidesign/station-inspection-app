@@ -337,6 +337,7 @@ useEffect(() => {
   const [inspectList, setInspectList] = useState<string[]>([]);
   const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
   const [inspectionReportRows, setInspectionReportRows] = useState<InspectionReportRow[]>(() => createEmptyInspectionReportRows());
+  const inspectionReportLoadIdRef = useRef(0);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
@@ -484,6 +485,8 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
+  if (mode === 'inspection_report') return;
+
   if (!selectedRoute || !selectedYear) {
     setInspectorOptions([]);
     setContractor('');
@@ -510,7 +513,7 @@ useEffect(() => {
     if (registration.inspectors.includes(current)) return current;
     return registration.inspectors[0] || current || '';
   });
-}, [inspectorRegistrations, selectedRoute, selectedYear]);
+}, [inspectorRegistrations, selectedRoute, selectedYear, mode]);
 
   // ★ここに入れる
   useEffect(() => {
@@ -537,7 +540,7 @@ useEffect(() => {
   if (mode === 'inspection_report' && spreadsheetId) {
     loadInspectionReport().catch(e => console.error(e));
   }
-}, [mode, spreadsheetId]);
+}, [mode, spreadsheetId, selectedRoute, stationName, selectedYear]);
 
 useEffect(() => {
   setShowCheckPanel(false);
@@ -1907,6 +1910,16 @@ const addFinishText = (
 async function loadInspectionReport() {
   if (!spreadsheetId) return;
 
+  const loadId = inspectionReportLoadIdRef.current + 1;
+  inspectionReportLoadIdRef.current = loadId;
+
+  setStationNo("");
+  setFirstDate("");
+  setInspectDate("");
+  setContractor("");
+  setFirstInspector("");
+  setInspector("");
+  setInspectionReportRows(createEmptyInspectionReportRows());
   setIsLoading(true);
 
   try {
@@ -1922,6 +1935,8 @@ async function loadInspectionReport() {
       alert("施設点検報告書の読み込みに失敗しました");
       return;
     }
+
+    if (inspectionReportLoadIdRef.current !== loadId) return;
 
     const header = toRecord(result.header);
     if (header.stationNo !== undefined) setStationNo(String(header.stationNo || ''));
@@ -1941,22 +1956,26 @@ async function loadInspectionReport() {
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes("Unknown action")) {
-      await loadInspectionReportLegacy();
+      await loadInspectionReportLegacy(loadId);
       return;
     }
     console.error(e);
     alert(`施設点検報告書の読み込みに失敗しました: ${message}`);
   } finally {
-    setIsLoading(false);
+    if (inspectionReportLoadIdRef.current === loadId) {
+      setIsLoading(false);
+    }
   }
 };
-async function loadInspectionReportLegacy() {
+async function loadInspectionReportLegacy(loadId: number) {
   const dateResult = await gasApi("getInspectionListDates", {
     masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
     routeName: selectedRoute,
     station: stationName,
     year: selectedYear,
   });
+
+  if (inspectionReportLoadIdRef.current !== loadId) return;
 
   if (dateResult.stationNo !== undefined) setStationNo(String(dateResult.stationNo || ''));
   setFirstDate(formatSheetDateText(dateResult.firstDate));
@@ -1971,6 +1990,8 @@ async function loadInspectionReportLegacy() {
     ? listResult.list.map((no: unknown) => String(no || '').trim()).filter(Boolean)
     : [];
 
+  if (inspectionReportLoadIdRef.current !== loadId) return;
+
   const headerKarteNo = list.includes('1') ? '1' : list[0];
 
   if (headerKarteNo) {
@@ -1982,6 +2003,8 @@ async function loadInspectionReportLegacy() {
       routeFolderId,
     });
 
+    if (inspectionReportLoadIdRef.current !== loadId) return;
+
     if (karteResult.success && karteResult.data) {
       const data = karteResult.data;
       setContractor(String(data.contractor || ''));
@@ -1989,6 +2012,8 @@ async function loadInspectionReportLegacy() {
       setInspector(String(data.inspector || ''));
     }
   }
+
+  if (inspectionReportLoadIdRef.current !== loadId) return;
 
   const rows = list.map((no: string, index: number) => normalizeInspectionReportRow({
     photoNo: no,
