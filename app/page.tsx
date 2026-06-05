@@ -22,6 +22,7 @@ interface ExistingStation {
 interface RouteItem {
   name: string;
   folderId: string;
+  createdAt?: string;
 }
 
 interface CellStyle {
@@ -222,7 +223,7 @@ const compareInspectionReportTotalEval = (a: string, b: string) => {
   return rankDiff || compareInspectionReportText(a, b);
 };
 
-const ROUTE_LIST_CACHE_KEY = 'station-check-route-list-v1';
+const ROUTE_LIST_CACHE_KEY = 'station-check-route-list-v2';
 const EXISTING_DATA_CACHE_PREFIX = 'station-check-existing-data-v1:';
 
 const ROUTE_COLOR_PALETTE = [
@@ -276,8 +277,19 @@ const normalizeRouteList = (list: unknown): RouteItem[] =>
         .map(item => ({
           name: String(item.name || ''),
           folderId: String(item.folderId || ''),
+          createdAt: item.createdAt ? String(item.createdAt) : undefined,
         }))
         .filter(route => route.name && route.folderId)
+        .sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : Number.POSITIVE_INFINITY;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : Number.POSITIVE_INFINITY;
+
+          if (Number.isFinite(dateA) || Number.isFinite(dateB)) {
+            return dateA - dateB || a.name.localeCompare(b.name, 'ja');
+          }
+
+          return 0;
+        })
     : [];
 
 const formatSlopeDisplayNumber = (value: unknown) => {
