@@ -1757,32 +1757,32 @@ if (mode === 'exist_select') return (
           </div>
 
           <div className="mb-6 overflow-hidden rounded-2xl border-2 border-slate-800 bg-white text-[15px] shadow-sm">
-            <div className="grid grid-cols-[140px_1fr] border-b-2 border-slate-800">
-              <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
+            <div className="flex border-b-2 border-slate-800">
+              <div className="flex min-h-14 w-[140px] shrink-0 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
                 駅No.
               </div>
-              <div className="flex min-h-14 items-center px-4 font-bold">
+              <div className="flex min-h-14 flex-1 items-center px-4 font-bold">
                 {stationNo || "---"}
               </div>
             </div>
 
-            <div className="grid grid-cols-[140px_1fr] border-b-2 border-slate-800">
-              <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
+            <div className="flex border-b-2 border-slate-800">
+              <div className="flex min-h-14 w-[140px] shrink-0 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
                 駅名
               </div>
-              <div className="flex min-h-14 items-center px-4 font-bold">
+              <div className="flex min-h-14 flex-1 items-center px-4 font-bold">
                 {stationName || "---"}
               </div>
             </div>
 
-            <div className="grid grid-cols-[140px_1fr]">
-              <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
+            <div className="flex">
+              <div className="flex min-h-14 w-[140px] shrink-0 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
                 調査日
               </div>
               <input
                 value={formatSheetDateText(inspectDate)}
                 onChange={e => setInspectDate(e.target.value)}
-                className="min-h-14 w-full px-4 text-[15px] font-bold outline-none focus:bg-yellow-50"
+                className="block min-h-14 min-w-0 flex-1 px-4 text-[15px] font-bold outline-none focus:bg-yellow-50"
               />
             </div>
           </div>
