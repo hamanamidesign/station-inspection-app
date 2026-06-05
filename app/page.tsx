@@ -1751,22 +1751,40 @@ if (mode === 'exist_select') return (
         <Nav />
         <LoadingOverlay />
 
-        <div className="w-full max-w-xl bg-white p-6 shadow-xl">
-          <div className="mb-6 border-2 border-slate-800">
-            {[
-              ["駅No.", stationNo || "---"],
-              ["駅名", stationName || "---"],
-              ["調査日", formatSheetDateText(inspectDate) || "---"],
-            ].map(([label, value]) => (
-              <div key={label} className="grid grid-cols-[140px_1fr] border-b-2 border-slate-800 last:border-b-0">
-                <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-100 px-3 text-base font-black">
-                  {label}
-                </div>
-                <div className="flex min-h-14 items-center px-4 text-base font-bold">
-                  {value}
-                </div>
+        <div className="w-full max-w-3xl bg-white p-6 shadow-sm">
+          <div className="mb-4 text-center text-2xl font-black tracking-[0.28em] text-slate-900">
+            表紙
+          </div>
+
+          <div className="mb-6 border-2 border-slate-800 bg-white text-[15px] shadow-sm">
+            <div className="grid grid-cols-[160px_1fr] border-b-2 border-slate-800">
+              <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
+                駅No.
               </div>
-            ))}
+              <div className="flex min-h-14 items-center px-4 font-bold">
+                {stationNo || "---"}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[160px_1fr] border-b-2 border-slate-800">
+              <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
+                駅名
+              </div>
+              <div className="flex min-h-14 items-center px-4 font-bold">
+                {stationName || "---"}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[160px_1fr]">
+              <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
+                調査日
+              </div>
+              <input
+                value={formatSheetDateText(inspectDate)}
+                onChange={e => setInspectDate(e.target.value)}
+                className="min-h-14 w-full px-4 text-[15px] font-bold outline-none focus:bg-yellow-50"
+              />
+            </div>
           </div>
 
           <div className="flex justify-center">
@@ -1774,7 +1792,7 @@ if (mode === 'exist_select') return (
               type="button"
               onClick={sendCover}
               disabled={isSending || !spreadsheetId}
-              className="w-full max-w-xs bg-blue-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+              className="w-full max-w-xs bg-blue-600 py-4 text-lg font-black text-white shadow-sm active:scale-95 disabled:bg-slate-400"
             >
               {isSending ? "反映中..." : "表紙作成"}
             </button>
