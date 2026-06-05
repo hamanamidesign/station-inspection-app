@@ -55,13 +55,14 @@ interface InspectorRegistration {
 interface PdfSheetOption {
   name: string;
   label: string;
-  group: 'photo' | 'slope' | 'inclination';
+  group: 'photo' | 'slope' | 'inclination' | 'inspectionReport';
 }
 
 interface PdfSheetGroups {
   photo: PdfSheetOption[];
   slope: PdfSheetOption[];
   inclination: PdfSheetOption[];
+  inspectionReport: PdfSheetOption[];
 }
 interface InspectionReportRow {
   id: number;
@@ -378,7 +379,7 @@ useEffect(() => {
   const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
-  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ photo: [], slope: [], inclination: [] });
+  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ photo: [], slope: [], inclination: [], inspectionReport: [] });
   const [selectedPdfSheets, setSelectedPdfSheets] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
@@ -1270,10 +1271,14 @@ const loadPdfSheetOptions = async () => {
 
   try {
     const result = await gasApi("getPdfSheetOptions", { spreadsheetId });
+    const inspectionReportSheets = Array.isArray(result.groups?.inspectionReport)
+      ? result.groups.inspectionReport
+      : [{ name: "施設点検報告書", label: "施設点検報告書", group: "inspectionReport" }];
     const groups: PdfSheetGroups = {
       photo: Array.isArray(result.groups?.photo) ? result.groups.photo : [],
       slope: Array.isArray(result.groups?.slope) ? result.groups.slope : [],
       inclination: Array.isArray(result.groups?.inclination) ? result.groups.inclination : [],
+      inspectionReport: inspectionReportSheets,
     };
 
     setPdfSheets(groups);
@@ -1282,6 +1287,7 @@ const loadPdfSheetOptions = async () => {
       ...groups.photo,
       ...groups.slope,
       ...groups.inclination,
+      ...groups.inspectionReport,
     ].map(sheet => sheet.name);
 
     setSelectedPdfSheets(allSheetNames);
@@ -1325,6 +1331,7 @@ const createPdf = async () => {
       { suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
       { suffix: "傾斜表", sheetNames: pdfSheets.slope.map(sheet => sheet.name) },
       { suffix: "傾斜測定カルテ", sheetNames: pdfSheets.inclination.map(sheet => sheet.name) },
+      { suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
     ]
       .map(job => ({
         ...job,
@@ -1860,6 +1867,7 @@ if (mode === 'pdf_export') {
     { key: 'photo', title: '写真カルテ' },
     { key: 'slope', title: '傾斜表' },
     { key: 'inclination', title: '傾斜測定カルテ' },
+    { key: 'inspectionReport', title: '施設点検報告書' },
   ];
 
   return (
@@ -1886,7 +1894,7 @@ if (mode === 'pdf_export') {
           </button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           {groups.map(group => {
             const sheets = pdfSheets[group.key];
             const allSelected =
