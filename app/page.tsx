@@ -1328,10 +1328,10 @@ const createPdf = async () => {
 
   try {
     const pdfJobs = [
-      { suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
-      { suffix: "傾斜表", sheetNames: pdfSheets.slope.map(sheet => sheet.name) },
-      { suffix: "傾斜測定カルテ", sheetNames: pdfSheets.inclination.map(sheet => sheet.name) },
-      { suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
+      { kind: "photo", suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
+      { kind: "slope", suffix: "傾斜表", sheetNames: pdfSheets.slope.map(sheet => sheet.name) },
+      { kind: "inclination", suffix: "傾斜測定カルテ", sheetNames: pdfSheets.inclination.map(sheet => sheet.name) },
+      { kind: "inspectionReport", suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
     ]
       .map(job => ({
         ...job,
@@ -1346,7 +1346,8 @@ const createPdf = async () => {
         spreadsheetId,
         stationName,
         year: selectedYear,
-        fileSuffix: pdfJobs.length > 1 ? job.suffix : "",
+        pdfKind: job.kind,
+        fileSuffix: job.suffix,
         sheetNames: job.sheetNames,
       });
 
