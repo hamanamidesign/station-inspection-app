@@ -763,6 +763,8 @@ useEffect(() => {
 
   // 駅や年度が変わったら入力をクリア
   useEffect(() => {
+  if (mode === 'new_entry') return;
+
   setSourceImage(null);
   setFinalImage(null);
   setMarkers([]); 
@@ -791,7 +793,7 @@ useEffect(() => {
   setStationNo(String(matched?.stationNo || ''));
   // ★追加ここまで
 
-}, [stationName, selectedYear, existingData, routeFolderId]);
+}, [stationName, selectedYear, existingData, routeFolderId, mode]);
 
 // 総合評価 自動判定
 useEffect(() => {
