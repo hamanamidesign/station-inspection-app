@@ -392,6 +392,7 @@ useEffect(() => {
     key: InspectionReportSortKey | null;
     direction: SortDirection;
   }>({ key: null, direction: 'asc' });
+  const [coverDateStatus, setCoverDateStatus] = useState('');
   const pulldownListsLoadedRef = useRef(false);
   const existingDataLoadedRouteRef = useRef('');
   const routesLoadedRef = useRef(false);
@@ -585,6 +586,38 @@ const loadInspectionListDates = useCallback(async () => {
   }
 }, [selectedRoute, stationName, selectedYear]);
 
+const loadCoverInspectionDate = useCallback(async () => {
+  if (!selectedRoute || !stationName || !selectedYear) {
+    setCoverDateStatus("路線・駅名・年度を選択してください");
+    return;
+  }
+
+  setCoverDateStatus("調査日を読み込み中...");
+
+  try {
+    const result = await gasApi("getInspectionListDates", {
+      masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+      routeName: selectedRoute,
+      station: stationName,
+      year: selectedYear,
+    });
+
+    const nextStationNo = String(result.stationNo || '').trim();
+    const nextInspectDate = formatSheetDateText(result.latestDate);
+
+    if (nextStationNo) setStationNo(nextStationNo);
+    if (nextInspectDate) {
+      setInspectDate(nextInspectDate);
+      setCoverDateStatus("");
+    } else {
+      setCoverDateStatus(String(result.message || "選択年度の調査日が見つかりません"));
+    }
+  } catch (e) {
+    console.error(e);
+    setCoverDateStatus(`調査日の読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}, [selectedRoute, stationName, selectedYear]);
+
 const loadPulldownLists = useCallback(async () => {
   if (pulldownListsLoadedRef.current) return;
 
@@ -694,9 +727,9 @@ useEffect(() => {
 
 useEffect(() => {
   if (mode === 'cover') {
-    loadInspectionListDates().catch(e => console.error(e));
+    loadCoverInspectionDate().catch(e => console.error(e));
   }
-}, [mode, loadInspectionListDates]);
+}, [mode, loadCoverInspectionDate]);
 
 useEffect(() => {
   if (mode === 'inspection_report' && spreadsheetId) {
@@ -1754,6 +1787,20 @@ if (mode === 'exist_select') return (
         <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-sm">
           <div className="mb-4 text-center text-2xl font-black tracking-[0.28em] text-slate-900">
             表紙
+          </div>
+
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="min-h-5 flex-1 text-sm font-bold text-slate-500">
+              {coverDateStatus}
+            </div>
+            <button
+              type="button"
+              onClick={loadCoverInspectionDate}
+              disabled={isLoading || isSending}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 active:scale-95 disabled:opacity-50"
+            >
+              調査日を再取得
+            </button>
           </div>
 
           <div className="mb-6 overflow-hidden rounded-2xl border-2 border-slate-800 bg-white text-[15px] shadow-sm">
