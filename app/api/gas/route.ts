@@ -36,10 +36,11 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "uploadInclinationKarteSheets":
     case "uploadInclinationKartePhoto":
     case "uploadInspectionReport":
-    case "createInspectionPdf":
     case "uploadPhotos":
     case "saveMarkers":
       return 45000;
+    case "createInspectionPdf":
+      return 55000;
     default:
       return DEFAULT_GAS_TIMEOUT_MS;
   }
