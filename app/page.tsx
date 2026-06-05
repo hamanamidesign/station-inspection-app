@@ -1312,15 +1312,12 @@ const loadPdfSheetOptions = async () => {
 
   try {
     const result = await gasApi("getPdfSheetOptions", { spreadsheetId });
-    const inspectionReportSheets = Array.isArray(result.groups?.inspectionReport)
-      ? result.groups.inspectionReport
-      : [{ name: "施設点検報告書", label: "施設点検報告書", group: "inspectionReport" }];
     const groups: PdfSheetGroups = {
       cover: Array.isArray(result.groups?.cover) ? result.groups.cover : [],
       photo: Array.isArray(result.groups?.photo) ? result.groups.photo : [],
       slope: Array.isArray(result.groups?.slope) ? result.groups.slope : [],
       inclination: Array.isArray(result.groups?.inclination) ? result.groups.inclination : [],
-      inspectionReport: inspectionReportSheets,
+      inspectionReport: Array.isArray(result.groups?.inspectionReport) ? result.groups.inspectionReport : [],
     };
 
     setPdfSheets(groups);
