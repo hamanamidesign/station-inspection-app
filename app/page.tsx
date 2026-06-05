@@ -1751,13 +1751,13 @@ if (mode === 'exist_select') return (
         <Nav />
         <LoadingOverlay />
 
-        <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-sm">
+        <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-sm">
           <div className="mb-4 text-center text-2xl font-black tracking-[0.28em] text-slate-900">
             表紙
           </div>
 
           <div className="mb-6 overflow-hidden rounded-2xl border-2 border-slate-800 bg-white text-[15px] shadow-sm">
-            <div className="grid grid-cols-[140px_minmax(0,0.5fr)] border-b-2 border-slate-800">
+            <div className="grid grid-cols-[140px_1fr] border-b-2 border-slate-800">
               <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
                 駅No.
               </div>
@@ -1766,7 +1766,7 @@ if (mode === 'exist_select') return (
               </div>
             </div>
 
-            <div className="grid grid-cols-[140px_minmax(0,0.5fr)] border-b-2 border-slate-800">
+            <div className="grid grid-cols-[140px_1fr] border-b-2 border-slate-800">
               <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
                 駅名
               </div>
@@ -1775,7 +1775,7 @@ if (mode === 'exist_select') return (
               </div>
             </div>
 
-            <div className="grid grid-cols-[140px_minmax(0,0.5fr)]">
+            <div className="grid grid-cols-[140px_1fr]">
               <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-200 px-3 font-black">
                 調査日
               </div>
