@@ -2158,11 +2158,27 @@ async function sendCover() {
   setIsSending(true);
 
   try {
+    let coverStationNo = stationNo;
+    let coverInspectDate = formatSheetDateText(inspectDate);
+
+    if (selectedRoute && stationName && selectedYear) {
+      const dateResult = await gasApi("getInspectionListDates", {
+        masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+        routeName: selectedRoute,
+        station: stationName,
+        year: selectedYear,
+      });
+      coverStationNo = String(dateResult.stationNo || coverStationNo || '');
+      coverInspectDate = formatSheetDateText(dateResult.latestDate || coverInspectDate);
+      if (coverStationNo) setStationNo(coverStationNo);
+      if (coverInspectDate) setInspectDate(coverInspectDate);
+    }
+
     const result = await gasApi("uploadCover", {
       spreadsheetId,
-      stationNo,
+      stationNo: coverStationNo,
       stationName,
-      inspectDate: formatSheetDateText(inspectDate),
+      inspectDate: coverInspectDate,
     });
 
     if (result.success) {
