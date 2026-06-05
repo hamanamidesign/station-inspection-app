@@ -1,11 +1,13 @@
 import { AppMode } from "../types";
+import type { ComponentType } from "react";
 
 type Props = {
   goTo: (mode: AppMode) => void;
-  Nav: any;
+  Nav: ComponentType<{ back?: AppMode }>;
+  backgroundColor?: string;
 };
 
-export default function TaskSelect({ goTo, Nav }: Props) {
+export default function TaskSelect({ goTo, Nav, backgroundColor }: Props) {
 
   const tasks = [
     "表紙",
@@ -20,7 +22,10 @@ export default function TaskSelect({ goTo, Nav }: Props) {
   ];
 
   return (
-    <div className="flex flex-col items-center p-6 bg-slate-50 min-h-screen text-black">
+    <div
+      className="flex flex-col items-center p-6 bg-slate-50 min-h-screen text-black"
+      style={backgroundColor ? { backgroundColor } : undefined}
+    >
       
       <Nav back="menu" />
 

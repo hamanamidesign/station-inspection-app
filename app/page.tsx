@@ -19,6 +19,11 @@ interface ExistingStation {
   routeFolderId?: string;
 }
 
+interface RouteItem {
+  name: string;
+  folderId: string;
+}
+
 interface CellStyle {
   color?: string;
   backgroundColor?: string;
@@ -219,6 +224,62 @@ const compareInspectionReportTotalEval = (a: string, b: string) => {
 
 const ROUTE_LIST_CACHE_KEY = 'station-check-route-list-v1';
 const EXISTING_DATA_CACHE_PREFIX = 'station-check-existing-data-v1:';
+
+const ROUTE_COLOR_PALETTE = [
+  { button: '#2563EB', background: '#EAF2FF', text: '#FFFFFF' },
+  { button: '#D99A00', background: '#FFF3CC', text: '#1F2937' },
+  { button: '#16A34A', background: '#EAF8EF', text: '#FFFFFF' },
+  { button: '#F97316', background: '#FFF1E6', text: '#FFFFFF' },
+  { button: '#7C3AED', background: '#F2ECFF', text: '#FFFFFF' },
+  { button: '#BE123C', background: '#FFE8EE', text: '#FFFFFF' },
+];
+
+const mixHexWithWhite = (hex: string, amount: number) => {
+  const normalized = hex.replace('#', '');
+  const value = Number.parseInt(normalized, 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  const mix = (channel: number) =>
+    Math.round(channel + (255 - channel) * amount)
+      .toString(16)
+      .padStart(2, '0');
+
+  return `#${mix(r)}${mix(g)}${mix(b)}`;
+};
+
+const getRouteColor = (index: number) => {
+  const palette = ROUTE_COLOR_PALETTE[index % ROUTE_COLOR_PALETTE.length];
+  const cycle = Math.floor(index / ROUTE_COLOR_PALETTE.length);
+  const softenAmount = Math.min(cycle * 0.12, 0.42);
+
+  return {
+    button: softenAmount ? mixHexWithWhite(palette.button, softenAmount) : palette.button,
+    background: softenAmount ? mixHexWithWhite(palette.background, softenAmount * 0.55) : palette.background,
+    text: cycle > 0 && index % ROUTE_COLOR_PALETTE.length === 1 ? '#1F2937' : palette.text,
+  };
+};
+
+const getRouteIndex = (routes: RouteItem[], routeName: string, routeFolderId: string) => {
+  const index = routes.findIndex(route =>
+    String(route.folderId || '') === String(routeFolderId || '') ||
+    String(route.name || '') === String(routeName || '')
+  );
+
+  return Math.max(index, 0);
+};
+
+const normalizeRouteList = (list: unknown): RouteItem[] =>
+  Array.isArray(list)
+    ? list
+        .map(item => toRecord(item))
+        .map(item => ({
+          name: String(item.name || ''),
+          folderId: String(item.folderId || ''),
+        }))
+        .filter(route => route.name && route.folderId)
+    : [];
+
 const formatSlopeDisplayNumber = (value: unknown) => {
   const text = toDisplayText(value).trim();
   if (!text) return '';
@@ -294,7 +355,7 @@ export default function InspectorApp() {
   const [slopeFirstInspector, setSlopeFirstInspector] = useState('');
 
   // --- 共通ステート ---
-  const [routeList, setRouteList] = useState<any[]>([]);
+  const [routeList, setRouteList] = useState<RouteItem[]>([]);
   const [selectedRoute, setSelectedRoute] = useState('');
   const [mode, setMode] = useState<AppMode>('menu');
   const [history, setHistory] = useState<AppMode[]>([]);
@@ -471,8 +532,8 @@ const loadRoutes = useCallback(async () => {
   try {
     const cached = window.localStorage.getItem(ROUTE_LIST_CACHE_KEY);
     if (cached) {
-      const list = JSON.parse(cached);
-      if (Array.isArray(list) && list.length > 0) {
+      const list = normalizeRouteList(JSON.parse(cached));
+      if (list.length > 0) {
         setRouteList(list);
         hasUsableCache = true;
       }
@@ -488,7 +549,7 @@ const loadRoutes = useCallback(async () => {
 
     if (result.success) {
 
-      const list = Array.isArray(result.list) ? result.list : [];
+      const list = normalizeRouteList(result.list);
       setRouteList(list);
       window.localStorage.setItem(ROUTE_LIST_CACHE_KEY, JSON.stringify(list));
       routesLoadedRef.current = true;
@@ -1528,6 +1589,10 @@ const LoadingSpinner = () => isLoading ? (
 ) : null;
 
   // --- 画面表示 ---
+const selectedRouteColor = getRouteColor(getRouteIndex(routeList, selectedRoute, routeFolderId));
+const routePageStyle: React.CSSProperties | undefined = selectedRoute
+  ? { backgroundColor: selectedRouteColor.background }
+  : undefined;
 
 if (mode === 'route_select') return (
 
@@ -1548,7 +1613,10 @@ if (mode === 'route_select') return (
 
     <div className="w-full max-w-md flex flex-col gap-4">
 
-      {routeList.map((route: any) => (
+      {routeList.map((route, index) => {
+        const routeColor = getRouteColor(index);
+
+        return (
 
         <button
           key={route.folderId}
@@ -1568,12 +1636,17 @@ if (mode === 'route_select') return (
             setMode('menu');
 
           }}
-          className="w-full py-6 bg-indigo-600 text-white rounded-2xl text-xl font-bold shadow-xl"
+          className="w-full py-6 rounded-2xl text-xl font-bold shadow-xl transition-all active:scale-95 active:brightness-90"
+          style={{
+            backgroundColor: routeColor.button,
+            color: routeColor.text,
+          }}
         >
           {route.name}
         </button>
 
-      ))}
+        );
+      })}
 
     </div>
 
@@ -1582,7 +1655,7 @@ if (mode === 'route_select') return (
 
   // 1. メインメニュー画面
   if (mode === 'menu') return (
-    <div className="flex flex-col items-center justify-start h-screen gap-6 bg-slate-50 text-black p-6">
+    <div className="flex flex-col items-center justify-start h-screen gap-6 bg-slate-50 text-black p-6" style={routePageStyle}>
       <div className="w-full max-w-md bg-white border border-indigo-100 rounded-2xl shadow-sm p-5 text-center">
         <div className="text-xs font-bold text-indigo-500 mb-1">選択中の路線</div>
         <div className="text-2xl font-black text-slate-900 text-center">
@@ -1619,7 +1692,7 @@ if (mode === 'route_select') return (
   // 2. 作成済みカルテの一覧選択画面
   // --- 画面表示 (edit_list部分) ---
 if (mode === 'edit_list') return (
-  <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black">
+  <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black" style={routePageStyle}>
 
     <LoadingSpinner />
 
@@ -1648,7 +1721,7 @@ if (mode === 'edit_list') return (
 
   // ① 新規駅登録画面
 if (mode === 'new_entry') return (
-  <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
+  <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black" style={routePageStyle}>
     <LoadingSpinner /> <Nav />
     <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
 
@@ -1700,7 +1773,7 @@ if (mode === 'new_entry') return (
 
 // ② 既存駅編集画面
 if (mode === 'exist_select') return (
-  <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
+  <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black" style={routePageStyle}>
     <Nav />
 
     <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
@@ -1791,11 +1864,11 @@ if (mode === 'exist_select') return (
 );
 
   if (mode === 'task_select') {
-  return <TaskSelect goTo={goTo} Nav={Nav} />;
+  return <TaskSelect goTo={goTo} Nav={Nav} backgroundColor={selectedRouteColor.background} />;
 }
   if (mode === 'cover') {
     return (
-      <div className="flex min-h-screen flex-col items-center bg-slate-50 p-6 text-black">
+      <div className="flex min-h-screen flex-col items-center bg-slate-50 p-6 text-black" style={routePageStyle}>
         <Nav />
         <LoadingOverlay />
 
@@ -1869,7 +1942,7 @@ if (mode === 'exist_select') return (
       : '前年度評価';
 
     return (
-      <div className="min-h-screen overflow-x-auto bg-slate-300 p-4 text-black">
+      <div className="min-h-screen overflow-x-auto bg-slate-300 p-4 text-black" style={routePageStyle}>
         <Nav />
         <LoadingOverlay />
 
@@ -1998,7 +2071,7 @@ if (mode === 'pdf_export') {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-slate-50 p-6 text-black">
+    <div className="flex min-h-screen flex-col items-center bg-slate-50 p-6 text-black" style={routePageStyle}>
       <Nav />
       <LoadingOverlay />
 
@@ -2091,7 +2164,7 @@ if (mode === 'pdf_export') {
 }
 
 if (mode === 'photo_number_register') return (
-  <div className="flex flex-col items-center justify-start min-h-screen bg-slate-50 p-6 text-black">
+  <div className="flex flex-col items-center justify-start min-h-screen bg-slate-50 p-6 text-black" style={routePageStyle}>
     <Nav />
     <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
       <h2 className="text-2xl font-bold mb-6 text-indigo-700 text-center">写真カルテ番号登録</h2>
@@ -3041,7 +3114,7 @@ if (mode === 'slope_table') {
   const slopeGridColumns = '78px 64px 58px 170px 54px 82px 54px 82px 54px 82px 54px 82px 90px';
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-300 text-black">
+    <div className="flex min-h-screen flex-col bg-slate-300 text-black" style={routePageStyle}>
       <Nav />
       <LoadingOverlay />
 
@@ -3352,7 +3425,7 @@ if (mode === 'inclination_menu') {
 
   return (
 
-  <div className="min-h-screen overflow-x-hidden bg-slate-100 p-4 text-black">
+  <div className="min-h-screen overflow-x-hidden bg-slate-100 p-4 text-black" style={routePageStyle}>
 
     <Nav />
     <LoadingOverlay />
@@ -3842,7 +3915,7 @@ if (mode === 'inclination_menu') {
  if (mode === 'karte_menu') {
     const isPhoto = mode === 'karte_menu';
     return (
-      <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black">
+      <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black" style={routePageStyle}>
         <Nav />
         <h2 className="text-2xl font-black mb-8">{isPhoto ? '写真カルテ' : '傾斜測定カルテ'}</h2>
         <div className="flex flex-col gap-6 w-full max-w-sm">
@@ -3927,7 +4000,7 @@ if (mode === 'inclination_menu') {
         ? [inspector, ...inspectorOptions]
         : inspectorOptions;
     return (
-      <div className="flex flex-col items-center justify-start min-h-screen bg-slate-300 text-black">
+      <div className="flex flex-col items-center justify-start min-h-screen bg-slate-300 text-black" style={routePageStyle}>
         <Nav />
         <LoadingOverlay />
 
@@ -4717,7 +4790,7 @@ if (mode === 'inclination_menu') {
 // --- 2. エディタ画面のUI部分 ---
 if (mode === 'editor') {
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-black">
+    <div className="flex flex-col min-h-screen bg-slate-50 text-black" style={routePageStyle}>
       {/* ★ ここに追加：画面全体のローディングオーバーレイ */}
       {isLoading && (
         <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-sm">
