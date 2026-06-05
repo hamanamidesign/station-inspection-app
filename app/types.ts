@@ -4,6 +4,7 @@ export type AppMode =
   | 'new_entry'
   | 'exist_select'
   | 'task_select'
+  | 'cover'
   | 'inspection_report'
   | 'slope_table'
   | 'karte_menu'

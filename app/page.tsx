@@ -257,6 +257,7 @@ type AppMode =
   | 'new_entry' 
   | 'exist_select' 
   | 'task_select' 
+  | 'cover'
   | 'inspection_report' 
   | 'slope_table'
   | 'karte_menu' 
@@ -690,6 +691,12 @@ useEffect(() => {
     loadPdfSheetOptions().catch(e => console.error(e));
   }
 }, [mode, spreadsheetId]);
+
+useEffect(() => {
+  if (mode === 'cover') {
+    loadInspectionListDates().catch(e => console.error(e));
+  }
+}, [mode, loadInspectionListDates]);
 
 useEffect(() => {
   if (mode === 'inspection_report' && spreadsheetId) {
@@ -1738,6 +1745,44 @@ if (mode === 'exist_select') return (
   if (mode === 'task_select') {
   return <TaskSelect goTo={goTo} Nav={Nav} />;
 }
+  if (mode === 'cover') {
+    return (
+      <div className="flex min-h-screen flex-col items-center bg-slate-50 p-6 text-black">
+        <Nav />
+        <LoadingOverlay />
+
+        <div className="w-full max-w-xl bg-white p-6 shadow-xl">
+          <div className="mb-6 border-2 border-slate-800">
+            {[
+              ["駅No.", stationNo || "---"],
+              ["駅名", stationName || "---"],
+              ["調査日", formatSheetDateText(inspectDate) || "---"],
+            ].map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[140px_1fr] border-b-2 border-slate-800 last:border-b-0">
+                <div className="flex min-h-14 items-center justify-center border-r-2 border-slate-800 bg-slate-100 px-3 text-base font-black">
+                  {label}
+                </div>
+                <div className="flex min-h-14 items-center px-4 text-base font-bold">
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={sendCover}
+              disabled={isSending || !spreadsheetId}
+              className="w-full max-w-xs bg-blue-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+            >
+              {isSending ? "反映中..." : "表紙作成"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (mode === 'inspection_report') {
     const previousYearLabel = Number.isFinite(Number(selectedYear))
       ? `${Number(selectedYear) - 1}年評価`
@@ -2105,6 +2150,33 @@ const addFinishText = (
 
   setter(`${current.trim()}、${finish}`);
 };
+
+async function sendCover() {
+  if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+  if (isSending) return;
+
+  setIsSending(true);
+
+  try {
+    const result = await gasApi("uploadCover", {
+      spreadsheetId,
+      stationNo,
+      stationName,
+      inspectDate: formatSheetDateText(inspectDate),
+    });
+
+    if (result.success) {
+      alert("表紙をスプレッドシートへ反映しました");
+    } else {
+      alert("表紙の反映に失敗しました: " + (result.error || "不明なエラー"));
+    }
+  } catch (e) {
+    console.error(e);
+    alert(`表紙の反映に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+  } finally {
+    setIsSending(false);
+  }
+}
 
 async function sendInspectionReport() {
   if (!spreadsheetId) return alert("スプレッドシートIDがありません");

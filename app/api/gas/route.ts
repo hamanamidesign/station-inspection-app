@@ -35,6 +35,7 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "uploadSlopeTable":
     case "uploadInclinationKarteSheets":
     case "uploadInclinationKartePhoto":
+    case "uploadCover":
     case "uploadInspectionReport":
     case "uploadPhotos":
     case "saveMarkers":
