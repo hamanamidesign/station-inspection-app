@@ -55,10 +55,11 @@ interface InspectorRegistration {
 interface PdfSheetOption {
   name: string;
   label: string;
-  group: 'photo' | 'slope' | 'inclination' | 'inspectionReport';
+  group: 'cover' | 'photo' | 'slope' | 'inclination' | 'inspectionReport';
 }
 
 interface PdfSheetGroups {
+  cover: PdfSheetOption[];
   photo: PdfSheetOption[];
   slope: PdfSheetOption[];
   inclination: PdfSheetOption[];
@@ -380,7 +381,7 @@ useEffect(() => {
   const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
-  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ photo: [], slope: [], inclination: [], inspectionReport: [] });
+  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ cover: [], photo: [], slope: [], inclination: [], inspectionReport: [] });
   const [selectedPdfSheets, setSelectedPdfSheets] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
@@ -1315,6 +1316,7 @@ const loadPdfSheetOptions = async () => {
       ? result.groups.inspectionReport
       : [{ name: "施設点検報告書", label: "施設点検報告書", group: "inspectionReport" }];
     const groups: PdfSheetGroups = {
+      cover: Array.isArray(result.groups?.cover) ? result.groups.cover : [],
       photo: Array.isArray(result.groups?.photo) ? result.groups.photo : [],
       slope: Array.isArray(result.groups?.slope) ? result.groups.slope : [],
       inclination: Array.isArray(result.groups?.inclination) ? result.groups.inclination : [],
@@ -1324,6 +1326,7 @@ const loadPdfSheetOptions = async () => {
     setPdfSheets(groups);
 
     const allSheetNames = [
+      ...groups.cover,
       ...groups.photo,
       ...groups.slope,
       ...groups.inclination,
@@ -1368,10 +1371,11 @@ const createPdf = async () => {
 
   try {
     const pdfJobs = [
+      { kind: "cover", suffix: "表紙", sheetNames: pdfSheets.cover.map(sheet => sheet.name) },
+      { kind: "inspectionReport", suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
       { kind: "photo", suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
       { kind: "slope", suffix: "傾斜表", sheetNames: pdfSheets.slope.map(sheet => sheet.name) },
       { kind: "inclination", suffix: "傾斜測定カルテ", sheetNames: pdfSheets.inclination.map(sheet => sheet.name) },
-      { kind: "inspectionReport", suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
     ]
       .map(job => ({
         ...job,
@@ -1975,10 +1979,11 @@ if (mode === 'exist_select') return (
 
 if (mode === 'pdf_export') {
   const groups: { key: keyof PdfSheetGroups; title: string }[] = [
+    { key: 'cover', title: '表紙' },
+    { key: 'inspectionReport', title: '施設点検報告書' },
     { key: 'photo', title: '写真カルテ' },
     { key: 'slope', title: '傾斜表' },
     { key: 'inclination', title: '傾斜測定カルテ' },
-    { key: 'inspectionReport', title: '施設点検報告書' },
   ];
 
   return (
@@ -2005,7 +2010,7 @@ if (mode === 'pdf_export') {
           </button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-6">
           {groups.map(group => {
             const sheets = pdfSheets[group.key];
             const allSelected =
@@ -2013,7 +2018,7 @@ if (mode === 'pdf_export') {
               sheets.every(sheet => selectedPdfSheets.includes(sheet.name));
 
             return (
-              <section key={group.key} className="overflow-hidden rounded-2xl border border-slate-300 bg-slate-50">
+              <section key={group.key} className="overflow-hidden rounded-2xl border border-slate-300 bg-slate-50 md:col-span-2">
                 <div className="flex items-center justify-between border-b border-slate-300 bg-slate-100 px-3 py-2">
                   <h3 className="text-sm font-black text-slate-800">{group.title}</h3>
                   <button
