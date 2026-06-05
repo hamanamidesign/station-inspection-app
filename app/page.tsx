@@ -830,7 +830,7 @@ useEffect(() => {
 }, [structEval, impactEval]);
 
 const handleCreateNewSheet = async () => {
-  if (!stationName || !selectedYear) return alert("駅名と年度を入力してください");
+  if (!stationNo || !stationName || !selectedYear) return alert("駅番号、駅名、年度を入力してください");
 
   const currentExistingData =
     existingDataLoadedRouteRef.current === routeFolderId
@@ -877,6 +877,18 @@ const handleCreateNewSheet = async () => {
     });
 
     if (result.success) {
+      try {
+        await gasApi("updateInspectionListMasterStation", {
+          masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+          routeName: selectedRoute,
+          stationNo,
+          station: stationName,
+          year: selectedYear,
+        });
+      } catch (e) {
+        console.error(e);
+        alert(`点検リスト_マスタへの反映に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      }
 
       setSpreadsheetId(result.spreadsheetId);
       setStationFolderId(result.folderId);
