@@ -910,7 +910,7 @@ useEffect(() => {
 
   // 駅や年度が変わったら入力をクリア
   useEffect(() => {
-  if (mode === 'new_entry') return;
+  if (mode === 'new_entry' || mode === 'karte_edit' || mode === 'inclination_edit') return;
 
   setSourceImage(null);
   setFinalImage(null);
