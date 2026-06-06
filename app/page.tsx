@@ -557,16 +557,22 @@ const getInspectionReportEvalClass = (
 ) => {
   const text = String(value || '').trim();
 
-  if (field === 'structEval') {
-    return ['AA', 'A1', 'A2'].includes(text) ? 'text-red-600 font-black' : 'text-black';
-  }
-
   if (field === 'firstEval' || field === 'totalEval') {
     return ['AA', 'A1', 'A2', 'B'].includes(text) ? 'text-red-600 font-black' : 'text-black';
   }
 
   return 'text-black';
 };
+
+const getEvalFontColor = (field: 'structEval' | 'totalEval' | 'firstEval', value: unknown) => {
+  const text = String(value || '').trim();
+  if ((field === 'totalEval' || field === 'firstEval') && ['AA', 'A1', 'A2', 'B'].includes(text)) {
+    return '#dc2626';
+  }
+
+  return '#000000';
+};
+
 const updateInspectionReportRow = (
   rowId: number,
   field: keyof Omit<InspectionReportRow, 'id'>,
@@ -1345,6 +1351,10 @@ const firstPhotoDataList = await Promise.all(
   remarks3,
   photoFiles: validPhotos,
   firstPhotoFiles: validFirstPhotos,
+  evalFontColors: {
+    structEval: getEvalFontColor('structEval', structEval),
+    totalEval: getEvalFontColor('totalEval', totalEval),
+  },
 };
 
 const result = await gasApi(actionType, payload);
@@ -2472,7 +2482,14 @@ async function sendInspectionReport() {
       firstInspector,
       inspectDate,
       inspector,
-      rows,
+      rows: rows.map(row => ({
+        ...row,
+        evalFontColors: {
+          firstEval: getEvalFontColor('firstEval', row.firstEval),
+          structEval: getEvalFontColor('structEval', row.structEval),
+          totalEval: getEvalFontColor('totalEval', row.totalEval),
+        },
+      })),
     });
 
     if (result.success) {
@@ -4190,11 +4207,7 @@ if (mode === 'inclination_menu') {
     </div>
 
     <select
-      className={`w-full outline-none text-center font-black bg-white ${
-        structEval === 'AA' || structEval === 'A1' || structEval === 'A2'
-          ? 'text-red-600'
-          : 'text-black'
-      }`}
+      className="w-full outline-none text-center font-black bg-white text-black"
       value={structEval}
       onChange={(e) => setStructEval(e.target.value)}
     >
