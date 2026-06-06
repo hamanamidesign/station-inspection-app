@@ -139,6 +139,80 @@ const normalizeDateForDateInput = (value: unknown) => {
 const toDisplayText = (value: unknown) =>
   value === null || value === undefined ? '' : String(value);
 
+const getRecordText = (record: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (value !== null && value !== undefined && String(value).trim()) {
+      return String(value);
+    }
+  }
+
+  return '';
+};
+
+const normalizePhotoSrc = (value: unknown): string | null => {
+  if (!value) return null;
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return normalizePhotoSrc(
+      record.url ??
+      record.src ??
+      record.dataUrl ??
+      record.base64 ??
+      record.fileId ??
+      record.id
+    );
+  }
+
+  const text = String(value).trim();
+  if (!text) return null;
+  if (text.startsWith('data:image/')) return text;
+  if (/^https?:\/\//i.test(text)) {
+    const fileId = text.match(/[?&]id=([^&]+)/)?.[1] || text.match(/\/d\/([^/]+)/)?.[1];
+    if (fileId && /drive\.google\.com/i.test(text)) {
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    return text;
+  }
+  if (/^[A-Za-z0-9_-]{20,}$/.test(text)) {
+    return `https://drive.google.com/uc?export=view&id=${text}`;
+  }
+  if (/^iVBORw0KGgo|^\/9j\/|^R0lGOD|^UklGR/i.test(text)) {
+    return `data:image/jpeg;base64,${text}`;
+  }
+
+  return text;
+};
+
+const normalizePhotoArray = (
+  data: Record<string, unknown>,
+  arrayKeys: string[],
+  fieldPrefixes: string[]
+) => {
+  const source = arrayKeys
+    .map(key => data[key])
+    .find(value => Array.isArray(value)) as unknown[] | undefined;
+
+  const photos = Array(4).fill(null) as (string | null)[];
+
+  if (source) {
+    source.slice(0, 4).forEach((value, index) => {
+      photos[index] = normalizePhotoSrc(value);
+    });
+  }
+
+  fieldPrefixes.forEach(prefix => {
+    for (let index = 0; index < 4; index += 1) {
+      const fieldValue = data[`${prefix}${index + 1}`];
+      const normalized = normalizePhotoSrc(fieldValue);
+      if (normalized) photos[index] = normalized;
+    }
+  });
+
+  return photos;
+};
+
 const normalizeMasterKey = (value: unknown) =>
   String(value || '').replace(/\s+/g, '').trim();
 
@@ -1141,36 +1215,43 @@ const result = await gasApi("getKarteData", {
 });
     
     if (result.success) {
-      const d = result.data;
+      const d = toRecord(result.data);
       // 取得データをステートに反映
       setKarteNo(String(d.karteNo));
-      setStructEval(String(d.structEval || ''));
-      setImpactEval(String(d.impactEval || ''));
-      setTotalEval(String(d.totalEval || ''));
-      setPrevYearEval(String(d.prevYearEval || ''));
-      setFirstKarteNo(String(d.firstKarteNo || ''));
+      setStructEval(getRecordText(d, ['structEval', 'structureEval', 'structuralEval']));
+      setImpactEval(getRecordText(d, ['impactEval']));
+      setTotalEval(getRecordText(d, ['totalEval', 'evaluation']));
+      setPrevYearEval(getRecordText(d, ['prevYearEval', 'previousYearEval']));
+      setFirstKarteNo(getRecordText(d, ['firstKarteNo', 'initialKarteNo']));
       setFirstDate(normalizeDateForDateInput(d.firstDate));
-      setFirstInspector(String(d.firstInspector || ''));
-      setFirstFinish(String(d.firstFinish || ''));
-      setFirstSituation(String(d.firstSituation || ''));
-      setFirstDetail(String(d.firstDetail || ''));
+      setFirstInspector(getRecordText(d, ['firstInspector', 'initialInspector']));
+      setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
+      setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
+      setFirstDetail(getRecordText(d, ['firstDetail', 'initialDetail', 'firstRemarks3']));
       setInspectDate(normalizeDateForDateInput(d.inspectDate));
       setContractor(
       String(d.contractor || '').trim()
        ? String(d.contractor)
        : contractor
         );
-      setBuildingCategory(String(d.buildingCategory || ''));
-      setInspectionPlace(String(d.inspectionPlace || ''));
-      setLocationDetail(String(d.locationDetail || ''));
-      setInspector(String(d.inspector || ''));
-      setRemarks1(d.remarks1 || '');
-      setRemarks2(d.remarks2 || '');
-      setRemarks3(d.remarks3 || '');
+      setBuildingCategory(getRecordText(d, ['buildingCategory', 'buildingName']));
+      setInspectionPlace(getRecordText(d, ['inspectionPlace', 'place']));
+      setLocationDetail(getRecordText(d, ['locationDetail', 'detailPlace']));
+      setInspector(getRecordText(d, ['inspector']));
+      setRemarks1(getRecordText(d, ['remarks1', 'currentFinish', 'latestFinish']));
+      setRemarks2(getRecordText(d, ['remarks2', 'currentSituation', 'latestSituation', 'situation']));
+      setRemarks3(getRecordText(d, ['remarks3', 'currentDetail', 'latestDetail', 'detail']));
 
-        // ★これを追加
-      setPhotos((d.photos || Array(4).fill(null)).slice(0, 4));
-      setFirstPhotos((d.firstPhotos || Array(4).fill(null)).slice(0, 4));
+      setPhotos(normalizePhotoArray(
+        d,
+        ['photos', 'photoUrls', 'currentPhotos', 'currentPhotoUrls', 'latestPhotos', 'latestPhotoUrls'],
+        ['photo', 'currentPhoto', 'latestPhoto']
+      ));
+      setFirstPhotos(normalizePhotoArray(
+        d,
+        ['firstPhotos', 'firstPhotoUrls', 'initialPhotos', 'initialPhotoUrls'],
+        ['firstPhoto', 'initialPhoto']
+      ));
 
       setIsEditMode(true);
       setMode('karte_edit');
