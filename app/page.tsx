@@ -87,6 +87,23 @@ interface InspectionReportRow {
 }
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
+const DEFAULT_ROUTE_LIST: RouteItem[] = [
+  {
+    name: "南海高野線",
+    folderId: "1Ch_LXN-70xe5Pn6nZed5NodeOZZdMuyy",
+    createdAt: "2026-05-19T10:35:38.426Z",
+  },
+  {
+    name: "南海泉北線",
+    folderId: "16ZmNyom3m2h0PcD9fsP6dAK2Ql-egHlZ",
+    createdAt: "2026-06-06T00:48:50.098Z",
+  },
+  {
+    name: "南海本線",
+    folderId: "1alQwlJrIx-nxe6YAwUaag5YT3X2FNrn0",
+    createdAt: "2026-06-06T00:49:23.505Z",
+  },
+];
 
 const createEmptySlopeRows = (count = 16): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -632,6 +649,11 @@ const loadRoutes = useCallback(async () => {
     }
   } catch {
     // キャッシュが壊れていてもGASから再取得する
+  }
+
+  if (!hasUsableCache && DEFAULT_ROUTE_LIST.length > 0) {
+    setRouteList(DEFAULT_ROUTE_LIST);
+    hasUsableCache = true;
   }
 
   try {
