@@ -563,6 +563,7 @@ useEffect(() => {
   const routesLoadedRef = useRef(false);
   const routesLoadingRef = useRef(false);
   const inspectionReportLoadIdRef = useRef(0);
+  const createNewInFlightRef = useRef(false);
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
 
@@ -1007,6 +1008,7 @@ useEffect(() => {
 }, [structEval, impactEval]);
 
 const handleCreateNewSheet = async () => {
+  if (createNewInFlightRef.current || isLoading) return;
   if (!stationNo || !stationName || !selectedYear) return alert("駅番号、駅名、年度を入力してください");
 
   const currentExistingData =
@@ -1041,6 +1043,7 @@ const handleCreateNewSheet = async () => {
   }
 
   // 重複がなければ新規作成実行
+  createNewInFlightRef.current = true;
   setIsLoading(true);
 
   try {
@@ -1079,6 +1082,7 @@ const handleCreateNewSheet = async () => {
 
   } finally {
 
+    createNewInFlightRef.current = false;
     setIsLoading(false);
 
   }
