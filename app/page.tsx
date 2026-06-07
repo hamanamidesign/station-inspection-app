@@ -231,14 +231,31 @@ const buildImageDataUrl = (base64: string, mimeType?: string) => {
   return `data:${mimeType || detectImageMimeTypeFromBase64(value)};base64,${value}`;
 };
 
-const getScaledImageSize = (width: number, height: number, maxSize: number) => {
-  const scale = Math.min(1, maxSize / Math.max(width, height));
+const getScaledImageSize = (width: number, height: number, maxPixels: number) => {
+  const pixels = Math.max(1, width * height);
+  const scale = Math.min(1, Math.sqrt(maxPixels / pixels));
 
   return {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
     scale,
   };
+};
+
+const getCanvasDataUrlUnderLimit = (
+  canvas: HTMLCanvasElement,
+  maxBase64Length: number,
+  initialQuality = 0.82
+) => {
+  let quality = initialQuality;
+  let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+  while (dataUrl.length > maxBase64Length && quality > 0.42) {
+    quality -= 0.08;
+    dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+
+  return dataUrl;
 };
 
 const normalizePhotoArray = (
@@ -4935,7 +4952,7 @@ if (mode === 'inclination_menu') {
       const img = imageRef.current;
       if (!img) throw new Error("位置図画像を読み込めていません");
 
-      const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 2400);
+      const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 900000);
       canvas.width = outputSize.width;
       canvas.height = outputSize.height;
       const ctx = canvas.getContext('2d');
@@ -4965,10 +4982,13 @@ if (mode === 'inclination_menu') {
         ctx.fillText(m.label, x, y);
       });
 
-      const combinedBase64 = canvas.toDataURL('image/png').split(',')[1];
+      const outputDataUrl = getCanvasDataUrlUnderLimit(canvas, 1800000);
+      const combinedBase64 = outputDataUrl.split(',')[1];
       const payload = {
         spreadsheetId,
         imageData: combinedBase64,
+        imageMimeType: 'image/jpeg',
+        imageFileName: 'marked_map.jpg',
         stationNo: stationNo
       };
 
