@@ -4966,9 +4966,9 @@ if (mode === 'inclination_menu') {
       markers.forEach(m => {
         const x = (m.x / 100) * canvas.width;
         const y = (m.y / 100) * canvas.height;
-        const size = Math.max(24, Math.round(30 * outputSize.scale)); 
+        const size = Math.max(28, Math.round(34 * outputSize.scale));
         ctx.beginPath();
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 2.5;
         ctx.strokeStyle = m.color;
         ctx.fillStyle = "white";
         if (m.shape === 'circle') { ctx.arc(x, y, size/2, 0, Math.PI * 2); } 
@@ -5140,8 +5140,8 @@ if (mode === 'editor') {
       left: `${m.x}%`, 
       top: `${m.y}%`, 
       transform: 'translate(-50%,-50%)', 
-      width: '30px', 
-      height: '30px', 
+      width: '24px', 
+      height: '24px', 
       border: `2px solid ${m.color}`, 
       color: m.color, 
       borderRadius: m.shape === 'circle' ? '50%' : '6px',
