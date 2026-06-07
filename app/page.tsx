@@ -25,6 +25,17 @@ interface RouteItem {
   createdAt?: string;
 }
 
+interface DriveFolderItem {
+  id: string;
+  name: string;
+}
+
+interface DriveMapItem {
+  id: string;
+  name: string;
+  thumbUrl: string;
+}
+
 interface CellStyle {
   color?: string;
   backgroundColor?: string;
@@ -528,7 +539,10 @@ useEffect(() => {
   // --- 位置図エディタ用ステート ---
   const [sourceImage, setSourceImage] = useState<string | null>(null);
   const [finalImage, setFinalImage] = useState<string | null>(null);
-  const [driveMaps, setDriveMaps] = useState<{ id: string, name: string, thumbUrl: string }[]>([]);
+  const [driveMaps, setDriveMaps] = useState<DriveMapItem[]>([]);
+  const [driveFolders, setDriveFolders] = useState<DriveFolderItem[]>([]);
+  const [driveCurrentFolder, setDriveCurrentFolder] = useState<DriveFolderItem | null>(null);
+  const [driveParentFolder, setDriveParentFolder] = useState<DriveFolderItem | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -4882,6 +4896,23 @@ if (mode === 'inclination_menu') {
   // --- 次のモード（editorなど）がここから始まる ---
 
 // ★★★ ここに handleSaveMap を貼り付けます ★★★
+  const loadDriveMapFolder = async (folderId?: string) => {
+    setIsLoading(true);
+    try {
+      const result = await gasApi("getMaps", folderId ? { folderId } : {});
+
+      setDriveMaps(Array.isArray(result.list) ? result.list : []);
+      setDriveFolders(Array.isArray(result.folders) ? result.folders : []);
+      setDriveCurrentFolder(result.currentFolder || null);
+      setDriveParentFolder(result.parentFolder || null);
+      setShowMapPicker(true);
+    } catch (e) {
+      alert("マップの取得に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveMap = async () => {
     if (!finalImage || isSending) return;
     setIsSending(true);
@@ -4971,21 +5002,7 @@ if (mode === 'editor') {
   />
 </div>
         <button onClick={() => window.open(`https://www.google.com/search?q=${stationName}+構内図&tbm=isch`, '_blank')} className="flex-1 p-4 bg-slate-800 text-white rounded-2xl font-bold">🔍 Web検索</button>
-        <button onClick={async () => {
-        setIsLoading(true); // ★ここでくるくるを開始
-        try {
-        const result = await gasApi("getMaps");
-        const data = result.list;
-        if (Array.isArray(data)) { 
-        setDriveMaps(data); 
-       setShowMapPicker(true); 
-       }
-        } catch (e) { 
-       alert("マップの取得に失敗しました"); 
-       } finally { 
-        setIsLoading(false); // ★終わったらくるくるを消す
-       }
-        }} className="transition-all active:scale-95 active:brightness-90 flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-bold">
+        <button onClick={() => loadDriveMapFolder()} className="transition-all active:scale-95 active:brightness-90 flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-bold">
         📂 ドライブ
         </button>
       </>
@@ -5212,11 +5229,62 @@ if (mode === 'editor') {
         {/* ドライブ画像選択モーダル */}
         {showMapPicker && (
           <div className="fixed inset-0 bg-white z-[110] flex flex-col p-6 animate-slide-up">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">ドライブから位置図を選択</h3>
+            <div className="flex justify-between items-start gap-4 mb-4">
+              <div className="min-w-0">
+                <h3 className="text-xl font-bold">ドライブから位置図を選択</h3>
+                <p className="mt-1 truncate text-sm font-bold text-slate-500">
+                  {driveCurrentFolder?.name || "初期フォルダ"}
+                </p>
+              </div>
               <button onClick={() => setShowMapPicker(false)} className="transition-all active:scale-95 active:brightness-90 text-2xl">✕</button>
             </div>
-            <div className="grid grid-cols-2 gap-4 overflow-y-auto pb-10">
+
+            <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+              {driveParentFolder && (
+                <button
+                  type="button"
+                  onClick={() => loadDriveMapFolder(driveParentFolder.id)}
+                  className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 active:scale-95"
+                >
+                  ↑ 上のフォルダ
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => loadDriveMapFolder()}
+                className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 active:scale-95"
+              >
+                初期フォルダ
+              </button>
+            </div>
+
+            <div className="overflow-y-auto pb-10">
+              {driveFolders.length > 0 && (
+                <div className="mb-6">
+                  <div className="mb-2 text-xs font-black uppercase text-slate-400">フォルダ</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {driveFolders.map(folder => (
+                      <button
+                        key={folder.id}
+                        type="button"
+                        onClick={() => loadDriveMapFolder(folder.id)}
+                        className="transition-all active:scale-95 active:brightness-90 flex min-h-[64px] items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left font-bold text-slate-700"
+                      >
+                        <span className="text-xl">📁</span>
+                        <span className="min-w-0 truncate text-sm">{folder.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-2 text-xs font-black uppercase text-slate-400">画像</div>
+              {driveMaps.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">
+                  このフォルダに画像はありません。
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
               {driveMaps.map(m => (
                 <button key={m.id} onClick={async () => {
                   setIsLoading(true);
@@ -5237,6 +5305,8 @@ if (mode === 'editor') {
                   <span className="text-[10px] font-bold text-slate-600 truncate w-full text-left">{m.name}</span>
                 </button>
               ))}
+                </div>
+              )}
             </div>
           </div>
         )}
