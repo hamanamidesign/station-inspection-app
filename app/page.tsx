@@ -2258,9 +2258,9 @@ if (mode === 'exist_select') return (
 if (mode === 'pdf_export') {
   const groups: { key: keyof PdfSheetGroups; title: string }[] = [
     { key: 'cover', title: '表紙' },
+    { key: 'photoPositionMap', title: '写真カルテ番号位置図' },
     { key: 'inspectionReport', title: '施設点検報告書' },
     { key: 'photo', title: '写真カルテ' },
-    { key: 'photoPositionMap', title: '写真カルテ番号位置図' },
     { key: 'slope', title: '傾斜表' },
     { key: 'inclination', title: '傾斜測定カルテ' },
   ];
@@ -2316,7 +2316,7 @@ if (mode === 'pdf_export') {
                       作成済みシートなし
                     </div>
                   ) : (
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className={`grid gap-2 ${group.key === 'photo' ? 'grid-cols-5' : 'grid-cols-1'}`}>
                       {sheets.map(sheet => {
                         const checked = selectedPdfSheets.includes(sheet.name);
 
@@ -2325,7 +2325,7 @@ if (mode === 'pdf_export') {
                             key={sheet.name}
                             type="button"
                             onClick={() => togglePdfSheet(sheet.name)}
-                            className={`min-h-10 rounded-xl border px-2 py-2 text-sm font-black active:scale-95 ${
+                            className={`min-h-10 rounded-xl border px-2 py-2 text-sm font-black leading-tight active:scale-95 ${
                               checked
                                 ? "border-indigo-600 bg-indigo-600 text-white"
                                 : "border-slate-300 bg-white text-slate-700"
