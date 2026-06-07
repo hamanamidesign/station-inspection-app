@@ -117,7 +117,7 @@ const DEFAULT_ROUTE_LIST: RouteItem[] = [
   },
 ];
 
-const createEmptySlopeRows = (count = 16): SlopeTableRow[] =>
+const createEmptySlopeRows = (count = 10): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
     id: Date.now() + index,
     slopeType: '',
@@ -3566,7 +3566,15 @@ if (mode === 'slope_table') {
           </div>
         </div>
 
-<div className="mt-4 flex justify-center">
+<div className="mt-4 flex flex-wrap justify-center gap-3">
+  <button
+    type="button"
+    onClick={addSlopeRow}
+    disabled={isSending}
+    className="w-[220px] rounded-xl border-2 border-blue-600 bg-white py-4 text-lg font-black text-blue-700 shadow active:scale-95 disabled:border-slate-300 disabled:text-slate-400"
+  >
+    行を増やす
+  </button>
   <button
     type="button"
     onClick={sendSlopeTable}
