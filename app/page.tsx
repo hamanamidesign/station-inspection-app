@@ -72,12 +72,13 @@ interface InspectorRegistration {
 interface PdfSheetOption {
   name: string;
   label: string;
-  group: 'cover' | 'photo' | 'slope' | 'inclination' | 'inspectionReport';
+  group: 'cover' | 'photo' | 'photoPositionMap' | 'slope' | 'inclination' | 'inspectionReport';
 }
 
 interface PdfSheetGroups {
   cover: PdfSheetOption[];
   photo: PdfSheetOption[];
+  photoPositionMap: PdfSheetOption[];
   slope: PdfSheetOption[];
   inclination: PdfSheetOption[];
   inspectionReport: PdfSheetOption[];
@@ -604,7 +605,7 @@ useEffect(() => {
   const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
-  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ cover: [], photo: [], slope: [], inclination: [], inspectionReport: [] });
+  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ cover: [], photo: [], photoPositionMap: [], slope: [], inclination: [], inspectionReport: [] });
   const [selectedPdfSheets, setSelectedPdfSheets] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
@@ -1580,6 +1581,7 @@ const loadPdfSheetOptions = async () => {
     const groups: PdfSheetGroups = {
       cover: Array.isArray(result.groups?.cover) ? result.groups.cover : [],
       photo: Array.isArray(result.groups?.photo) ? result.groups.photo : [],
+      photoPositionMap: Array.isArray(result.groups?.photoPositionMap) ? result.groups.photoPositionMap : [],
       slope: Array.isArray(result.groups?.slope) ? result.groups.slope : [],
       inclination: Array.isArray(result.groups?.inclination) ? result.groups.inclination : [],
       inspectionReport: Array.isArray(result.groups?.inspectionReport) ? result.groups.inspectionReport : [],
@@ -1590,6 +1592,7 @@ const loadPdfSheetOptions = async () => {
     const allSheetNames = [
       ...groups.cover,
       ...groups.photo,
+      ...groups.photoPositionMap,
       ...groups.slope,
       ...groups.inclination,
       ...groups.inspectionReport,
@@ -1636,6 +1639,7 @@ const createPdf = async () => {
       { kind: "cover", suffix: "表紙", sheetNames: pdfSheets.cover.map(sheet => sheet.name) },
       { kind: "inspectionReport", suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
       { kind: "photo", suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
+      { kind: "photoPositionMap", suffix: "写真カルテ番号位置図", sheetNames: pdfSheets.photoPositionMap.map(sheet => sheet.name) },
       { kind: "slope", suffix: "傾斜表", sheetNames: pdfSheets.slope.map(sheet => sheet.name) },
       { kind: "inclination", suffix: "傾斜測定カルテ", sheetNames: pdfSheets.inclination.map(sheet => sheet.name) },
     ]
@@ -2256,6 +2260,7 @@ if (mode === 'pdf_export') {
     { key: 'cover', title: '表紙' },
     { key: 'inspectionReport', title: '施設点検報告書' },
     { key: 'photo', title: '写真カルテ' },
+    { key: 'photoPositionMap', title: '写真カルテ番号位置図' },
     { key: 'slope', title: '傾斜表' },
     { key: 'inclination', title: '傾斜測定カルテ' },
   ];
