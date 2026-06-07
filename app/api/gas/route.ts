@@ -116,6 +116,55 @@ const jsonResponse = (obj: unknown, status = 200) =>
 const withActionLabel = (message: string, action?: string | null) =>
   action ? `${message} action=${action}` : message;
 
+const detectImageMimeTypeFromBase64 = (base64: string) => {
+  const value = base64.trim();
+
+  if (value.startsWith("iVBORw0KGgo")) return "image/png";
+  if (value.startsWith("/9j/")) return "image/jpeg";
+  if (value.startsWith("R0lGOD")) return "image/gif";
+  if (value.startsWith("UklGR")) return "image/webp";
+
+  return "image/png";
+};
+
+const normalizeMapBase64Response = (text: string, status: number) => {
+  const trimmed = text.trim();
+
+  if (!trimmed) {
+    return jsonResponse({
+      success: false,
+      error: `位置図画像の取得結果が空でした。HTTP ${status}`,
+    }, status || 502);
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+
+    if (parsed?.success === false) {
+      return jsonResponse(parsed, status);
+    }
+
+    if (typeof parsed?.base64 === "string") {
+      return jsonResponse({
+        success: true,
+        base64: parsed.base64,
+        mimeType: parsed.mimeType || detectImageMimeTypeFromBase64(parsed.base64),
+      }, status);
+    }
+
+    return jsonResponse({
+      success: false,
+      error: parsed?.error || "位置図画像のBase64データが取得できませんでした",
+    }, status || 502);
+  } catch {
+    return jsonResponse({
+      success: status >= 200 && status < 300,
+      base64: trimmed,
+      mimeType: detectImageMimeTypeFromBase64(trimmed),
+    }, status);
+  }
+};
+
 // ===============================
 // GET (一覧取得など)
 // ===============================
@@ -170,6 +219,10 @@ export async function POST(req: Request) {
       method: "POST",
       body,
     }, getGasTimeoutMs(action));
+
+    if (action === "getMapBase64") {
+      return normalizeMapBase64Response(text, status);
+    }
 
     return new Response(text, {
       status,

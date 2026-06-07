@@ -202,6 +202,24 @@ const normalizePhotoSrc = (value: unknown): string | null => {
   return text;
 };
 
+const detectImageMimeTypeFromBase64 = (base64: string) => {
+  const value = base64.trim();
+
+  if (value.startsWith("iVBORw0KGgo")) return "image/png";
+  if (value.startsWith("/9j/")) return "image/jpeg";
+  if (value.startsWith("R0lGOD")) return "image/gif";
+  if (value.startsWith("UklGR")) return "image/webp";
+
+  return "image/png";
+};
+
+const buildImageDataUrl = (base64: string, mimeType?: string) => {
+  const value = base64.trim();
+  if (value.startsWith("data:image/")) return value;
+
+  return `data:${mimeType || detectImageMimeTypeFromBase64(value)};base64,${value}`;
+};
+
 const normalizePhotoArray = (
   data: Record<string, unknown>,
   arrayKeys: string[],
@@ -564,10 +582,6 @@ useEffect(() => {
   const routesLoadingRef = useRef(false);
   const inspectionReportLoadIdRef = useRef(0);
   const createNewInFlightRef = useRef(false);
-
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbyLyGHlZ-v5lXMEibJKr50x_M7Al-3TRmmvp1Wnotxz4NCpu0EIzXJoyZvZnRW8c-IUXA/exec";
-
-
 
 const getInspectionReportEvalClass = (
   field: keyof Omit<InspectionReportRow, 'id'>,
@@ -4904,13 +4918,12 @@ if (mode === 'inclination_menu') {
 
       const combinedBase64 = canvas.toDataURL('image/png').split(',')[1];
       const payload = {
-        action: "uploadPhotos",
         spreadsheetId,
         imageData: combinedBase64,
         stationNo: stationNo
       };
 
-      await gasApi("saveMarkers", payload);
+      await gasApi("uploadPhotos", payload);
       alert("位置図を保存しました。");
     } catch (e) {
       alert("保存に失敗しました");
@@ -5208,23 +5221,15 @@ if (mode === 'editor') {
                 <button key={m.id} onClick={async () => {
                   setIsLoading(true);
                   try {
-                    const res = await fetch(GAS_URL, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    action: "getMapBase64",
-    id: m.id
-  })
-});
+                    const result = await gasApi("getMapBase64", { id: m.id });
+                    const base64 = String(result.base64 || "").trim();
 
-const base64 = await res.text();
-// ★ここに追加！！
-if (!base64 || base64.startsWith("{")) {
-  throw new Error("Base64取得失敗");
-}
+                    if (!base64) {
+                      throw new Error("Base64取得失敗");
+                    }
 
-setSourceImage(`data:image/png;base64,${base64}`);
-setShowMapPicker(false);
+                    setSourceImage(buildImageDataUrl(base64, result.mimeType));
+                    setShowMapPicker(false);
 
                   } catch (e) { alert("読込失敗"); } finally { setIsLoading(false); }
                 }} className="transition-all active:scale-95 active:brightness-90 flex flex-col gap-2 p-2 bg-slate-50 rounded-xl active:bg-slate-200">
