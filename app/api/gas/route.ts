@@ -28,6 +28,7 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "getInclinationKarteSheets":
     case "getInspectionReportData":
     case "getMapBase64":
+    case "getMapEditorData":
       return 45000;
     case "createNew":
     case "uploadKarte":

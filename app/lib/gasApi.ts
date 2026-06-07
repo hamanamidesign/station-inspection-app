@@ -12,6 +12,7 @@ const RETRYABLE_ACTIONS = new Set([
   "getInclinationKarteSheets",
   "getInspectionReportData",
   "getMapBase64",
+  "getMapEditorData",
 ]);
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

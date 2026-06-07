@@ -952,6 +952,12 @@ useEffect(() => {
 }, [mode, spreadsheetId]);
 
 useEffect(() => {
+  if (mode === 'editor' && spreadsheetId && !sourceImage && !finalImage) {
+    loadSavedMapEditorData(true).catch(e => console.error(e));
+  }
+}, [mode, spreadsheetId]);
+
+useEffect(() => {
   if (mode === 'pdf_export' && spreadsheetId) {
     loadPdfSheetOptions().catch(e => console.error(e));
   }
@@ -4964,6 +4970,47 @@ if (mode === 'inclination_menu') {
     return String(stationNo || '').trim();
   };
 
+  const loadSavedMapEditorData = async (silent = false) => {
+    if (!spreadsheetId) return;
+
+    setIsLoading(true);
+    try {
+      const result = await gasApi("getMapEditorData", { spreadsheetId });
+      const data = result.data || {};
+      const restoredFinalImage = typeof data.finalImage === 'string' ? data.finalImage : '';
+      const restoredMarkers = Array.isArray(data.markers) ? data.markers : [];
+
+      if (!restoredFinalImage) {
+        if (!silent) alert("保存済みの位置図編集データはありません");
+        return;
+      }
+
+      setSourceImage(null);
+      setFinalImage(restoredFinalImage);
+      setMarkers(
+        restoredMarkers
+          .map((marker: Partial<Marker>, index: number) => ({
+            id: Number(marker.id) || Date.now() + index,
+            x: Number(marker.x) || 0,
+            y: Number(marker.y) || 0,
+            label: String(marker.label || index + 1),
+            color: (marker.color === 'black' || marker.color === '#5372fc') ? marker.color : 'red',
+            shape: marker.shape === 'square' ? 'square' : 'circle',
+          }))
+          .filter((marker: Marker) => Number.isFinite(marker.x) && Number.isFinite(marker.y))
+      );
+
+      if (!silent) alert("保存済みの位置図を読み込みました");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (!silent || !/Unknown action|action=getMapEditorData/i.test(message)) {
+        alert(`保存済み位置図の読み込みに失敗しました: ${message}`);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveMap = async () => {
     if (!finalImage || isSending) return;
     if (!spreadsheetId) {
@@ -5021,7 +5068,16 @@ if (mode === 'inclination_menu') {
         masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
         routeName: selectedRoute,
         station: stationName,
-        year: selectedYear
+        year: selectedYear,
+        editorData: {
+          finalImage,
+          markers,
+          routeName: selectedRoute,
+          station: stationName,
+          year: selectedYear,
+          stationNo: mapStationNo,
+          updatedAt: new Date().toISOString(),
+        }
       };
 
       await gasApi("uploadPhotos", payload);
@@ -5062,6 +5118,9 @@ if (mode === 'editor') {
   <div className="w-full max-w-2xl bg-white p-4 rounded-3xl shadow-sm mb-6 flex gap-2">
     {!sourceImage && !finalImage ? (
       <>
+        <button onClick={() => loadSavedMapEditorData(false)} className="transition-all active:scale-95 active:brightness-90 flex-1 p-4 bg-indigo-600 text-white rounded-2xl font-bold">
+        保存済み
+        </button>
         <button onClick={() => window.open(`https://www.google.com/search?q=${stationName}+構内図&tbm=isch`, '_blank')} className="flex-1 p-4 bg-slate-800 text-white rounded-2xl font-bold">🔍 Web検索</button>
         <button onClick={() => loadDriveMapFolder()} className="transition-all active:scale-95 active:brightness-90 flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-bold">
         📂 ドライブ
@@ -5073,10 +5132,11 @@ if (mode === 'editor') {
               await new Promise((resolve) => { img.onload = resolve; });
               const canvas = document.createElement('canvas');
               const cp = croppedAreaPixels;
-              canvas.width = cp.width; canvas.height = cp.height;
+              const cropOutputSize = getScaledImageSize(cp.width, cp.height, 900000);
+              canvas.width = cropOutputSize.width; canvas.height = cropOutputSize.height;
               const ctx = canvas.getContext('2d');
               if (ctx) {
-                ctx.drawImage(img, cp.x, cp.y, cp.width, cp.height, 0, 0, cp.width, cp.height);
+                ctx.drawImage(img, cp.x, cp.y, cp.width, cp.height, 0, 0, canvas.width, canvas.height);
                 const idata = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 // モノクロ化 (白黒) 処理
                 for (let i = 0; i < idata.data.length; i += 4) {
@@ -5084,7 +5144,7 @@ if (mode === 'editor') {
                   idata.data[i] = idata.data[i + 1] = idata.data[i + 2] = g;
                 }
                 ctx.putImageData(idata, 0, 0);
-                setFinalImage(canvas.toDataURL('image/png'));
+                setFinalImage(getCanvasDataUrlUnderLimit(canvas, 1800000));
               }
             }} className="transition-all active:scale-95 active:brightness-90 w-full p-4 bg-amber-500 text-white rounded-2xl font-bold shadow-lg">📌 この範囲で確定（モノクロ化）</button>
           ) : (
