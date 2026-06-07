@@ -469,6 +469,18 @@ const normalizeSlopeRow = (row: Partial<SlopeTableRow>, index: number): SlopeTab
   cellStyles: row.cellStyles,
 });
 
+const padSlopeRowsForDisplay = (rows: SlopeTableRow[], inspectList: unknown[] = []) => {
+  const requiredCount = Math.max(10, rows.length, inspectList.length);
+  const targetCount = Math.ceil(requiredCount / 10) * 10;
+
+  if (rows.length >= targetCount) return rows;
+
+  return [
+    ...rows,
+    ...createEmptySlopeRows(targetCount - rows.length),
+  ];
+};
+
 const isMissingSlopeTableError = (error: unknown) =>
   error instanceof Error && error.message.includes("傾斜表シートが見つかりません");
 
@@ -2778,13 +2790,14 @@ const result = await gasApi("getSlopeTableData", {
       setInspectDate(formatSheetDateText(result.inspectDate));
     }
     if (result.evalType !== undefined && result.evalType !== null) {setEvalType(String(result.evalType));}
-    setInspectList(result.inspectList || []);
+    const nextInspectList = Array.isArray(result.inspectList) ? result.inspectList : [];
+    setInspectList(nextInspectList);
 
     const loadedSlopeRows = Array.isArray(result.rows)
       ? result.rows.map((row: Partial<SlopeTableRow>, index: number) => normalizeSlopeRow(row, index))
       : createEmptySlopeRows();
 
-    setSlopeRows(loadedSlopeRows);
+    setSlopeRows(padSlopeRowsForDisplay(loadedSlopeRows, nextInspectList));
 
     if (mode === 'inclination_menu') {
       try {
