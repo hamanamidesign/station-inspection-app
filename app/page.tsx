@@ -4943,6 +4943,27 @@ if (mode === 'inclination_menu') {
     }
   };
 
+  const fetchMapStationNo = async () => {
+    if (!selectedRoute || !stationName || !selectedYear) {
+      return String(stationNo || '').trim();
+    }
+
+    const result = await gasApi("getInspectionListDates", {
+      masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+      routeName: selectedRoute,
+      station: stationName,
+      year: selectedYear,
+    });
+    const nextStationNo = String(result.stationNo || '').trim();
+
+    if (nextStationNo) {
+      setStationNo(nextStationNo);
+      return nextStationNo;
+    }
+
+    return String(stationNo || '').trim();
+  };
+
   const handleSaveMap = async () => {
     if (!finalImage || isSending) return;
     if (!spreadsheetId) {
@@ -4954,6 +4975,10 @@ if (mode === 'inclination_menu') {
       const canvas = document.createElement('canvas');
       const img = imageRef.current;
       if (!img) throw new Error("位置図画像を読み込めていません");
+      const mapStationNo = await fetchMapStationNo();
+      if (!mapStationNo) {
+        throw new Error("点検リスト_マスタから駅No.を取得できませんでした");
+      }
 
       const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 900000);
       canvas.width = outputSize.width;
@@ -4992,7 +5017,11 @@ if (mode === 'inclination_menu') {
         imageData: combinedBase64,
         imageMimeType: 'image/jpeg',
         imageFileName: 'marked_map.jpg',
-        stationNo: stationNo
+        stationNo: mapStationNo,
+        masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
+        routeName: selectedRoute,
+        station: stationName,
+        year: selectedYear
       };
 
       await gasApi("uploadPhotos", payload);
@@ -5033,17 +5062,6 @@ if (mode === 'editor') {
   <div className="w-full max-w-2xl bg-white p-4 rounded-3xl shadow-sm mb-6 flex gap-2">
     {!sourceImage && !finalImage ? (
       <>
-      {/* 駅No. 入力項目 */}
-      <div className="w-full mb-4 px-2">
-      <label className="block text-slate-700 font-bold mb-1 text-sm">駅No.</label>
-     <input
-      type="number"
-      value={stationNo}
-     onChange={(e) => setStationNo(e.target.value)}
-      placeholder="数字を入力（例: 123）"
-      className="w-full p-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 outline-none transition-all text-black"
-  />
-</div>
         <button onClick={() => window.open(`https://www.google.com/search?q=${stationName}+構内図&tbm=isch`, '_blank')} className="flex-1 p-4 bg-slate-800 text-white rounded-2xl font-bold">🔍 Web検索</button>
         <button onClick={() => loadDriveMapFolder()} className="transition-all active:scale-95 active:brightness-90 flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-bold">
         📂 ドライブ
