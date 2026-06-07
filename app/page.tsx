@@ -4926,7 +4926,10 @@ if (mode === 'inclination_menu') {
   const loadDriveMapFolder = async (folderId?: string) => {
     setIsLoading(true);
     try {
-      const result = await gasApi("getMaps", folderId ? { folderId } : {});
+      const result = await gasApi(
+        "getMaps",
+        folderId ? { folderId } : { routeName: selectedRoute }
+      );
 
       setDriveMaps(Array.isArray(result.list) ? result.list : []);
       setDriveFolders(Array.isArray(result.folders) ? result.folders : []);
