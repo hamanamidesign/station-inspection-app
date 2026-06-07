@@ -231,6 +231,16 @@ const buildImageDataUrl = (base64: string, mimeType?: string) => {
   return `data:${mimeType || detectImageMimeTypeFromBase64(value)};base64,${value}`;
 };
 
+const getScaledImageSize = (width: number, height: number, maxSize: number) => {
+  const scale = Math.min(1, maxSize / Math.max(width, height));
+
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+    scale,
+  };
+};
+
 const normalizePhotoArray = (
   data: Record<string, unknown>,
   arrayKeys: string[],
@@ -2007,7 +2017,7 @@ if (mode === 'exist_select') return (
 
           <button
             onClick={() => goTo('task_select')}
-            disabled={!stationName || !selectedYear}
+            disabled={!stationName || !selectedYear || !spreadsheetId}
             className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold"
           >
             この駅を編集
@@ -4915,23 +4925,31 @@ if (mode === 'inclination_menu') {
 
   const handleSaveMap = async () => {
     if (!finalImage || isSending) return;
+    if (!spreadsheetId) {
+      alert("スプレッドシートIDがありません。駅と年度を選び直してください。");
+      return;
+    }
     setIsSending(true);
     try {
       const canvas = document.createElement('canvas');
       const img = imageRef.current;
-      if (!img) return;
+      if (!img) throw new Error("位置図画像を読み込めていません");
 
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 2400);
+      canvas.width = outputSize.width;
+      canvas.height = outputSize.height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!canvas.width || !canvas.height) {
+        throw new Error("位置図画像のサイズを取得できません");
+      }
+      if (!ctx) throw new Error("画像処理を開始できません");
 
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       markers.forEach(m => {
         const x = (m.x / 100) * canvas.width;
         const y = (m.y / 100) * canvas.height;
-        const size = 30; 
+        const size = Math.max(24, Math.round(30 * outputSize.scale)); 
         ctx.beginPath();
         ctx.lineWidth = 4;
         ctx.strokeStyle = m.color;
@@ -4957,7 +4975,9 @@ if (mode === 'inclination_menu') {
       await gasApi("uploadPhotos", payload);
       alert("位置図を保存しました。");
     } catch (e) {
-      alert("保存に失敗しました");
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("位置図保存エラー", e);
+      alert(`保存に失敗しました: ${message}`);
     } finally {
       setIsSending(false);
     }
@@ -5228,8 +5248,9 @@ if (mode === 'editor') {
 
         {/* ドライブ画像選択モーダル */}
         {showMapPicker && (
-          <div className="fixed inset-0 bg-white z-[110] flex flex-col p-6 animate-slide-up">
-            <div className="flex justify-between items-start gap-4 mb-4">
+          <div className="fixed inset-0 bg-white z-[110] flex flex-col animate-slide-up">
+            <div className="shrink-0 border-b border-slate-200 bg-white p-4 sm:p-6">
+            <div className="flex justify-between items-start gap-4">
               <div className="min-w-0">
                 <h3 className="text-xl font-bold">ドライブから位置図を選択</h3>
                 <p className="mt-1 truncate text-sm font-bold text-slate-500">
@@ -5239,7 +5260,7 @@ if (mode === 'editor') {
               <button onClick={() => setShowMapPicker(false)} className="transition-all active:scale-95 active:brightness-90 text-2xl">✕</button>
             </div>
 
-            <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
               {driveParentFolder && (
                 <button
                   type="button"
@@ -5257,8 +5278,9 @@ if (mode === 'editor') {
                 初期フォルダ
               </button>
             </div>
+            </div>
 
-            <div className="overflow-y-auto pb-10">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-10 sm:p-6">
               {driveFolders.length > 0 && (
                 <div className="mb-6">
                   <div className="mb-2 text-xs font-black uppercase text-slate-400">フォルダ</div>
