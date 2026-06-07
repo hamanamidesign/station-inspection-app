@@ -4970,6 +4970,46 @@ if (mode === 'inclination_menu') {
     return String(stationNo || '').trim();
   };
 
+  const getNextMapMarkerLabel = (
+    color: Marker['color'],
+    shape: Marker['shape']
+  ) => {
+    const isTargetMarker = (marker: Marker) => {
+      if (color === '#5372fc' && shape === 'square') {
+        return marker.color === '#5372fc' && marker.shape === 'square';
+      }
+
+      if ((color === 'red' || color === 'black') && shape === 'circle') {
+        return (
+          marker.shape === 'circle' &&
+          (marker.color === 'red' || marker.color === 'black')
+        );
+      }
+
+      return true;
+    };
+
+    const maxNumber = markers
+      .filter(isTargetMarker)
+      .map(marker => Number.parseInt(String(marker.label || ''), 10))
+      .filter(Number.isFinite)
+      .reduce((max, value) => Math.max(max, value), 0);
+
+    return String(maxNumber + 1);
+  };
+
+  const updateNewMarkerStyle = (
+    nextColor: Marker['color'],
+    nextShape: Marker['shape']
+  ) => {
+    setFormColor(nextColor);
+    setFormShape(nextShape);
+
+    if (!editingMarker) {
+      setFormLabel(getNextMapMarkerLabel(nextColor, nextShape));
+    }
+  };
+
   const loadSavedMapEditorData = async (silent = false) => {
     if (!spreadsheetId) return;
 
@@ -5210,7 +5250,9 @@ if (mode === 'editor') {
                   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   setTempPos({ x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 });
                   setEditingMarker(null);
-                  setFormLabel(String(markers.length + 1));
+                  setFormColor('red');
+                  setFormShape('circle');
+                  setFormLabel(getNextMapMarkerLabel('red', 'circle'));
                   setShowModal(true);
                 }}
               >
@@ -5304,7 +5346,7 @@ if (mode === 'editor') {
                   <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">カラー</label>
                   <div className="flex gap-4">
                     {(['red', 'black', '#5372fc'] as const).map(c => (
-                      <button key={c} onClick={() => setFormColor(c)} className={`transition-all active:scale-95 active:brightness-90 w-12 h-12 rounded-full border-4 transition-transform ${formColor === c ? 'scale-110 border-slate-300' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+                      <button key={c} onClick={() => updateNewMarkerStyle(c, formShape)} className={`transition-all active:scale-95 active:brightness-90 w-12 h-12 rounded-full border-4 transition-transform ${formColor === c ? 'scale-110 border-slate-300' : 'border-transparent'}`} style={{ backgroundColor: c }} />
                     ))}
                   </div>
                 </div>
@@ -5315,7 +5357,7 @@ if (mode === 'editor') {
                     {([{id:'circle', n:'○'}, {id:'square', n:'□'}] as const).map(s => (
                       <button 
         key={s.id} 
-        onClick={() => setFormShape(s.id)} 
+        onClick={() => updateNewMarkerStyle(formColor, s.id)} 
         className={`transition-all active:scale-95 active:brightness-90 flex-1 py-3 rounded-xl border-2 font-bold transition-all ${
           formShape === s.id 
             ? 'bg-slate-800 text-white border-slate-800' 
