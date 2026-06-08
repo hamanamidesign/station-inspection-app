@@ -1036,13 +1036,19 @@ const saveCompletedPhotoKartes = (next: Set<string>) => {
   );
 };
 
-const markCurrentPhotoKarteComplete = () => {
+const toggleCurrentPhotoKarteComplete = () => {
   const no = String(karteNo || '').trim();
   if (!no) return alert("写真カルテ番号がありません");
 
   setCompletedPhotoKartes(prev => {
     const next = new Set(prev);
-    next.add(no);
+
+    if (next.has(no)) {
+      next.delete(no);
+    } else {
+      next.add(no);
+    }
+
     saveCompletedPhotoKartes(next);
     return next;
   });
@@ -4994,14 +5000,14 @@ if (mode === 'inclination_menu') {
           {isPhoto && (
             <button
               type="button"
-              onClick={markCurrentPhotoKarteComplete}
+              onClick={toggleCurrentPhotoKarteComplete}
               className={`w-full max-w-xl py-3 rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all ${
                 isPhotoKarteComplete(karteNo)
                   ? "bg-emerald-500 text-white"
                   : "bg-amber-400 text-slate-950"
               }`}
             >
-              {isPhotoKarteComplete(karteNo) ? "完了マーク済み" : "完了マーク"}
+              {isPhotoKarteComplete(karteNo) ? "完了マーク解除" : "完了マーク"}
             </button>
           )}
           <button 
