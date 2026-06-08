@@ -571,6 +571,7 @@ useEffect(() => {
 
   // --- 修正・編集用ステート ---
   const [existingKartes, setExistingKartes] = useState<string[]>([]);
+  const [completedPhotoKartes, setCompletedPhotoKartes] = useState<Set<string>>(() => new Set());
   const [availableKarteNumbers, setAvailableKarteNumbers] = useState<string[]>([]);
   const [unavailableKarteNumbers, setUnavailableKarteNumbers] = useState<string[]>([]);
   const [registerKarteNo, setRegisterKarteNo] = useState('');
@@ -1010,6 +1011,45 @@ useEffect(() => {
 useEffect(() => {
   setInclinationPageIndex(0);
 }, [mode, spreadsheetId]);
+
+useEffect(() => {
+  if (!spreadsheetId || typeof window === 'undefined') {
+    setCompletedPhotoKartes(new Set());
+    return;
+  }
+
+  try {
+    const saved = window.localStorage.getItem(`station-check:photo-karte-completed:${spreadsheetId}`);
+    const list = saved ? JSON.parse(saved) : [];
+    setCompletedPhotoKartes(new Set(Array.isArray(list) ? list.map(no => String(no)) : []));
+  } catch (e) {
+    console.error(e);
+    setCompletedPhotoKartes(new Set());
+  }
+}, [spreadsheetId]);
+
+const saveCompletedPhotoKartes = (next: Set<string>) => {
+  if (!spreadsheetId || typeof window === 'undefined') return;
+  window.localStorage.setItem(
+    `station-check:photo-karte-completed:${spreadsheetId}`,
+    JSON.stringify([...next].sort((a, b) => Number(a) - Number(b)))
+  );
+};
+
+const markCurrentPhotoKarteComplete = () => {
+  const no = String(karteNo || '').trim();
+  if (!no) return alert("写真カルテ番号がありません");
+
+  setCompletedPhotoKartes(prev => {
+    const next = new Set(prev);
+    next.add(no);
+    saveCompletedPhotoKartes(next);
+    return next;
+  });
+};
+
+const isPhotoKarteComplete = (no: string | number) =>
+  completedPhotoKartes.has(String(no).trim());
 
   // 駅や年度が変わったら入力をクリア
   useEffect(() => {
@@ -1908,16 +1948,27 @@ if (mode === 'edit_list') return (
       <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">修正するカルテを選択</h2>
       
       <div className="grid grid-cols-3 gap-4">
-        {existingKartes.map(no => (
-          <button
-            key={no}
-            // ★ ここを loadKarteData に書き換え！
-            onClick={() => loadKarteData(String(no))} 
-            className="p-4 bg-white border-2 border-blue-500 text-blue-700 rounded-xl font-bold shadow-sm active:bg-blue-500 active:text-white transition-all text-center"
-          >
-            No.{no}
-          </button>
-        ))}
+        {existingKartes.map(no => {
+          const isComplete = isPhotoKarteComplete(no);
+
+          return (
+            <button
+              key={no}
+              // ★ ここを loadKarteData に書き換え！
+              onClick={() => loadKarteData(String(no))} 
+              className={`p-4 border-2 rounded-xl font-bold shadow-sm active:scale-95 transition-all text-center ${
+                isComplete
+                  ? "bg-emerald-500 border-emerald-700 text-white"
+                  : "bg-white border-blue-500 text-blue-700 active:bg-blue-500 active:text-white"
+              }`}
+            >
+              <span className="block">No.{no}</span>
+              {isComplete && (
+                <span className="mt-1 block text-[11px] font-black">完了済み</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <button onClick={goBack} className="w-full mt-8 py-3 bg-slate-200 rounded-xl font-bold text-slate-600">戻る</button>
@@ -4939,7 +4990,20 @@ if (mode === 'inclination_menu') {
     )}
 
         {/* --- 保存ボタン --- */}
-        <div className="w-full bg-slate-800 p-3 flex justify-center sticky bottom-0 border-t border-slate-600">
+        <div className="w-full bg-slate-800 p-3 flex flex-col items-center gap-3 sticky bottom-0 border-t border-slate-600">
+          {isPhoto && (
+            <button
+              type="button"
+              onClick={markCurrentPhotoKarteComplete}
+              className={`w-full max-w-xl py-3 rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all ${
+                isPhotoKarteComplete(karteNo)
+                  ? "bg-emerald-500 text-white"
+                  : "bg-amber-400 text-slate-950"
+              }`}
+            >
+              {isPhotoKarteComplete(karteNo) ? "完了マーク済み" : "完了マーク"}
+            </button>
+          )}
           <button 
             onClick={() => sendGenericKarte(isPhoto ? "uploadKarte" : "uploadInclination")} 
             disabled={isSending}
