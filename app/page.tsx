@@ -5269,7 +5269,10 @@ if (mode === 'inclination_menu') {
       markers.forEach(m => {
         const x = (m.x / 100) * canvas.width;
         const y = (m.y / 100) * canvas.height;
-        const size = Math.max(28, Math.round(34 * outputSize.scale));
+        const baseSize = Math.max(28, Math.round(34 * outputSize.scale));
+        const size = m.color === '#0070c0' && m.shape === 'square'
+          ? Math.max(24, Math.round(baseSize * 0.9))
+          : baseSize;
         ctx.beginPath();
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = m.color;
