@@ -5343,7 +5343,7 @@ if (mode === 'editor') {
           )}
 
           {finalImage && (
-            <div className="relative inline-block" 
+            <div className="relative inline-block max-h-full max-w-full" 
               style={{ touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
               onContextMenu={(e) => e.preventDefault()} // 右クリック/ロングタップメニュー禁止
             >
@@ -5351,7 +5351,7 @@ if (mode === 'editor') {
               <img 
                 ref={imageRef} 
                 src={finalImage} 
-                className="max-h-[calc(100vh-112px)] max-w-full rounded-md pointer-events-none select-none" 
+                className="block max-h-full max-w-full rounded-md object-contain pointer-events-none select-none" 
                 draggable="false" 
               />
               
