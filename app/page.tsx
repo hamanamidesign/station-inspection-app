@@ -5272,6 +5272,8 @@ if (mode === 'inclination_menu') {
         const baseSize = Math.max(28, Math.round(34 * outputSize.scale));
         const size = m.color === '#0070c0' && m.shape === 'square'
           ? Math.max(22, Math.round(baseSize * 0.82))
+          : m.shape === 'circle' && (m.color === 'red' || m.color === 'black')
+            ? Math.max(24, Math.round(baseSize * 0.9))
           : baseSize;
         ctx.beginPath();
         ctx.lineWidth = 2.5;
