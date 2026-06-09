@@ -7,7 +7,7 @@ import TaskSelect from "./components/TaskSelect";
 
 interface Marker {
   id: number; x: number; y: number; label: string;
-  color: 'red' | 'black' | '#5372fc'; shape: 'circle' | 'square';
+  color: 'red' | 'black' | '#0070c0'; shape: 'circle' | 'square';
 }
 interface ExistingStation { 
   stationNo?: string;
@@ -594,7 +594,7 @@ useEffect(() => {
   const [editingMarker, setEditingMarker] = useState<Marker | null>(null);
   const [tempPos, setTempPos] = useState({ x: 0, y: 0 });
   const [formLabel, setFormLabel] = useState('1');
-  const [formColor, setFormColor] = useState<'red' | 'black' | '#5372fc'>('red');
+  const [formColor, setFormColor] = useState<'red' | 'black' | '#0070c0'>('red');
   const [formShape, setFormShape] = useState<'circle' | 'square'>('circle');
   const imageRef = useRef<HTMLImageElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
@@ -5133,7 +5133,7 @@ if (mode === 'inclination_menu') {
     color: Marker['color'],
     shape: Marker['shape']
   ) => {
-    if (color === '#5372fc' && shape === 'square') {
+    if (color === '#0070c0' && shape === 'square') {
       const toFullWidthAlphaLabel = (value: number) => {
         let n = value;
         let label = "";
@@ -5149,7 +5149,7 @@ if (mode === 'inclination_menu') {
 
       const usedLabels = new Set(
         markers
-          .filter(marker => marker.color === '#5372fc' && marker.shape === 'square')
+          .filter(marker => marker.color === '#0070c0' && marker.shape === 'square')
           .map(marker => String(marker.label || '').trim().toUpperCase())
           .filter(Boolean)
       );
@@ -5218,7 +5218,11 @@ if (mode === 'inclination_menu') {
             x: Number(marker.x) || 0,
             y: Number(marker.y) || 0,
             label: String(marker.label || index + 1),
-            color: (marker.color === 'black' || marker.color === '#5372fc') ? marker.color : 'red',
+            color: String(marker.color || '') === 'black'
+              ? 'black'
+              : String(marker.color || '').toLowerCase() === '#0070c0' || String(marker.color || '').toLowerCase() === '#5372fc'
+                ? '#0070c0'
+                : 'red',
             shape: marker.shape === 'square' ? 'square' : 'circle',
           }))
           .filter((marker: Marker) => Number.isFinite(marker.x) && Number.isFinite(marker.y))
@@ -5540,7 +5544,7 @@ if (mode === 'editor') {
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">カラー</label>
                   <div className="flex gap-4">
-                    {(['red', 'black', '#5372fc'] as const).map(c => (
+                    {(['red', 'black', '#0070c0'] as const).map(c => (
                       <button key={c} onClick={() => updateNewMarkerStyle(c, formShape)} className={`transition-all active:scale-95 active:brightness-90 w-12 h-12 rounded-full border-4 transition-transform ${formColor === c ? 'scale-110 border-slate-300' : 'border-transparent'}`} style={{ backgroundColor: c }} />
                     ))}
                   </div>
