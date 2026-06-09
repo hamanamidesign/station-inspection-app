@@ -5577,6 +5577,15 @@ if (mode === 'editor') {
                         className="map-line pointer-events-auto cursor-pointer touch-none"
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (selectedLineId === line.id) {
+                            setEditingMarker(null);
+                            setEditingText(null);
+                            setEditingLine(line);
+                            setFormMode('line');
+                            setFormColor(line.color);
+                            setShowModal(true);
+                            return;
+                          }
                           setSelectedLineId(line.id);
                         }}
                       />
