@@ -597,6 +597,8 @@ useEffect(() => {
   const [formColor, setFormColor] = useState<'red' | 'black' | '#5372fc'>('red');
   const [formShape, setFormShape] = useState<'circle' | 'square'>('circle');
   const imageRef = useRef<HTMLImageElement>(null);
+  const mapStageRef = useRef<HTMLDivElement>(null);
+  const [mapDisplaySize, setMapDisplaySize] = useState({ width: 0, height: 0 });
 
   // --- カルテ・傾斜共通入力用ステート ---
   const [karteNo, setKarteNo] = useState('1');
@@ -637,6 +639,52 @@ useEffect(() => {
   const routesLoadingRef = useRef(false);
   const inspectionReportLoadIdRef = useRef(0);
   const createNewInFlightRef = useRef(false);
+
+const updateMapDisplaySize = useCallback(() => {
+  const stage = mapStageRef.current;
+  const image = imageRef.current;
+  if (!stage || !image || !image.naturalWidth || !image.naturalHeight) return;
+
+  const stageRect = stage.getBoundingClientRect();
+  if (!stageRect.width || !stageRect.height) return;
+
+  const ratio = Math.min(
+    stageRect.width / image.naturalWidth,
+    stageRect.height / image.naturalHeight
+  );
+  const nextWidth = Math.round(image.naturalWidth * ratio);
+  const nextHeight = Math.round(image.naturalHeight * ratio);
+
+  setMapDisplaySize(prev =>
+    prev.width === nextWidth && prev.height === nextHeight
+      ? prev
+      : { width: nextWidth, height: nextHeight }
+  );
+}, []);
+
+useEffect(() => {
+  if (!finalImage) {
+    setMapDisplaySize({ width: 0, height: 0 });
+    return;
+  }
+
+  updateMapDisplaySize();
+
+  const stage = mapStageRef.current;
+  if (!stage || typeof ResizeObserver === 'undefined') {
+    window.addEventListener('resize', updateMapDisplaySize);
+    return () => window.removeEventListener('resize', updateMapDisplaySize);
+  }
+
+  const observer = new ResizeObserver(updateMapDisplaySize);
+  observer.observe(stage);
+  window.addEventListener('resize', updateMapDisplaySize);
+
+  return () => {
+    observer.disconnect();
+    window.removeEventListener('resize', updateMapDisplaySize);
+  };
+}, [finalImage, updateMapDisplaySize]);
 
 const getInspectionReportEvalClass = (
   field: keyof Omit<InspectionReportRow, 'id'>,
@@ -5327,7 +5375,7 @@ if (mode === 'editor') {
     )}
   </div>
         {/* メイン編集エリア */}
-        <div className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-lg border border-white bg-slate-200" 
+        <div ref={mapStageRef} className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-lg border border-white bg-slate-200" 
           style={{ touchAction: 'none' }}
         >
           {sourceImage && !finalImage && (
@@ -5343,16 +5391,25 @@ if (mode === 'editor') {
           )}
 
           {finalImage && (
-            <div className="relative inline-block max-h-full max-w-full" 
-              style={{ touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
+            <div className="relative max-h-full max-w-full shrink-0" 
+              style={{
+                width: mapDisplaySize.width ? `${mapDisplaySize.width}px` : 'auto',
+                height: mapDisplaySize.height ? `${mapDisplaySize.height}px` : 'auto',
+                touchAction: 'none',
+                userSelect: 'none',
+                WebkitTouchCallout: 'none',
+              }}
               onContextMenu={(e) => e.preventDefault()} // 右クリック/ロングタップメニュー禁止
             >
               {/* 下地画像（ガード済み） */}
               <img 
                 ref={imageRef} 
                 src={finalImage} 
-                className="block max-h-full max-w-full rounded-md object-contain pointer-events-none select-none" 
+                className={`block rounded-md object-contain pointer-events-none select-none ${
+                  mapDisplaySize.width && mapDisplaySize.height ? 'h-full w-full' : 'max-h-full max-w-full'
+                }`}
                 draggable="false" 
+                onLoad={updateMapDisplaySize}
               />
               
               {/* 透明クリックレイヤー（ガード兼マーク配置用） */}
