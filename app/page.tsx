@@ -5550,9 +5550,9 @@ if (mode === 'editor') {
                   setEditingLine(null);
                   setSelectedLineId(null);
                   setFormMode('marker');
-                  setFormColor('red');
+                  setFormColor('black');
                   setFormShape('circle');
-                  setFormLabel(getNextMapMarkerLabel('red', 'circle'));
+                  setFormLabel(getNextMapMarkerLabel('black', 'circle'));
                   setFormText('');
                   setShowModal(true);
                 }}
@@ -5799,9 +5799,9 @@ if (mode === 'editor') {
                           onClick={() => {
                             setFormMode(item.id);
                             if (item.id === 'marker') {
-                              setFormColor('red');
+                              setFormColor('black');
                               setFormShape('circle');
-                              setFormLabel(getNextMapMarkerLabel('red', 'circle'));
+                              setFormLabel(getNextMapMarkerLabel('black', 'circle'));
                             } else {
                               setFormColor('black');
                             }
