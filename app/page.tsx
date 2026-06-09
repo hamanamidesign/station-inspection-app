@@ -5350,8 +5350,13 @@ if (mode === 'inclination_menu') {
         ctx.font = `${fontSize}px "MS Gothic", "ＭＳ ゴシック", monospace`;
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
-        item.text.split(/\r?\n/).forEach((line, index) => {
-          ctx.fillText(line, x, y + index * fontSize * 1.25);
+        const lines = item.text.split(/\r?\n/);
+        const lineHeight = fontSize * 1.25;
+        const textBlockHeight = fontSize + Math.max(0, lines.length - 1) * lineHeight;
+        const startY = y - textBlockHeight / 2;
+
+        lines.forEach((line, index) => {
+          ctx.fillText(line, x, startY + index * lineHeight);
         });
       });
 
