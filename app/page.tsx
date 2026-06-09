@@ -811,26 +811,43 @@ const loadRoutes = useCallback(async () => {
   }
 }, [existingData, routeFolderId]);
 
-const loadInspectionListDates = useCallback(async () => {
-  if (!selectedRoute || !stationName || !selectedYear) return;
+const fetchInspectionListDates = useCallback(async () => {
+  if (!selectedRoute || !stationName || !selectedYear) return null;
 
-  try {
-    const result = await gasApi("getInspectionListDates", {
+  const result = await gasApi("getInspectionListDates", {
       masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
       routeName: selectedRoute,
       station: stationName,
       year: selectedYear,
     });
 
-    setFirstDate(formatSheetDateText(result.firstDate));
-    setInspectDate(formatSheetDateText(result.latestDate));
-    if (result.stationNo !== undefined && result.stationNo !== null && String(result.stationNo).trim()) {
-      setStationNo(String(result.stationNo));
-    }
+  return {
+    stationNo: String(result.stationNo || '').trim(),
+    firstDate: formatSheetDateText(result.firstDate),
+    inspectDate: formatSheetDateText(result.latestDate),
+    message: String(result.message || ''),
+  };
+}, [selectedRoute, stationName, selectedYear]);
+
+const applyInspectionListDates = useCallback((dates: {
+  stationNo?: string;
+  firstDate?: string;
+  inspectDate?: string;
+} | null) => {
+  if (!dates) return;
+  if (dates.firstDate) setFirstDate(dates.firstDate);
+  if (dates.inspectDate) setInspectDate(dates.inspectDate);
+  if (dates.stationNo) setStationNo(dates.stationNo);
+}, []);
+
+const loadInspectionListDates = useCallback(async () => {
+  try {
+    const result = await fetchInspectionListDates();
+    applyInspectionListDates(result);
   } catch (e) {
     console.warn("点検リスト_マスタの日付取得に失敗しました", e);
   }
-}, [selectedRoute, stationName, selectedYear]);
+}, [fetchInspectionListDates, applyInspectionListDates]);
 
 const loadCoverInspectionDate = useCallback(async () => {
   if (!selectedRoute || !stationName || !selectedYear) {
@@ -841,19 +858,13 @@ const loadCoverInspectionDate = useCallback(async () => {
   setCoverDateStatus("調査日を読み込み中...");
 
   try {
-    const result = await gasApi("getInspectionListDates", {
-      masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
-      routeName: selectedRoute,
-      station: stationName,
-      year: selectedYear,
-    });
+    const result = await fetchInspectionListDates();
+    if (!result) return;
 
-    const nextStationNo = String(result.stationNo || '').trim();
-    const nextInspectDate = formatSheetDateText(result.latestDate);
+    applyInspectionListDates(result);
+    const nextInspectDate = result.inspectDate;
 
-    if (nextStationNo) setStationNo(nextStationNo);
     if (nextInspectDate) {
-      setInspectDate(nextInspectDate);
       setCoverDateStatus("");
     } else {
       setCoverDateStatus(String(result.message || "選択年度の調査日が見つかりません"));
@@ -862,7 +873,7 @@ const loadCoverInspectionDate = useCallback(async () => {
     console.error(e);
     setCoverDateStatus(`調査日の読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
   }
-}, [selectedRoute, stationName, selectedYear]);
+}, [selectedRoute, stationName, selectedYear, fetchInspectionListDates, applyInspectionListDates]);
 
 const loadPulldownLists = useCallback(async () => {
   if (pulldownListsLoadedRef.current) return;
@@ -2579,15 +2590,13 @@ async function sendCover() {
     let coverStationNo = stationNo;
     let coverInspectDate = formatSheetDateText(inspectDate);
 
-    if (!coverStationNo && selectedRoute && stationName && selectedYear) {
-      const dateResult = await gasApi("getInspectionListDates", {
-        masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
-        routeName: selectedRoute,
-        station: stationName,
-        year: selectedYear,
-      });
-      coverStationNo = String(dateResult.stationNo || coverStationNo || '');
+    if (selectedRoute && stationName && selectedYear) {
+      const dateResult = await fetchInspectionListDates();
+      coverStationNo = dateResult?.stationNo || coverStationNo;
+      coverInspectDate = dateResult?.inspectDate || coverInspectDate;
       if (coverStationNo) setStationNo(coverStationNo);
+      if (dateResult?.firstDate) setFirstDate(dateResult.firstDate);
+      if (dateResult?.inspectDate) setInspectDate(dateResult.inspectDate);
     }
 
     const result = await gasApi("uploadCover", {
@@ -2845,6 +2854,12 @@ const result = await gasApi("getSlopeTableData", {
     }
     if (result.inspectDate !== undefined && result.inspectDate !== null && String(result.inspectDate).trim()) {
       setInspectDate(formatSheetDateText(result.inspectDate));
+    }
+    try {
+      const masterDates = await fetchInspectionListDates();
+      applyInspectionListDates(masterDates);
+    } catch (e) {
+      console.warn("点検リスト_マスタの日付取得に失敗しました", e);
     }
     if (result.evalType !== undefined && result.evalType !== null) {setEvalType(String(result.evalType));}
     const nextInspectList = Array.isArray(result.inspectList) ? result.inspectList : [];
