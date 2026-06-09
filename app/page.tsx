@@ -9,6 +9,25 @@ interface Marker {
   id: number; x: number; y: number; label: string;
   color: 'red' | 'black' | '#0070c0'; shape: 'circle' | 'square';
 }
+type MapColor = Marker['color'];
+type MapAddMode = 'marker' | 'text' | 'line';
+
+interface MapTextAnnotation {
+  id: number;
+  x: number;
+  y: number;
+  text: string;
+  color: MapColor;
+}
+
+interface MapLineAnnotation {
+  id: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  color: MapColor;
+}
 interface ExistingStation { 
   stationNo?: string;
   stationName: string; 
@@ -589,12 +608,19 @@ useEffect(() => {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [markers, setMarkers] = useState<Marker[]>([]);
+  const [mapTexts, setMapTexts] = useState<MapTextAnnotation[]>([]);
+  const [mapLines, setMapLines] = useState<MapLineAnnotation[]>([]);
   const [draggingMarkerId, setDraggingMarkerId] = useState<number | null>(null);
+  const [draggingLineHandle, setDraggingLineHandle] = useState<{ id: number; endpoint: 'start' | 'end' } | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingMarker, setEditingMarker] = useState<Marker | null>(null);
+  const [editingText, setEditingText] = useState<MapTextAnnotation | null>(null);
+  const [editingLine, setEditingLine] = useState<MapLineAnnotation | null>(null);
   const [tempPos, setTempPos] = useState({ x: 0, y: 0 });
+  const [formMode, setFormMode] = useState<MapAddMode>('marker');
   const [formLabel, setFormLabel] = useState('1');
-  const [formColor, setFormColor] = useState<'red' | 'black' | '#0070c0'>('red');
+  const [formText, setFormText] = useState('');
+  const [formColor, setFormColor] = useState<MapColor>('red');
   const [formShape, setFormShape] = useState<'circle' | 'square'>('circle');
   const imageRef = useRef<HTMLImageElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
@@ -5129,6 +5155,18 @@ if (mode === 'inclination_menu') {
     return String(stationNo || '').trim();
   };
 
+  const normalizeMapColor = (value: unknown): MapColor => {
+    const color = String(value || '').trim().toLowerCase();
+    if (color === 'black') return 'black';
+    if (color === '#0070c0' || color === '#5372fc') return '#0070c0';
+    return 'red';
+  };
+
+  const clampPercent = (value: unknown) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : 0;
+  };
+
   const getNextMapMarkerLabel = (
     color: Marker['color'],
     shape: Marker['shape']
@@ -5203,6 +5241,8 @@ if (mode === 'inclination_menu') {
       const data = result.data || {};
       const restoredFinalImage = typeof data.finalImage === 'string' ? data.finalImage : '';
       const restoredMarkers = Array.isArray(data.markers) ? data.markers : [];
+      const restoredTexts = Array.isArray(data.texts) ? data.texts : [];
+      const restoredLines = Array.isArray(data.lines) ? data.lines : [];
 
       if (!restoredFinalImage) {
         if (!silent) alert("保存済みの位置図編集データはありません");
@@ -5215,17 +5255,35 @@ if (mode === 'inclination_menu') {
         restoredMarkers
           .map((marker: Partial<Marker>, index: number) => ({
             id: Number(marker.id) || Date.now() + index,
-            x: Number(marker.x) || 0,
-            y: Number(marker.y) || 0,
+            x: clampPercent(marker.x),
+            y: clampPercent(marker.y),
             label: String(marker.label || index + 1),
-            color: String(marker.color || '') === 'black'
-              ? 'black'
-              : String(marker.color || '').toLowerCase() === '#0070c0' || String(marker.color || '').toLowerCase() === '#5372fc'
-                ? '#0070c0'
-                : 'red',
+            color: normalizeMapColor(marker.color),
             shape: marker.shape === 'square' ? 'square' : 'circle',
           }))
           .filter((marker: Marker) => Number.isFinite(marker.x) && Number.isFinite(marker.y))
+      );
+      setMapTexts(
+        restoredTexts
+          .map((text: Partial<MapTextAnnotation>, index: number) => ({
+            id: Number(text.id) || Date.now() + 10000 + index,
+            x: clampPercent(text.x),
+            y: clampPercent(text.y),
+            text: String(text.text || ''),
+            color: normalizeMapColor(text.color),
+          }))
+          .filter((text: MapTextAnnotation) => text.text.trim())
+      );
+      setMapLines(
+        restoredLines
+          .map((line: Partial<MapLineAnnotation>, index: number) => ({
+            id: Number(line.id) || Date.now() + 20000 + index,
+            x1: clampPercent(line.x1),
+            y1: clampPercent(line.y1),
+            x2: clampPercent(line.x2),
+            y2: clampPercent(line.y2),
+            color: normalizeMapColor(line.color),
+          }))
       );
 
       if (!silent) alert("保存済みの位置図を読み込みました");
@@ -5266,6 +5324,27 @@ if (mode === 'inclination_menu') {
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
+      mapLines.forEach(line => {
+        ctx.beginPath();
+        ctx.lineWidth = Math.max(1, 1.4 * outputSize.scale);
+        ctx.strokeStyle = line.color;
+        ctx.moveTo((line.x1 / 100) * canvas.width, (line.y1 / 100) * canvas.height);
+        ctx.lineTo((line.x2 / 100) * canvas.width, (line.y2 / 100) * canvas.height);
+        ctx.stroke();
+      });
+
+      mapTexts.forEach(item => {
+        const x = (item.x / 100) * canvas.width;
+        const y = (item.y / 100) * canvas.height;
+        const fontSize = Math.max(9, Math.round(12 * outputSize.scale));
+
+        ctx.fillStyle = item.color;
+        ctx.font = `${fontSize}px "MS Gothic", "ＭＳ ゴシック", monospace`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText(item.text, x, y);
+      });
+
       markers.forEach(m => {
         const x = (m.x / 100) * canvas.width;
         const y = (m.y / 100) * canvas.height;
@@ -5305,6 +5384,8 @@ if (mode === 'inclination_menu') {
         editorData: {
           finalImage,
           markers,
+          texts: mapTexts,
+          lines: mapLines,
           routeName: selectedRoute,
           station: stationName,
           year: selectedYear,
@@ -5378,7 +5459,7 @@ if (mode === 'editor') {
             }} className="transition-all active:scale-95 active:brightness-90 w-full rounded-md bg-amber-500 px-3 py-2 text-sm font-bold text-white shadow">この範囲で確定（モノクロ化）</button>
           ) : (
             <>
-              <button onClick={() => { setFinalImage(null); setSourceImage(null); setMarkers([]); }} className="rounded-md bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500">画像変更</button>
+              <button onClick={() => { setFinalImage(null); setSourceImage(null); setMarkers([]); setMapTexts([]); setMapLines([]); }} className="rounded-md bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500">画像変更</button>
         {/* 送信ボタン（アニメーション付き） */}
         <button 
           onClick={handleSaveMap} 
@@ -5444,16 +5525,116 @@ if (mode === 'editor') {
               <div 
                 className="absolute inset-0 z-20 cursor-crosshair"
                 onClick={(e) => {
-                  if (draggingMarkerId !== null || (e.target as HTMLElement).closest('.marker')) return;
+                  if (
+                    draggingMarkerId !== null ||
+                    draggingLineHandle !== null ||
+                    (e.target as HTMLElement).closest('.marker, .map-text, .map-line, .line-handle')
+                  ) return;
                   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   setTempPos({ x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 });
                   setEditingMarker(null);
+                  setEditingText(null);
+                  setEditingLine(null);
+                  setFormMode('marker');
                   setFormColor('red');
                   setFormShape('circle');
                   setFormLabel(getNextMapMarkerLabel('red', 'circle'));
+                  setFormText('');
                   setShowModal(true);
                 }}
               >
+                <svg className="absolute inset-0 z-20 h-full w-full pointer-events-none">
+                  {mapLines.map(line => (
+                    <React.Fragment key={line.id}>
+                      <line
+                        x1={`${line.x1}%`}
+                        y1={`${line.y1}%`}
+                        x2={`${line.x2}%`}
+                        y2={`${line.y2}%`}
+                        stroke="transparent"
+                        strokeWidth="16"
+                        className="map-line pointer-events-auto cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingMarker(null);
+                          setEditingText(null);
+                          setEditingLine(line);
+                          setFormMode('line');
+                          setFormColor(line.color);
+                          setShowModal(true);
+                        }}
+                      />
+                      <line
+                        x1={`${line.x1}%`}
+                        y1={`${line.y1}%`}
+                        x2={`${line.x2}%`}
+                        y2={`${line.y2}%`}
+                        stroke={line.color}
+                        strokeWidth="1.5"
+                        pointerEvents="none"
+                      />
+                    </React.Fragment>
+                  ))}
+                </svg>
+                {mapLines.map(line => (
+                  <React.Fragment key={`handles-${line.id}`}>
+                    {(['start', 'end'] as const).map(endpoint => {
+                      const x = endpoint === 'start' ? line.x1 : line.x2;
+                      const y = endpoint === 'start' ? line.y1 : line.y2;
+
+                      return (
+                        <div
+                          key={`${line.id}-${endpoint}`}
+                          className="line-handle absolute z-30 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-slate-700 shadow pointer-events-auto touch-none"
+                          style={{ left: `${x}%`, top: `${y}%`, backgroundColor: line.color }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                            setDraggingLineHandle({ id: line.id, endpoint });
+                          }}
+                          onPointerMove={(e) => {
+                            if (!draggingLineHandle || draggingLineHandle.id !== line.id || draggingLineHandle.endpoint !== endpoint) return;
+                            const r = imageRef.current?.getBoundingClientRect();
+                            if (!r) return;
+                            const nextX = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
+                            const nextY = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
+
+                            setMapLines(lines => lines.map(item =>
+                              item.id === line.id
+                                ? endpoint === 'start'
+                                  ? { ...item, x1: nextX, y1: nextY }
+                                  : { ...item, x2: nextX, y2: nextY }
+                                : item
+                            ));
+                          }}
+                          onPointerUp={(e) => {
+                            setDraggingLineHandle(null);
+                            e.currentTarget.releasePointerCapture(e.pointerId);
+                          }}
+                        />
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+                {mapTexts.map(item => (
+                  <div
+                    key={item.id}
+                    className="map-text absolute z-30 -translate-y-1/2 cursor-pointer whitespace-pre rounded-sm bg-white/70 px-0.5 font-mono text-[12px] leading-none pointer-events-auto"
+                    style={{ left: `${item.x}%`, top: `${item.y}%`, color: item.color, fontFamily: '"MS Gothic", "ＭＳ ゴシック", monospace' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingMarker(null);
+                      setEditingLine(null);
+                      setEditingText(item);
+                      setFormMode('text');
+                      setFormColor(item.color);
+                      setFormText(item.text);
+                      setShowModal(true);
+                    }}
+                  >
+                    {item.text}
+                  </div>
+                ))}
                 {markers.map(m => (
   <div key={m.id} 
     className="marker absolute flex items-center justify-center font-bold bg-white shadow-lg pointer-events-auto touch-none select-none"
@@ -5512,6 +5693,9 @@ if (mode === 'editor') {
       // ドラッグ中ではなく、かつ移動もしていなければ編集モーダルを開く
       if (draggingMarkerId === null && !dragRef.current.isMoved) {
         setEditingMarker(m);
+        setEditingText(null);
+        setEditingLine(null);
+        setFormMode('marker');
         setFormLabel(m.label);
         setFormColor(m.color);
         setFormShape(m.shape);
@@ -5528,27 +5712,85 @@ if (mode === 'editor') {
         </div>
       </div>
         {/* モーダル等のコード... */}
-        {/* マーカー編集モーダル */}
+        {/* 位置図要素編集モーダル */}
         {showModal && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-6 z-[100] backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl scale-in-center">
-              <h3 className="text-xl font-bold mb-6 text-slate-800">{editingMarker ? 'マーカーを編集' : 'マーカーを追加'}</h3>
+              <h3 className="text-xl font-bold mb-6 text-slate-800">
+                {editingMarker ? 'マーカーを編集' : editingText ? '文字を編集' : editingLine ? '線を編集' : '追加'}
+              </h3>
               
               <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">ラベル (No.)</label>
-                  <input className="w-full p-4 bg-slate-100 rounded-2xl border-2 focus:border-indigo-500 outline-none text-lg font-bold" value={formLabel} onChange={e => setFormLabel(e.target.value)} />
-                </div>
+                {!editingMarker && !editingText && !editingLine && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">種類</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { id: 'marker', label: 'マーカー' },
+                        { id: 'text', label: '文字' },
+                        { id: 'line', label: '線' },
+                      ] as const).map(item => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setFormMode(item.id);
+                            if (item.id === 'marker') {
+                              setFormColor('red');
+                              setFormShape('circle');
+                              setFormLabel(getNextMapMarkerLabel('red', 'circle'));
+                            } else {
+                              setFormColor('black');
+                            }
+                          }}
+                          className={`rounded-xl border-2 px-2 py-3 text-sm font-black active:scale-95 ${
+                            formMode === item.id
+                              ? 'border-slate-800 bg-slate-800 text-white'
+                              : 'border-slate-100 bg-white text-slate-500'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {formMode === 'marker' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">ラベル (No.)</label>
+                    <input className="w-full p-4 bg-slate-100 rounded-2xl border-2 focus:border-indigo-500 outline-none text-lg font-bold" value={formLabel} onChange={e => setFormLabel(e.target.value)} />
+                  </div>
+                )}
+
+                {formMode === 'text' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">文字</label>
+                    <textarea
+                      className="w-full min-h-24 resize-y rounded-2xl border-2 bg-slate-100 p-4 font-mono text-lg font-bold outline-none focus:border-indigo-500"
+                      style={{ fontFamily: '"MS Gothic", "ＭＳ ゴシック", monospace' }}
+                      value={formText}
+                      onChange={e => setFormText(e.target.value)}
+                      placeholder="文字を入力"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">カラー</label>
                   <div className="flex gap-4">
                     {(['red', 'black', '#0070c0'] as const).map(c => (
-                      <button key={c} onClick={() => updateNewMarkerStyle(c, formShape)} className={`transition-all active:scale-95 active:brightness-90 w-12 h-12 rounded-full border-4 transition-transform ${formColor === c ? 'scale-110 border-slate-300' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+                      <button
+                        key={c}
+                        onClick={() => formMode === 'marker' ? updateNewMarkerStyle(c, formShape) : setFormColor(c)}
+                        className={`transition-all active:scale-95 active:brightness-90 w-12 h-12 rounded-full border-4 transition-transform ${formColor === c ? 'scale-110 border-slate-300' : 'border-transparent'}`}
+                        style={{ backgroundColor: c }}
+                      />
                     ))}
                   </div>
                 </div>
 
+                {formMode === 'marker' && (
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">形状</label>
                   <div className="flex gap-4">
@@ -5567,17 +5809,44 @@ if (mode === 'editor') {
                     ))}
                   </div>
                 </div>
+                )}
               </div>
 
               <div className="flex gap-3 mt-10">
-                {editingMarker && (
-                  <button onClick={() => { setMarkers(prev => prev.filter(m => m.id !== editingMarker.id)); setShowModal(false); }} className="transition-all active:scale-95 active:brightness-90 flex-1 py-4 bg-rose-50 text-rose-600 rounded-2xl font-bold active:bg-rose-100">削除</button>
+                {(editingMarker || editingText || editingLine) && (
+                  <button
+                    onClick={() => {
+                      if (editingMarker) setMarkers(prev => prev.filter(m => m.id !== editingMarker.id));
+                      if (editingText) setMapTexts(prev => prev.filter(item => item.id !== editingText.id));
+                      if (editingLine) setMapLines(prev => prev.filter(item => item.id !== editingLine.id));
+                      setShowModal(false);
+                    }}
+                    className="transition-all active:scale-95 active:brightness-90 flex-1 py-4 bg-rose-50 text-rose-600 rounded-2xl font-bold active:bg-rose-100"
+                  >
+                    削除
+                  </button>
                 )}
                 <button onClick={() => {
-                  if (editingMarker) {
+                  if (formMode === 'marker' && editingMarker) {
                     setMarkers(prev => prev.map(m => m.id === editingMarker.id ? { ...m, label: formLabel, color: formColor, shape: formShape } : m));
-                  } else {
+                  } else if (formMode === 'marker') {
                     setMarkers(prev => [...prev, { id: Date.now(), x: tempPos.x, y: tempPos.y, label: formLabel, color: formColor, shape: formShape }]);
+                  } else if (formMode === 'text' && editingText) {
+                    setMapTexts(prev => prev.map(item => item.id === editingText.id ? { ...item, text: formText, color: formColor } : item).filter(item => item.text.trim()));
+                  } else if (formMode === 'text') {
+                    const text = formText.trim();
+                    if (text) setMapTexts(prev => [...prev, { id: Date.now(), x: tempPos.x, y: tempPos.y, text, color: formColor }]);
+                  } else if (formMode === 'line' && editingLine) {
+                    setMapLines(prev => prev.map(item => item.id === editingLine.id ? { ...item, color: formColor } : item));
+                  } else if (formMode === 'line') {
+                    setMapLines(prev => [...prev, {
+                      id: Date.now(),
+                      x1: tempPos.x,
+                      y1: tempPos.y,
+                      x2: Math.min(100, tempPos.x + 14),
+                      y2: tempPos.y,
+                      color: formColor,
+                    }]);
                   }
                   setShowModal(false);
                 }} className="transition-all active:scale-95 active:brightness-90 flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-transform">決定</button>
