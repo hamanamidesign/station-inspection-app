@@ -5133,11 +5133,36 @@ if (mode === 'inclination_menu') {
     color: Marker['color'],
     shape: Marker['shape']
   ) => {
-    const isTargetMarker = (marker: Marker) => {
-      if (color === '#5372fc' && shape === 'square') {
-        return marker.color === '#5372fc' && marker.shape === 'square';
+    if (color === '#5372fc' && shape === 'square') {
+      const toFullWidthAlphaLabel = (value: number) => {
+        let n = value;
+        let label = "";
+
+        while (n > 0) {
+          n -= 1;
+          label = String.fromCharCode(0xff21 + (n % 26)) + label;
+          n = Math.floor(n / 26);
+        }
+
+        return label;
+      };
+
+      const usedLabels = new Set(
+        markers
+          .filter(marker => marker.color === '#5372fc' && marker.shape === 'square')
+          .map(marker => String(marker.label || '').trim().toUpperCase())
+          .filter(Boolean)
+      );
+
+      for (let index = 1; index <= 702; index += 1) {
+        const label = toFullWidthAlphaLabel(index);
+        if (!usedLabels.has(label)) return label;
       }
 
+      return toFullWidthAlphaLabel(usedLabels.size + 1);
+    }
+
+    const isTargetMarker = (marker: Marker) => {
       if ((color === 'red' || color === 'black') && shape === 'circle') {
         return (
           marker.shape === 'circle' &&
