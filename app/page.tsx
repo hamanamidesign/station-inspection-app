@@ -5336,13 +5336,7 @@ if (mode === 'editor') {
         </div>
       )}
       <div className="flex min-h-0 flex-1 flex-col items-center p-2 sm:p-3">
-        <div className="flex w-full items-center justify-between gap-2">
-          <Nav />
-          <div className="min-w-0 text-right">
-            <h2 className="truncate text-base font-black sm:text-lg">{stationName}</h2>
-            <p className="text-[11px] font-bold text-indigo-600 sm:text-xs">写真カルテ番号位置図 編集</p>
-          </div>
-        </div>
+        <Nav />
 
         {/* 上部操作パネル */}
   <div className="my-2 flex w-full shrink-0 gap-2 rounded-lg bg-white p-2 shadow-sm">
