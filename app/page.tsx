@@ -5245,7 +5245,7 @@ if (mode === 'inclination_menu') {
 // --- 2. エディタ画面のUI部分 ---
 if (mode === 'editor') {
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-black" style={routePageStyle}>
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-50 text-black" style={routePageStyle}>
       {/* ★ ここに追加：画面全体のローディングオーバーレイ */}
       {isLoading && (
         <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-sm">
@@ -5258,23 +5258,25 @@ if (mode === 'editor') {
           </div>
         </div>
       )}
-      <div className="p-4 flex flex-col items-center">
-        <Nav />
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-black">{stationName}</h2>
-          <p className="text-sm font-bold text-indigo-600 mt-1">写真カルテ番号位置図 編集</p>
+      <div className="flex min-h-0 flex-1 flex-col items-center p-2 sm:p-3">
+        <div className="flex w-full items-center justify-between gap-2">
+          <Nav />
+          <div className="min-w-0 text-right">
+            <h2 className="truncate text-base font-black sm:text-lg">{stationName}</h2>
+            <p className="text-[11px] font-bold text-indigo-600 sm:text-xs">写真カルテ番号位置図 編集</p>
+          </div>
         </div>
 
         {/* 上部操作パネル */}
-  <div className="w-full max-w-2xl bg-white p-4 rounded-3xl shadow-sm mb-6 flex gap-2">
+  <div className="my-2 flex w-full shrink-0 gap-2 rounded-lg bg-white p-2 shadow-sm">
     {!sourceImage && !finalImage ? (
       <>
-        <button onClick={() => loadSavedMapEditorData(false)} className="transition-all active:scale-95 active:brightness-90 flex-1 p-4 bg-indigo-600 text-white rounded-2xl font-bold">
+        <button onClick={() => loadSavedMapEditorData(false)} className="transition-all active:scale-95 active:brightness-90 flex-1 rounded-md bg-indigo-600 px-2 py-2 text-sm font-bold text-white">
         保存済み
         </button>
-        <button onClick={() => window.open(`https://www.google.com/search?q=${stationName}+構内図&tbm=isch`, '_blank')} className="flex-1 p-4 bg-slate-800 text-white rounded-2xl font-bold">🔍 Web検索</button>
-        <button onClick={() => loadDriveMapFolder()} className="transition-all active:scale-95 active:brightness-90 flex-1 p-4 bg-emerald-600 text-white rounded-2xl font-bold">
-        📂 ドライブ
+        <button onClick={() => window.open(`https://www.google.com/search?q=${stationName}+構内図&tbm=isch`, '_blank')} className="flex-1 rounded-md bg-slate-800 px-2 py-2 text-sm font-bold text-white">Web検索</button>
+        <button onClick={() => loadDriveMapFolder()} className="transition-all active:scale-95 active:brightness-90 flex-1 rounded-md bg-emerald-600 px-2 py-2 text-sm font-bold text-white">
+        ドライブ
         </button>
       </>
     ) : sourceImage && !finalImage ? (
@@ -5297,15 +5299,15 @@ if (mode === 'editor') {
                 ctx.putImageData(idata, 0, 0);
                 setFinalImage(getCanvasDataUrlUnderLimit(canvas, 1800000));
               }
-            }} className="transition-all active:scale-95 active:brightness-90 w-full p-4 bg-amber-500 text-white rounded-2xl font-bold shadow-lg">📌 この範囲で確定（モノクロ化）</button>
+            }} className="transition-all active:scale-95 active:brightness-90 w-full rounded-md bg-amber-500 px-3 py-2 text-sm font-bold text-white shadow">この範囲で確定（モノクロ化）</button>
           ) : (
             <>
-              <button onClick={() => { setFinalImage(null); setSourceImage(null); setMarkers([]); }} className="p-4 bg-slate-100 text-slate-500 rounded-2xl text-sm font-bold">🔄 画像変更</button>
+              <button onClick={() => { setFinalImage(null); setSourceImage(null); setMarkers([]); }} className="rounded-md bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500">画像変更</button>
         {/* 送信ボタン（アニメーション付き） */}
         <button 
           onClick={handleSaveMap} 
           disabled={isSending} 
-          className={`transition-all active:scale-95 active:brightness-90 flex-1 p-4 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${
+          className={`transition-all active:scale-95 active:brightness-90 flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-bold shadow transition-all ${
             isSending ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 text-white active:scale-95"
           }`}
         >
@@ -5318,15 +5320,15 @@ if (mode === 'editor') {
               送信中...
             </>
           ) : (
-            "💾 スプレッドシートへ送信"
+            "スプレッドシートへ送信"
           )}
         </button>
       </>
     )}
   </div>
         {/* メイン編集エリア */}
-        <div className="relative w-full max-w-2xl bg-slate-200 rounded-3xl overflow-hidden flex items-center justify-center border-4 border-white mb-8" 
-          style={{ minHeight: '60vh', touchAction: 'none' }}
+        <div className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-lg border border-white bg-slate-200" 
+          style={{ touchAction: 'none' }}
         >
           {sourceImage && !finalImage && (
             <Cropper 
@@ -5349,7 +5351,7 @@ if (mode === 'editor') {
               <img 
                 ref={imageRef} 
                 src={finalImage} 
-                className="max-w-full max-h-[70vh] rounded-lg pointer-events-none select-none" 
+                className="max-h-[calc(100vh-112px)] max-w-full rounded-md pointer-events-none select-none" 
                 draggable="false" 
               />
               
