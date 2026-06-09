@@ -5350,7 +5350,9 @@ if (mode === 'inclination_menu') {
         ctx.font = `${fontSize}px "MS Gothic", "ＭＳ ゴシック", monospace`;
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
-        ctx.fillText(item.text, x, y);
+        item.text.split(/\r?\n/).forEach((line, index) => {
+          ctx.fillText(line, x, y + index * fontSize * 1.25);
+        });
       });
 
       markers.forEach(m => {
