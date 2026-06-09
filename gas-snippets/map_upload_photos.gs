@@ -36,6 +36,7 @@ function uploadPhotos(data) {
   const mapEndColumn = 31; // AE列
   const mapEndRow = 34;
   const mapExtraXOffset = 0;
+  const mapExtraYOffset = -12;
 
   const mapImage = sheet.insertImage(mapBlob, mapStartColumn, mapStartRow);
 
@@ -56,7 +57,7 @@ function uploadPhotos(data) {
     .setWidth(width)
     .setHeight(height)
     .setAnchorCellXOffset((targetWidth - width) / 2 + mapExtraXOffset)
-    .setAnchorCellYOffset((targetHeight - height) / 2);
+    .setAnchorCellYOffset(Math.max(0, (targetHeight - height) / 2 + mapExtraYOffset));
 
   const hanreiFiles = DriveApp
     .getFolderById(CONFIG.HANREI_FOLDER_ID)
