@@ -611,7 +611,10 @@ useEffect(() => {
   const [mapTexts, setMapTexts] = useState<MapTextAnnotation[]>([]);
   const [mapLines, setMapLines] = useState<MapLineAnnotation[]>([]);
   const [draggingMarkerId, setDraggingMarkerId] = useState<number | null>(null);
+  const [draggingTextId, setDraggingTextId] = useState<number | null>(null);
+  const [draggingLineId, setDraggingLineId] = useState<number | null>(null);
   const [draggingLineHandle, setDraggingLineHandle] = useState<{ id: number; endpoint: 'start' | 'end' } | null>(null);
+  const [selectedLineId, setSelectedLineId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingMarker, setEditingMarker] = useState<Marker | null>(null);
   const [editingText, setEditingText] = useState<MapTextAnnotation | null>(null);
@@ -624,6 +627,18 @@ useEffect(() => {
   const [formShape, setFormShape] = useState<'circle' | 'square'>('circle');
   const imageRef = useRef<HTMLImageElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
+  const textDragRef = useRef<{ id: number | null; lastX: number; lastY: number; isMoved: boolean }>({
+    id: null,
+    lastX: 0,
+    lastY: 0,
+    isMoved: false,
+  });
+  const lineDragRef = useRef<{ id: number | null; lastX: number; lastY: number; isMoved: boolean }>({
+    id: null,
+    lastX: 0,
+    lastY: 0,
+    isMoved: false,
+  });
   const [mapDisplaySize, setMapDisplaySize] = useState({ width: 0, height: 0 });
 
   // --- カルテ・傾斜共通入力用ステート ---
@@ -5336,7 +5351,7 @@ if (mode === 'inclination_menu') {
       mapTexts.forEach(item => {
         const x = (item.x / 100) * canvas.width;
         const y = (item.y / 100) * canvas.height;
-        const fontSize = Math.max(9, Math.round(12 * outputSize.scale));
+        const fontSize = Math.max(12, Math.round(16 * outputSize.scale));
 
         ctx.fillStyle = item.color;
         ctx.font = `${fontSize}px "MS Gothic", "ＭＳ ゴシック", monospace`;
@@ -5459,7 +5474,7 @@ if (mode === 'editor') {
             }} className="transition-all active:scale-95 active:brightness-90 w-full rounded-md bg-amber-500 px-3 py-2 text-sm font-bold text-white shadow">この範囲で確定（モノクロ化）</button>
           ) : (
             <>
-              <button onClick={() => { setFinalImage(null); setSourceImage(null); setMarkers([]); setMapTexts([]); setMapLines([]); }} className="rounded-md bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500">画像変更</button>
+              <button onClick={() => { setFinalImage(null); setSourceImage(null); setMarkers([]); setMapTexts([]); setMapLines([]); setSelectedLineId(null); }} className="rounded-md bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500">画像変更</button>
         {/* 送信ボタン（アニメーション付き） */}
         <button 
           onClick={handleSaveMap} 
@@ -5527,6 +5542,8 @@ if (mode === 'editor') {
                 onClick={(e) => {
                   if (
                     draggingMarkerId !== null ||
+                    draggingTextId !== null ||
+                    draggingLineId !== null ||
                     draggingLineHandle !== null ||
                     (e.target as HTMLElement).closest('.marker, .map-text, .map-line, .line-handle')
                   ) return;
@@ -5535,6 +5552,7 @@ if (mode === 'editor') {
                   setEditingMarker(null);
                   setEditingText(null);
                   setEditingLine(null);
+                  setSelectedLineId(null);
                   setFormMode('marker');
                   setFormColor('red');
                   setFormShape('circle');
@@ -5553,15 +5571,59 @@ if (mode === 'editor') {
                         y2={`${line.y2}%`}
                         stroke="transparent"
                         strokeWidth="16"
-                        className="map-line pointer-events-auto cursor-pointer"
-                        onClick={(e) => {
+                        className="map-line pointer-events-auto cursor-move touch-none"
+                        onPointerDown={(e) => {
                           e.stopPropagation();
-                          setEditingMarker(null);
-                          setEditingText(null);
-                          setEditingLine(line);
-                          setFormMode('line');
-                          setFormColor(line.color);
-                          setShowModal(true);
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                          lineDragRef.current = { id: line.id, lastX: e.clientX, lastY: e.clientY, isMoved: false };
+                          setSelectedLineId(line.id);
+                          setDraggingLineId(line.id);
+                        }}
+                        onPointerMove={(e) => {
+                          if (lineDragRef.current.id !== line.id) return;
+                          const r = imageRef.current?.getBoundingClientRect();
+                          if (!r) return;
+                          const dx = ((e.clientX - lineDragRef.current.lastX) / r.width) * 100;
+                          const dy = ((e.clientY - lineDragRef.current.lastY) / r.height) * 100;
+
+                          if (Math.abs(e.clientX - lineDragRef.current.lastX) > 1 || Math.abs(e.clientY - lineDragRef.current.lastY) > 1) {
+                            lineDragRef.current.isMoved = true;
+                          }
+
+                          lineDragRef.current.lastX = e.clientX;
+                          lineDragRef.current.lastY = e.clientY;
+
+                          setMapLines(lines => lines.map(item => item.id === line.id
+                            ? {
+                              ...item,
+                              x1: Math.max(0, Math.min(100, item.x1 + dx)),
+                              y1: Math.max(0, Math.min(100, item.y1 + dy)),
+                              x2: Math.max(0, Math.min(100, item.x2 + dx)),
+                              y2: Math.max(0, Math.min(100, item.y2 + dy)),
+                            }
+                            : item
+                          ));
+                        }}
+                        onPointerUp={(e) => {
+                          const wasMoved = lineDragRef.current.isMoved;
+                          lineDragRef.current = { id: null, lastX: 0, lastY: 0, isMoved: false };
+                          setDraggingLineId(null);
+                          setSelectedLineId(null);
+                          e.currentTarget.releasePointerCapture(e.pointerId);
+
+                          if (!wasMoved) {
+                            setEditingMarker(null);
+                            setEditingText(null);
+                            setEditingLine(line);
+                            setFormMode('line');
+                            setFormColor(line.color);
+                            setShowModal(true);
+                          }
+                        }}
+                        onPointerCancel={() => {
+                          lineDragRef.current = { id: null, lastX: 0, lastY: 0, isMoved: false };
+                          setDraggingLineId(null);
+                          setSelectedLineId(null);
                         }}
                       />
                       <line
@@ -5576,7 +5638,9 @@ if (mode === 'editor') {
                     </React.Fragment>
                   ))}
                 </svg>
-                {mapLines.map(line => (
+                {mapLines
+                  .filter(line => selectedLineId === line.id || draggingLineHandle?.id === line.id || draggingLineId === line.id)
+                  .map(line => (
                   <React.Fragment key={`handles-${line.id}`}>
                     {(['start', 'end'] as const).map(endpoint => {
                       const x = endpoint === 'start' ? line.x1 : line.x2;
@@ -5590,6 +5654,7 @@ if (mode === 'editor') {
                           onPointerDown={(e) => {
                             e.stopPropagation();
                             e.currentTarget.setPointerCapture(e.pointerId);
+                            setSelectedLineId(line.id);
                             setDraggingLineHandle({ id: line.id, endpoint });
                           }}
                           onPointerMove={(e) => {
@@ -5609,7 +5674,12 @@ if (mode === 'editor') {
                           }}
                           onPointerUp={(e) => {
                             setDraggingLineHandle(null);
+                            setSelectedLineId(null);
                             e.currentTarget.releasePointerCapture(e.pointerId);
+                          }}
+                          onPointerCancel={() => {
+                            setDraggingLineHandle(null);
+                            setSelectedLineId(null);
                           }}
                         />
                       );
@@ -5619,17 +5689,62 @@ if (mode === 'editor') {
                 {mapTexts.map(item => (
                   <div
                     key={item.id}
-                    className="map-text absolute z-30 -translate-y-1/2 cursor-pointer whitespace-pre rounded-sm bg-white/70 px-0.5 font-mono text-[12px] leading-none pointer-events-auto"
-                    style={{ left: `${item.x}%`, top: `${item.y}%`, color: item.color, fontFamily: '"MS Gothic", "ＭＳ ゴシック", monospace' }}
-                    onClick={(e) => {
+                    className="map-text absolute z-30 -translate-y-1/2 cursor-move whitespace-pre rounded-sm bg-white/70 px-0.5 font-mono text-[16px] leading-none pointer-events-auto touch-none"
+                    style={{
+                      left: `${item.x}%`,
+                      top: `${item.y}%`,
+                      color: item.color,
+                      fontFamily: '"MS Gothic", "ＭＳ ゴシック", monospace',
+                      zIndex: draggingTextId === item.id ? 100 : 30,
+                    }}
+                    onPointerDown={(e) => {
                       e.stopPropagation();
-                      setEditingMarker(null);
-                      setEditingLine(null);
-                      setEditingText(item);
-                      setFormMode('text');
-                      setFormColor(item.color);
-                      setFormText(item.text);
-                      setShowModal(true);
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      textDragRef.current = { id: item.id, lastX: e.clientX, lastY: e.clientY, isMoved: false };
+                      setDraggingTextId(item.id);
+                    }}
+                    onPointerMove={(e) => {
+                      if (textDragRef.current.id !== item.id) return;
+                      const r = imageRef.current?.getBoundingClientRect();
+                      if (!r) return;
+                      const dx = ((e.clientX - textDragRef.current.lastX) / r.width) * 100;
+                      const dy = ((e.clientY - textDragRef.current.lastY) / r.height) * 100;
+
+                      if (Math.abs(e.clientX - textDragRef.current.lastX) > 1 || Math.abs(e.clientY - textDragRef.current.lastY) > 1) {
+                        textDragRef.current.isMoved = true;
+                      }
+
+                      textDragRef.current.lastX = e.clientX;
+                      textDragRef.current.lastY = e.clientY;
+
+                      setMapTexts(texts => texts.map(text => text.id === item.id
+                        ? {
+                          ...text,
+                          x: Math.max(0, Math.min(100, text.x + dx)),
+                          y: Math.max(0, Math.min(100, text.y + dy)),
+                        }
+                        : text
+                      ));
+                    }}
+                    onPointerUp={(e) => {
+                      const wasMoved = textDragRef.current.isMoved;
+                      textDragRef.current = { id: null, lastX: 0, lastY: 0, isMoved: false };
+                      setDraggingTextId(null);
+                      e.currentTarget.releasePointerCapture(e.pointerId);
+
+                      if (!wasMoved) {
+                        setEditingMarker(null);
+                        setEditingLine(null);
+                        setEditingText(item);
+                        setFormMode('text');
+                        setFormColor(item.color);
+                        setFormText(item.text);
+                        setShowModal(true);
+                      }
+                    }}
+                    onPointerCancel={() => {
+                      textDragRef.current = { id: null, lastX: 0, lastY: 0, isMoved: false };
+                      setDraggingTextId(null);
                     }}
                   >
                     {item.text}
@@ -5695,6 +5810,7 @@ if (mode === 'editor') {
         setEditingMarker(m);
         setEditingText(null);
         setEditingLine(null);
+        setSelectedLineId(null);
         setFormMode('marker');
         setFormLabel(m.label);
         setFormColor(m.color);
@@ -5819,6 +5935,7 @@ if (mode === 'editor') {
                       if (editingMarker) setMarkers(prev => prev.filter(m => m.id !== editingMarker.id));
                       if (editingText) setMapTexts(prev => prev.filter(item => item.id !== editingText.id));
                       if (editingLine) setMapLines(prev => prev.filter(item => item.id !== editingLine.id));
+                      setSelectedLineId(null);
                       setShowModal(false);
                     }}
                     className="transition-all active:scale-95 active:brightness-90 flex-1 py-4 bg-rose-50 text-rose-600 rounded-2xl font-bold active:bg-rose-100"
@@ -5848,9 +5965,10 @@ if (mode === 'editor') {
                       color: formColor,
                     }]);
                   }
+                  setSelectedLineId(null);
                   setShowModal(false);
                 }} className="transition-all active:scale-95 active:brightness-90 flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-transform">決定</button>
-                <button onClick={() => setShowModal(false)} className="transition-all active:scale-95 active:brightness-90 absolute top-4 right-4 text-slate-300 hover:text-slate-500 text-2xl">✕</button>
+                <button onClick={() => { setSelectedLineId(null); setShowModal(false); }} className="transition-all active:scale-95 active:brightness-90 absolute top-4 right-4 text-slate-300 hover:text-slate-500 text-2xl">✕</button>
               </div>
             </div>
           </div>
