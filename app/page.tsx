@@ -612,7 +612,6 @@ useEffect(() => {
   const [mapLines, setMapLines] = useState<MapLineAnnotation[]>([]);
   const [draggingMarkerId, setDraggingMarkerId] = useState<number | null>(null);
   const [draggingTextId, setDraggingTextId] = useState<number | null>(null);
-  const [draggingLineId, setDraggingLineId] = useState<number | null>(null);
   const [draggingLineHandle, setDraggingLineHandle] = useState<{ id: number; endpoint: 'start' | 'end' } | null>(null);
   const [selectedLineId, setSelectedLineId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -628,12 +627,6 @@ useEffect(() => {
   const imageRef = useRef<HTMLImageElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
   const textDragRef = useRef<{ id: number | null; lastX: number; lastY: number; isMoved: boolean }>({
-    id: null,
-    lastX: 0,
-    lastY: 0,
-    isMoved: false,
-  });
-  const lineDragRef = useRef<{ id: number | null; lastX: number; lastY: number; isMoved: boolean }>({
     id: null,
     lastX: 0,
     lastY: 0,
@@ -5543,10 +5536,13 @@ if (mode === 'editor') {
                   if (
                     draggingMarkerId !== null ||
                     draggingTextId !== null ||
-                    draggingLineId !== null ||
                     draggingLineHandle !== null ||
                     (e.target as HTMLElement).closest('.marker, .map-text, .map-line, .line-handle')
                   ) return;
+                  if (selectedLineId !== null) {
+                    setSelectedLineId(null);
+                    return;
+                  }
                   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   setTempPos({ x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 });
                   setEditingMarker(null);
@@ -5571,59 +5567,10 @@ if (mode === 'editor') {
                         y2={`${line.y2}%`}
                         stroke="transparent"
                         strokeWidth="16"
-                        className="map-line pointer-events-auto cursor-move touch-none"
-                        onPointerDown={(e) => {
+                        className="map-line pointer-events-auto cursor-pointer touch-none"
+                        onClick={(e) => {
                           e.stopPropagation();
-                          e.currentTarget.setPointerCapture(e.pointerId);
-                          lineDragRef.current = { id: line.id, lastX: e.clientX, lastY: e.clientY, isMoved: false };
                           setSelectedLineId(line.id);
-                          setDraggingLineId(line.id);
-                        }}
-                        onPointerMove={(e) => {
-                          if (lineDragRef.current.id !== line.id) return;
-                          const r = imageRef.current?.getBoundingClientRect();
-                          if (!r) return;
-                          const dx = ((e.clientX - lineDragRef.current.lastX) / r.width) * 100;
-                          const dy = ((e.clientY - lineDragRef.current.lastY) / r.height) * 100;
-
-                          if (Math.abs(e.clientX - lineDragRef.current.lastX) > 1 || Math.abs(e.clientY - lineDragRef.current.lastY) > 1) {
-                            lineDragRef.current.isMoved = true;
-                          }
-
-                          lineDragRef.current.lastX = e.clientX;
-                          lineDragRef.current.lastY = e.clientY;
-
-                          setMapLines(lines => lines.map(item => item.id === line.id
-                            ? {
-                              ...item,
-                              x1: Math.max(0, Math.min(100, item.x1 + dx)),
-                              y1: Math.max(0, Math.min(100, item.y1 + dy)),
-                              x2: Math.max(0, Math.min(100, item.x2 + dx)),
-                              y2: Math.max(0, Math.min(100, item.y2 + dy)),
-                            }
-                            : item
-                          ));
-                        }}
-                        onPointerUp={(e) => {
-                          const wasMoved = lineDragRef.current.isMoved;
-                          lineDragRef.current = { id: null, lastX: 0, lastY: 0, isMoved: false };
-                          setDraggingLineId(null);
-                          setSelectedLineId(null);
-                          e.currentTarget.releasePointerCapture(e.pointerId);
-
-                          if (!wasMoved) {
-                            setEditingMarker(null);
-                            setEditingText(null);
-                            setEditingLine(line);
-                            setFormMode('line');
-                            setFormColor(line.color);
-                            setShowModal(true);
-                          }
-                        }}
-                        onPointerCancel={() => {
-                          lineDragRef.current = { id: null, lastX: 0, lastY: 0, isMoved: false };
-                          setDraggingLineId(null);
-                          setSelectedLineId(null);
                         }}
                       />
                       <line
@@ -5639,7 +5586,7 @@ if (mode === 'editor') {
                   ))}
                 </svg>
                 {mapLines
-                  .filter(line => selectedLineId === line.id || draggingLineHandle?.id === line.id || draggingLineId === line.id)
+                  .filter(line => selectedLineId === line.id || draggingLineHandle?.id === line.id)
                   .map(line => (
                   <React.Fragment key={`handles-${line.id}`}>
                     {(['start', 'end'] as const).map(endpoint => {
@@ -5674,12 +5621,12 @@ if (mode === 'editor') {
                           }}
                           onPointerUp={(e) => {
                             setDraggingLineHandle(null);
-                            setSelectedLineId(null);
+                            setSelectedLineId(line.id);
                             e.currentTarget.releasePointerCapture(e.pointerId);
                           }}
                           onPointerCancel={() => {
                             setDraggingLineHandle(null);
-                            setSelectedLineId(null);
+                            setSelectedLineId(line.id);
                           }}
                         />
                       );
@@ -5689,7 +5636,7 @@ if (mode === 'editor') {
                 {mapTexts.map(item => (
                   <div
                     key={item.id}
-                    className="map-text absolute z-30 -translate-y-1/2 cursor-move whitespace-pre rounded-sm bg-white/70 px-0.5 font-mono text-[16px] leading-none pointer-events-auto touch-none"
+                    className="map-text absolute z-30 -translate-y-1/2 cursor-move whitespace-pre rounded-sm bg-white/70 px-0.5 font-mono text-[10px] leading-none pointer-events-auto touch-none"
                     style={{
                       left: `${item.x}%`,
                       top: `${item.y}%`,
