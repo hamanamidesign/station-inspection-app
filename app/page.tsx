@@ -1386,7 +1386,7 @@ const result = await gasApi("getKarteData", {
       setTotalEval(getRecordText(d, ['totalEval', 'evaluation']));
       setPrevYearEval(getRecordText(d, ['prevYearEval', 'previousYearEval']));
       setFirstKarteNo(getRecordText(d, ['firstKarteNo', 'initialKarteNo']));
-      setFirstDate(normalizeDateForDateInput(d.firstDate));
+      setFirstDate(formatSheetDateText(d.firstDate));
       setFirstInspector(getRecordText(d, ['firstInspector', 'initialInspector']));
       setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
       setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
