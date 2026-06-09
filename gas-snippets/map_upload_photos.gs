@@ -37,6 +37,7 @@ function uploadPhotos(data) {
   const mapEndRow = 34;
   const mapExtraXOffset = 0;
   const mapExtraYOffset = -12;
+  const mapScale = 0.97;
 
   const mapImage = sheet.insertImage(mapBlob, mapStartColumn, mapStartRow);
 
@@ -49,7 +50,7 @@ function uploadPhotos(data) {
   const ratio = Math.min(
     targetWidth / mapImage.getWidth(),
     targetHeight / mapImage.getHeight()
-  );
+  ) * mapScale;
   const width = mapImage.getWidth() * ratio;
   const height = mapImage.getHeight() * ratio;
 
