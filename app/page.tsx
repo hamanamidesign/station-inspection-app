@@ -4181,10 +4181,7 @@ if (mode === 'inclination_menu') {
   {/* 写真① */}
   <div className="relative aspect-[4/3] bg-slate-100">
 
-    <label
-      htmlFor={`slope-photo1-${row.id}`}
-      className="w-full h-full cursor-pointer overflow-hidden"
-    >
+    <div className="w-full h-full overflow-hidden">
 
       {row.photo1 ? (
 
@@ -4201,13 +4198,13 @@ if (mode === 'inclination_menu') {
 
       )}
 
-    </label>
+    </div>
 
     <input
       id={`slope-photo1-${row.id}`}
       type="file"
       accept="image/*"
-      className="sr-only"
+      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
       onChange={(e) =>
         handleSlopeCapture(e, row.id, 'photo1')
       }
@@ -4234,10 +4231,7 @@ if (mode === 'inclination_menu') {
   {/* 写真② */}
   <div className="relative aspect-[4/3] bg-slate-100 border-l border-slate-300">
 
-    <label
-      htmlFor={`slope-photo2-${row.id}`}
-      className="w-full h-full cursor-pointer overflow-hidden"
-    >
+    <div className="w-full h-full overflow-hidden">
 
       {row.photo2 ? (
 
@@ -4254,13 +4248,13 @@ if (mode === 'inclination_menu') {
 
       )}
 
-    </label>
+    </div>
 
     <input
       id={`slope-photo2-${row.id}`}
       type="file"
       accept="image/*"
-      className="sr-only"
+      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
       onChange={(e) =>
         handleSlopeCapture(e, row.id, 'photo2')
       }
@@ -4701,10 +4695,7 @@ if (mode === 'inclination_menu') {
 
         return (
           <div key={index} className="relative aspect-[4/3]">
-            <label
-              htmlFor={`karte-first-photo-${index}`}
-              className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden cursor-pointer"
-            >
+            <div className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden">
               {p ? (
                 <img
                   src={p}
@@ -4720,13 +4711,13 @@ if (mode === 'inclination_menu') {
                   初回写真{index + 1}
                 </div>
               )}
-            </label>
+            </div>
 
             <input
               id={`karte-first-photo-${index}`}
               type="file"
               accept="image/*"
-              className="sr-only"
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
               ref={(el) => { firstFileInputs.current[index] = el }}
               onChange={(e) => handleFirstCapture(e, index)}
             />
@@ -4761,10 +4752,7 @@ if (mode === 'inclination_menu') {
 
         return (
           <div key={index} className="relative aspect-[4/3]">
-            <label
-              htmlFor={`karte-first-photo-${index}`}
-              className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden cursor-pointer"
-            >
+            <div className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden">
               {p ? (
                 <img
                   src={p}
@@ -4780,13 +4768,13 @@ if (mode === 'inclination_menu') {
                   初回写真{index + 1}
                 </div>
               )}
-            </label>
+            </div>
 
             <input
               id={`karte-first-photo-${index}`}
               type="file"
               accept="image/*"
-              className="sr-only"
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
               ref={(el) => { firstFileInputs.current[index] = el }}
               onChange={(e) => handleFirstCapture(e, index)}
             />
@@ -4929,10 +4917,7 @@ if (mode === 'inclination_menu') {
         return (
           <div key={index} className="relative aspect-[4/3]">
 
-            <label
-              htmlFor={`karte-photo-${index}`}
-              className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden cursor-pointer"
-            >
+            <div className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden">
 
               {p ? (
                 <img
@@ -4950,13 +4935,13 @@ if (mode === 'inclination_menu') {
                 </div>
               )}
 
-            </label>
+            </div>
 
             <input
               id={`karte-photo-${index}`}
               type="file"
               accept="image/*"
-              className="sr-only"
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
               ref={(el) => { fileInputs.current[index] = el }}
               onChange={(e) => handleCapture(e, index)}
             />
@@ -4993,10 +4978,7 @@ if (mode === 'inclination_menu') {
         return (
           <div key={index} className="relative aspect-[4/3]">
 
-            <label
-              htmlFor={`karte-photo-${index}`}
-              className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden cursor-pointer"
-            >
+            <div className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden">
 
               {p ? (
                 <img
@@ -5014,13 +4996,13 @@ if (mode === 'inclination_menu') {
                 </div>
               )}
 
-            </label>
+            </div>
 
             <input
               id={`karte-photo-${index}`}
               type="file"
               accept="image/*"
-              className="sr-only"
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
               ref={(el) => { fileInputs.current[index] = el }}
               onChange={(e) => handleCapture(e, index)}
             />
