@@ -4181,13 +4181,9 @@ if (mode === 'inclination_menu') {
   {/* 写真① */}
   <div className="relative aspect-[4/3] bg-slate-100">
 
-    <div
+    <label
+      htmlFor={`slope-photo1-${row.id}`}
       className="w-full h-full cursor-pointer overflow-hidden"
-      onClick={() =>
-        document
-          .getElementById(`slope-photo1-${row.id}`)
-          ?.click()
-      }
     >
 
       {row.photo1 ? (
@@ -4205,13 +4201,13 @@ if (mode === 'inclination_menu') {
 
       )}
 
-    </div>
+    </label>
 
     <input
       id={`slope-photo1-${row.id}`}
       type="file"
       accept="image/*"
-      className="hidden"
+      className="sr-only"
       onChange={(e) =>
         handleSlopeCapture(e, row.id, 'photo1')
       }
@@ -4220,9 +4216,12 @@ if (mode === 'inclination_menu') {
     {!!row.photo1 && (
 
       <button
-        onClick={() =>
-          updateSlopePhoto(row.id, 'photo1', null)
-        }
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          updateSlopePhoto(row.id, 'photo1', null);
+        }}
         className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
       >
         ✕
@@ -4235,13 +4234,9 @@ if (mode === 'inclination_menu') {
   {/* 写真② */}
   <div className="relative aspect-[4/3] bg-slate-100 border-l border-slate-300">
 
-    <div
+    <label
+      htmlFor={`slope-photo2-${row.id}`}
       className="w-full h-full cursor-pointer overflow-hidden"
-      onClick={() =>
-        document
-          .getElementById(`slope-photo2-${row.id}`)
-          ?.click()
-      }
     >
 
       {row.photo2 ? (
@@ -4259,13 +4254,13 @@ if (mode === 'inclination_menu') {
 
       )}
 
-    </div>
+    </label>
 
     <input
       id={`slope-photo2-${row.id}`}
       type="file"
       accept="image/*"
-      className="hidden"
+      className="sr-only"
       onChange={(e) =>
         handleSlopeCapture(e, row.id, 'photo2')
       }
@@ -4274,9 +4269,12 @@ if (mode === 'inclination_menu') {
     {!!row.photo2 && (
 
       <button
-        onClick={() =>
-          updateSlopePhoto(row.id, 'photo2', null)
-        }
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          updateSlopePhoto(row.id, 'photo2', null);
+        }}
         className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
       >
         ✕
@@ -4703,9 +4701,9 @@ if (mode === 'inclination_menu') {
 
         return (
           <div key={index} className="relative aspect-[4/3]">
-            <div
+            <label
+              htmlFor={`karte-first-photo-${index}`}
               className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden cursor-pointer"
-              onClick={() => firstFileInputs.current[index]?.click()}
             >
               {p ? (
                 <img
@@ -4722,12 +4720,13 @@ if (mode === 'inclination_menu') {
                   初回写真{index + 1}
                 </div>
               )}
-            </div>
+            </label>
 
             <input
+              id={`karte-first-photo-${index}`}
               type="file"
               accept="image/*"
-              className="hidden"
+              className="sr-only"
               ref={(el) => { firstFileInputs.current[index] = el }}
               onChange={(e) => handleFirstCapture(e, index)}
             />
@@ -4762,9 +4761,9 @@ if (mode === 'inclination_menu') {
 
         return (
           <div key={index} className="relative aspect-[4/3]">
-            <div
+            <label
+              htmlFor={`karte-first-photo-${index}`}
               className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden cursor-pointer"
-              onClick={() => firstFileInputs.current[index]?.click()}
             >
               {p ? (
                 <img
@@ -4781,12 +4780,13 @@ if (mode === 'inclination_menu') {
                   初回写真{index + 1}
                 </div>
               )}
-            </div>
+            </label>
 
             <input
+              id={`karte-first-photo-${index}`}
               type="file"
               accept="image/*"
-              className="hidden"
+              className="sr-only"
               ref={(el) => { firstFileInputs.current[index] = el }}
               onChange={(e) => handleFirstCapture(e, index)}
             />
@@ -4929,9 +4929,9 @@ if (mode === 'inclination_menu') {
         return (
           <div key={index} className="relative aspect-[4/3]">
 
-            <div
+            <label
+              htmlFor={`karte-photo-${index}`}
               className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden cursor-pointer"
-              onClick={() => fileInputs.current[index]?.click()}
             >
 
               {p ? (
@@ -4950,12 +4950,13 @@ if (mode === 'inclination_menu') {
                 </div>
               )}
 
-            </div>
+            </label>
 
             <input
+              id={`karte-photo-${index}`}
               type="file"
               accept="image/*"
-              className="hidden"
+              className="sr-only"
               ref={(el) => { fileInputs.current[index] = el }}
               onChange={(e) => handleCapture(e, index)}
             />
@@ -4992,9 +4993,9 @@ if (mode === 'inclination_menu') {
         return (
           <div key={index} className="relative aspect-[4/3]">
 
-            <div
+            <label
+              htmlFor={`karte-photo-${index}`}
               className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden cursor-pointer"
-              onClick={() => fileInputs.current[index]?.click()}
             >
 
               {p ? (
@@ -5013,12 +5014,13 @@ if (mode === 'inclination_menu') {
                 </div>
               )}
 
-            </div>
+            </label>
 
             <input
+              id={`karte-photo-${index}`}
               type="file"
               accept="image/*"
-              className="hidden"
+              className="sr-only"
               ref={(el) => { fileInputs.current[index] = el }}
               onChange={(e) => handleCapture(e, index)}
             />
