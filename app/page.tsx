@@ -125,6 +125,7 @@ interface InspectionReportRow {
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 const INSPECTION_DRIVE_ROOT_FOLDER_ID = "1L_a6as-Wxc-BOOojkLo7BDtbx2wSZT30";
+const PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY = "station-check:photo-drive-last-folder-id";
 const DEFAULT_ROUTE_LIST: RouteItem[] = [
   {
     name: "南海高野線",
@@ -3815,7 +3816,11 @@ const chunkSlopeRows = (rows: SlopeTableRow[], size = 4) => {
 const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
   buildRangeLabel(rows.map(row => row.point));
 
-  const loadDriveMapFolder = async (folderId?: string, routeNameOverride?: string) => {
+  const loadDriveMapFolder = async (
+    folderId?: string,
+    routeNameOverride?: string,
+    rememberPhotoFolder = drivePickerTarget.type !== 'map'
+  ) => {
     setIsLoading(true);
     try {
       const result = await gasApi(
@@ -3827,6 +3832,9 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
       setDriveFolders(Array.isArray(result.folders) ? result.folders : []);
       setDriveCurrentFolder(result.currentFolder || null);
       setDriveParentFolder(result.parentFolder || null);
+      if (rememberPhotoFolder && result.currentFolder?.id && typeof window !== 'undefined') {
+        window.localStorage.setItem(PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY, String(result.currentFolder.id));
+      }
       setShowMapPicker(true);
     } catch (e) {
       alert("ドライブの取得に失敗しました");
@@ -3837,7 +3845,15 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
 
   const openDrivePicker = (target: DrivePickerTarget, folderId?: string, routeNameOverride?: string) => {
     setDrivePickerTarget(target);
-    loadDriveMapFolder(folderId, routeNameOverride);
+    const rememberedFolderId =
+      target.type !== 'map' && typeof window !== 'undefined'
+        ? window.localStorage.getItem(PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY)
+        : "";
+    loadDriveMapFolder(
+      target.type === 'map' ? folderId : (rememberedFolderId || folderId),
+      routeNameOverride,
+      target.type !== 'map'
+    );
   };
 
   const handleDriveImageSelect = async (image: DriveMapItem) => {
@@ -4386,12 +4402,17 @@ if (mode === 'inclination_menu') {
 
       <button
         type="button"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          updateSlopePhoto(row.id, 'photo1', null);
+        }}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           updateSlopePhoto(row.id, 'photo1', null);
         }}
-        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
+        className="absolute top-1 right-1 z-[120] w-6 h-6 rounded-full bg-red-600 text-white text-xs"
       >
         ✕
       </button>
@@ -4448,12 +4469,17 @@ if (mode === 'inclination_menu') {
 
       <button
         type="button"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          updateSlopePhoto(row.id, 'photo2', null);
+        }}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           updateSlopePhoto(row.id, 'photo2', null);
         }}
-        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
+        className="absolute top-1 right-1 z-[120] w-6 h-6 rounded-full bg-red-600 text-white text-xs"
       >
         ✕
       </button>
@@ -4921,6 +4947,14 @@ if (mode === 'inclination_menu') {
 
             {!!p && (
               <button
+                type="button"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const n = [...firstPhotos];
+                  n[index] = null;
+                  setFirstPhotos(n);
+                }}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -4928,7 +4962,7 @@ if (mode === 'inclination_menu') {
                   n[index] = null;
                   setFirstPhotos(n);
                 }}
-                className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+                className="absolute -top-1 -right-1 z-[120] bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
               >
                 ✕
               </button>
@@ -4990,6 +5024,14 @@ if (mode === 'inclination_menu') {
 
             {!!p && (
               <button
+                type="button"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const n = [...firstPhotos];
+                  n[index] = null;
+                  setFirstPhotos(n);
+                }}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -4997,7 +5039,7 @@ if (mode === 'inclination_menu') {
                   n[index] = null;
                   setFirstPhotos(n);
                 }}
-                className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+                className="absolute -top-1 -right-1 z-[120] bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
               >
                 ✕
               </button>
@@ -5169,6 +5211,14 @@ if (mode === 'inclination_menu') {
 
  {!!p && (
   <button
+    type="button"
+    onPointerDown={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const n = [...photos];
+      n[index] = null;
+      setPhotos(n);
+    }}
     onClick={(e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -5176,7 +5226,7 @@ if (mode === 'inclination_menu') {
       n[index] = null;
       setPhotos(n);
     }}
-    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+    className="absolute -top-1 -right-1 z-[120] bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
   >
     ✕
   </button>
@@ -5242,6 +5292,14 @@ if (mode === 'inclination_menu') {
 
  {!!p && (
   <button
+    type="button"
+    onPointerDown={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const n = [...photos];
+      n[index] = null;
+      setPhotos(n);
+    }}
     onClick={(e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -5249,7 +5307,7 @@ if (mode === 'inclination_menu') {
       n[index] = null;
       setPhotos(n);
     }}
-    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white z-50"
+    className="absolute -top-1 -right-1 z-[120] bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
   >
     ✕
   </button>
