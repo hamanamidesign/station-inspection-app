@@ -55,6 +55,12 @@ interface DriveMapItem {
   thumbUrl: string;
 }
 
+type DrivePickerTarget =
+  | { type: 'map' }
+  | { type: 'karteFirst'; index: number }
+  | { type: 'karteCurrent'; index: number }
+  | { type: 'slope'; rowId: number; photoField: 'photo1' | 'photo2' };
+
 interface CellStyle {
   color?: string;
   backgroundColor?: string;
@@ -118,6 +124,7 @@ interface InspectionReportRow {
 }
 
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
+const INSPECTION_DRIVE_ROOT_FOLDER_ID = "1L_a6as-Wxc-BOOojkLo7BDtbx2wSZT30";
 const DEFAULT_ROUTE_LIST: RouteItem[] = [
   {
     name: "南海高野線",
@@ -603,6 +610,7 @@ useEffect(() => {
   const [driveFolders, setDriveFolders] = useState<DriveFolderItem[]>([]);
   const [driveCurrentFolder, setDriveCurrentFolder] = useState<DriveFolderItem | null>(null);
   const [driveParentFolder, setDriveParentFolder] = useState<DriveFolderItem | null>(null);
+  const [drivePickerTarget, setDrivePickerTarget] = useState<DrivePickerTarget>({ type: 'map' });
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -3807,6 +3815,157 @@ const chunkSlopeRows = (rows: SlopeTableRow[], size = 4) => {
 const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
   buildRangeLabel(rows.map(row => row.point));
 
+  const loadDriveMapFolder = async (folderId?: string, routeNameOverride?: string) => {
+    setIsLoading(true);
+    try {
+      const result = await gasApi(
+        "getMaps",
+        folderId ? { folderId } : { routeName: routeNameOverride ?? selectedRoute }
+      );
+
+      setDriveMaps(Array.isArray(result.list) ? result.list : []);
+      setDriveFolders(Array.isArray(result.folders) ? result.folders : []);
+      setDriveCurrentFolder(result.currentFolder || null);
+      setDriveParentFolder(result.parentFolder || null);
+      setShowMapPicker(true);
+    } catch (e) {
+      alert("ドライブの取得に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const openDrivePicker = (target: DrivePickerTarget, folderId?: string, routeNameOverride?: string) => {
+    setDrivePickerTarget(target);
+    loadDriveMapFolder(folderId, routeNameOverride);
+  };
+
+  const handleDriveImageSelect = async (image: DriveMapItem) => {
+    setIsLoading(true);
+    try {
+      const result = await gasApi("getMapBase64", { id: image.id });
+      const base64 = String(result.base64 || "").trim();
+
+      if (!base64) {
+        throw new Error("Base64取得失敗");
+      }
+
+      const imageDataUrl = buildImageDataUrl(base64, result.mimeType);
+
+      if (drivePickerTarget.type === 'map') {
+        setSourceImage(imageDataUrl);
+      } else if (drivePickerTarget.type === 'karteFirst') {
+        setFirstPhotos(current => {
+          const next = [...current];
+          next[drivePickerTarget.index] = imageDataUrl;
+          return next;
+        });
+      } else if (drivePickerTarget.type === 'karteCurrent') {
+        setPhotos(current => {
+          const next = [...current];
+          next[drivePickerTarget.index] = imageDataUrl;
+          return next;
+        });
+      } else {
+        updateSlopePhoto(drivePickerTarget.rowId, drivePickerTarget.photoField, imageDataUrl);
+      }
+
+      setShowMapPicker(false);
+    } catch (e) {
+      alert("読込失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const drivePickerTitle = drivePickerTarget.type === 'map'
+    ? 'ドライブから位置図を選択'
+    : 'ドライブから写真を選択';
+
+  const drivePickerModal = showMapPicker ? (
+    <div className="fixed inset-0 bg-white z-[110] flex flex-col animate-slide-up">
+      <div className="shrink-0 border-b border-slate-200 bg-white p-4 sm:p-6">
+        <div className="flex justify-between items-start gap-4">
+          <div className="min-w-0">
+            <h3 className="text-xl font-bold">{drivePickerTitle}</h3>
+            <p className="mt-1 truncate text-sm font-bold text-slate-500">
+              {driveCurrentFolder?.name || "初期フォルダ"}
+            </p>
+          </div>
+          <button onClick={() => setShowMapPicker(false)} className="transition-all active:scale-95 active:brightness-90 text-2xl">✕</button>
+        </div>
+
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          {driveParentFolder && (
+            <button
+              type="button"
+              onClick={() => loadDriveMapFolder(driveParentFolder.id)}
+              className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 active:scale-95"
+            >
+              ↑ 上のフォルダ
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => loadDriveMapFolder(
+              drivePickerTarget.type === 'map' ? undefined : INSPECTION_DRIVE_ROOT_FOLDER_ID,
+              drivePickerTarget.type === 'map' ? "" : undefined
+            )}
+            className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 active:scale-95"
+          >
+            初期フォルダ
+          </button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-10 sm:p-6">
+        <div className="mb-6">
+          <div className="mb-2 text-xs font-black uppercase text-slate-400">フォルダ</div>
+          {driveFolders.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">
+              このフォルダに下位フォルダはありません。
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {driveFolders.map(folder => (
+                <button
+                  key={folder.id}
+                  type="button"
+                  onClick={() => loadDriveMapFolder(folder.id)}
+                  className="transition-all active:scale-95 active:brightness-90 flex min-h-[64px] items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left font-bold text-slate-700"
+                >
+                  <span className="text-xl">📁</span>
+                  <span className="min-w-0 truncate text-sm">{folder.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mb-2 text-xs font-black uppercase text-slate-400">画像</div>
+        {driveMaps.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">
+            このフォルダに画像はありません。
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {driveMaps.map(image => (
+              <button
+                key={image.id}
+                type="button"
+                onClick={() => handleDriveImageSelect(image)}
+                className="transition-all active:scale-95 active:brightness-90 flex flex-col gap-2 p-2 bg-slate-50 rounded-xl active:bg-slate-200"
+              >
+                <img src={image.thumbUrl} className="w-full aspect-video object-cover rounded-lg shadow-sm" alt="" />
+                <span className="text-[10px] font-bold text-slate-600 truncate w-full text-left">{image.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
 // ========================================
 // 傾斜測定カルテ
 // ========================================
@@ -3826,6 +3985,7 @@ if (mode === 'inclination_menu') {
 
     <Nav />
     <LoadingOverlay />
+    {drivePickerModal}
 
     <div
       className="mx-auto"
@@ -4210,6 +4370,18 @@ if (mode === 'inclination_menu') {
       }
     />
 
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openDrivePicker({ type: 'slope', rowId: row.id, photoField: 'photo1' }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
+      }}
+      className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+    >
+      Drive
+    </button>
+
     {!!row.photo1 && (
 
       <button
@@ -4259,6 +4431,18 @@ if (mode === 'inclination_menu') {
         handleSlopeCapture(e, row.id, 'photo2')
       }
     />
+
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openDrivePicker({ type: 'slope', rowId: row.id, photoField: 'photo2' }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
+      }}
+      className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+    >
+      Drive
+    </button>
 
     {!!row.photo2 && (
 
@@ -4392,6 +4576,7 @@ if (mode === 'inclination_menu') {
       <div className="flex flex-col items-center justify-start min-h-screen bg-slate-300 text-black" style={routePageStyle}>
         <Nav />
         <LoadingOverlay />
+        {drivePickerModal}
 
         {/* --- スプレッドシート再現ヘッダー (線の色を slate-800 で統一) --- */}
         <div className="w-full max-w-[99%] bg-white shadow-sm border-2 border-slate-800 mt-2 text-[15px]">
@@ -4722,6 +4907,18 @@ if (mode === 'inclination_menu') {
               onChange={(e) => handleFirstCapture(e, index)}
             />
 
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openDrivePicker({ type: 'karteFirst', index }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
+              }}
+              className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+            >
+              Drive
+            </button>
+
             {!!p && (
               <button
                 onClick={(e) => {
@@ -4778,6 +4975,18 @@ if (mode === 'inclination_menu') {
               ref={(el) => { firstFileInputs.current[index] = el }}
               onChange={(e) => handleFirstCapture(e, index)}
             />
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openDrivePicker({ type: 'karteFirst', index }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
+              }}
+              className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+            >
+              Drive
+            </button>
 
             {!!p && (
               <button
@@ -4946,6 +5155,18 @@ if (mode === 'inclination_menu') {
               onChange={(e) => handleCapture(e, index)}
             />
 
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openDrivePicker({ type: 'karteCurrent', index }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
+              }}
+              className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+            >
+              Drive
+            </button>
+
  {!!p && (
   <button
     onClick={(e) => {
@@ -5006,6 +5227,18 @@ if (mode === 'inclination_menu') {
               ref={(el) => { fileInputs.current[index] = el }}
               onChange={(e) => handleCapture(e, index)}
             />
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openDrivePicker({ type: 'karteCurrent', index }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
+              }}
+              className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+            >
+              Drive
+            </button>
 
  {!!p && (
   <button
@@ -5124,27 +5357,6 @@ if (mode === 'inclination_menu') {
   }
 
   // --- 次のモード（editorなど）がここから始まる ---
-
-// ★★★ ここに handleSaveMap を貼り付けます ★★★
-  const loadDriveMapFolder = async (folderId?: string, routeNameOverride?: string) => {
-    setIsLoading(true);
-    try {
-      const result = await gasApi(
-        "getMaps",
-        folderId ? { folderId } : { routeName: routeNameOverride ?? selectedRoute }
-      );
-
-      setDriveMaps(Array.isArray(result.list) ? result.list : []);
-      setDriveFolders(Array.isArray(result.folders) ? result.folders : []);
-      setDriveCurrentFolder(result.currentFolder || null);
-      setDriveParentFolder(result.parentFolder || null);
-      setShowMapPicker(true);
-    } catch (e) {
-      alert("マップの取得に失敗しました");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const fetchMapStationNo = async () => {
     if (!selectedRoute || !stationName || !selectedYear) {
@@ -5451,7 +5663,7 @@ if (mode === 'editor') {
         保存済み
         </button>
         <button onClick={() => window.open(`https://www.google.com/search?q=${stationName}+構内図&tbm=isch`, '_blank')} className="flex-1 rounded-md bg-slate-800 px-2 py-2 text-sm font-bold text-white">Web検索</button>
-        <button onClick={() => loadDriveMapFolder(undefined, "")} className="transition-all active:scale-95 active:brightness-90 flex-1 rounded-md bg-emerald-600 px-2 py-2 text-sm font-bold text-white">
+        <button onClick={() => openDrivePicker({ type: 'map' }, undefined, "")} className="transition-all active:scale-95 active:brightness-90 flex-1 rounded-md bg-emerald-600 px-2 py-2 text-sm font-bold text-white">
         ドライブ
         </button>
       </>
