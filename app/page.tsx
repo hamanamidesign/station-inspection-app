@@ -603,6 +603,7 @@ useEffect(() => {
   const [driveFolders, setDriveFolders] = useState<DriveFolderItem[]>([]);
   const [driveCurrentFolder, setDriveCurrentFolder] = useState<DriveFolderItem | null>(null);
   const [driveParentFolder, setDriveParentFolder] = useState<DriveFolderItem | null>(null);
+  const [driveFolderInput, setDriveFolderInput] = useState('');
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -5142,6 +5143,26 @@ if (mode === 'inclination_menu') {
   // --- 次のモード（editorなど）がここから始まる ---
 
 // ★★★ ここに handleSaveMap を貼り付けます ★★★
+  const extractDriveFolderId = (value: string) => {
+    const text = value.trim();
+    if (!text) return "";
+
+    const folderMatch = text.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    if (folderMatch?.[1]) return folderMatch[1];
+
+    const idMatch = text.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idMatch?.[1]) return idMatch[1];
+
+    return text;
+  };
+
+  const openDriveFolderFromInput = () => {
+    const folderId = extractDriveFolderId(driveFolderInput);
+    if (!folderId) return alert("フォルダURLまたはフォルダIDを入力してください");
+
+    loadDriveMapFolder(folderId);
+  };
+
   const loadDriveMapFolder = async (folderId?: string) => {
     setIsLoading(true);
     try {
@@ -5987,6 +6008,26 @@ if (mode === 'editor') {
                 className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 active:scale-95"
               >
                 初期フォルダ
+              </button>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={driveFolderInput}
+                onChange={e => setDriveFolderInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') openDriveFolderFromInput();
+                }}
+                placeholder="共有フォルダのURLまたはID"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400"
+              />
+              <button
+                type="button"
+                onClick={openDriveFolderFromInput}
+                className="shrink-0 rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white active:scale-95"
+              >
+                開く
               </button>
             </div>
             </div>
