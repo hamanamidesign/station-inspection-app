@@ -3427,13 +3427,14 @@ const sendInclinationKarte = async () => {
           }
           uploadedPhotoCount += 1;
         } else {
-          await gasApi("clearInclinationKartePhoto", {
+          await gasApi("uploadInclinationKartePhoto", {
             spreadsheetId,
             folderId: stationFolderId,
             year: selectedYear,
             sheetName,
             point: row.point,
             kind: 'first',
+            clear: true,
           });
         }
 
@@ -3454,13 +3455,14 @@ const sendInclinationKarte = async () => {
           }
           uploadedPhotoCount += 1;
         } else {
-          await gasApi("clearInclinationKartePhoto", {
+          await gasApi("uploadInclinationKartePhoto", {
             spreadsheetId,
             folderId: stationFolderId,
             year: selectedYear,
             sheetName,
             point: row.point,
             kind: 'current',
+            clear: true,
           });
         }
       }
