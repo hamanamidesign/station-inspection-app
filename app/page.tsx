@@ -3899,7 +3899,7 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
     : 'ドライブから写真を選択';
 
   const drivePickerModal = showMapPicker ? (
-    <div className="fixed inset-0 bg-white z-[110] flex flex-col animate-slide-up">
+    <div className="fixed inset-0 z-[300] flex flex-col bg-white animate-slide-up">
       <div className="shrink-0 border-b border-slate-200 bg-white p-4 sm:p-6">
         <div className="flex justify-between items-start gap-4">
           <div className="min-w-0">
@@ -6213,7 +6213,7 @@ if (mode === 'editor') {
 
         {/* ドライブ画像選択モーダル */}
         {showMapPicker && (
-          <div className="fixed inset-0 bg-white z-[110] flex flex-col animate-slide-up">
+          <div className="fixed inset-0 z-[300] flex flex-col bg-white animate-slide-up">
             <div className="shrink-0 border-b border-slate-200 bg-white p-4 sm:p-6">
             <div className="flex justify-between items-start gap-4">
               <div className="min-w-0">
