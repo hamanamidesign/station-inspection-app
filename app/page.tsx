@@ -3426,6 +3426,15 @@ const sendInclinationKarte = async () => {
             throw new Error(`${sheetName} / ${row.point} の初回写真貼り付けに失敗しました: ${error instanceof Error ? error.message : String(error)}`);
           }
           uploadedPhotoCount += 1;
+        } else {
+          await gasApi("clearInclinationKartePhoto", {
+            spreadsheetId,
+            folderId: stationFolderId,
+            year: selectedYear,
+            sheetName,
+            point: row.point,
+            kind: 'first',
+          });
         }
 
         const currentPhotoFile = await toPhotoPayload(row.photo2, row.point, 'current');
@@ -3444,6 +3453,15 @@ const sendInclinationKarte = async () => {
             throw new Error(`${sheetName} / ${row.point} の最新写真貼り付けに失敗しました: ${error instanceof Error ? error.message : String(error)}`);
           }
           uploadedPhotoCount += 1;
+        } else {
+          await gasApi("clearInclinationKartePhoto", {
+            spreadsheetId,
+            folderId: stationFolderId,
+            year: selectedYear,
+            sheetName,
+            point: row.point,
+            kind: 'current',
+          });
         }
       }
 
