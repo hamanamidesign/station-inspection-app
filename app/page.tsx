@@ -5144,12 +5144,12 @@ if (mode === 'inclination_menu') {
   // --- 次のモード（editorなど）がここから始まる ---
 
 // ★★★ ここに handleSaveMap を貼り付けます ★★★
-  const loadDriveMapFolder = async (folderId?: string) => {
+  const loadDriveMapFolder = async (folderId?: string, routeNameOverride?: string) => {
     setIsLoading(true);
     try {
       const result = await gasApi(
         "getMaps",
-        folderId ? { folderId } : { routeName: selectedRoute }
+        folderId ? { folderId } : { routeName: routeNameOverride ?? selectedRoute }
       );
 
       setDriveMaps(Array.isArray(result.list) ? result.list : []);
@@ -5469,7 +5469,7 @@ if (mode === 'editor') {
         保存済み
         </button>
         <button onClick={() => window.open(`https://www.google.com/search?q=${stationName}+構内図&tbm=isch`, '_blank')} className="flex-1 rounded-md bg-slate-800 px-2 py-2 text-sm font-bold text-white">Web検索</button>
-        <button onClick={() => loadDriveMapFolder()} className="transition-all active:scale-95 active:brightness-90 flex-1 rounded-md bg-emerald-600 px-2 py-2 text-sm font-bold text-white">
+        <button onClick={() => loadDriveMapFolder(undefined, "")} className="transition-all active:scale-95 active:brightness-90 flex-1 rounded-md bg-emerald-600 px-2 py-2 text-sm font-bold text-white">
         ドライブ
         </button>
       </>
@@ -5985,7 +5985,7 @@ if (mode === 'editor') {
               )}
               <button
                 type="button"
-                onClick={() => loadDriveMapFolder()}
+                onClick={() => loadDriveMapFolder(undefined, "")}
                 className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 active:scale-95"
               >
                 初期フォルダ
@@ -5994,9 +5994,13 @@ if (mode === 'editor') {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-10 sm:p-6">
-              {driveFolders.length > 0 && (
-                <div className="mb-6">
-                  <div className="mb-2 text-xs font-black uppercase text-slate-400">フォルダ</div>
+              <div className="mb-6">
+                <div className="mb-2 text-xs font-black uppercase text-slate-400">フォルダ</div>
+                {driveFolders.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">
+                    このフォルダに下位フォルダはありません。
+                  </div>
+                ) : (
                   <div className="grid grid-cols-2 gap-3">
                     {driveFolders.map(folder => (
                       <button
@@ -6010,8 +6014,8 @@ if (mode === 'editor') {
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               <div className="mb-2 text-xs font-black uppercase text-slate-400">画像</div>
               {driveMaps.length === 0 ? (
