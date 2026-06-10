@@ -4393,7 +4393,7 @@ if (mode === 'inclination_menu') {
         e.stopPropagation();
         openDrivePicker({ type: 'slope', rowId: row.id, photoField: 'photo1' }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
       }}
-      className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+      className="absolute bottom-1 left-1 z-20 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
     >
       Drive
     </button>
@@ -4412,7 +4412,7 @@ if (mode === 'inclination_menu') {
           e.stopPropagation();
           updateSlopePhoto(row.id, 'photo1', null);
         }}
-        className="absolute top-1 right-1 z-[120] w-6 h-6 rounded-full bg-red-600 text-white text-xs"
+        className="absolute top-1 right-1 z-30 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
       >
         ✕
       </button>
@@ -4460,7 +4460,7 @@ if (mode === 'inclination_menu') {
         e.stopPropagation();
         openDrivePicker({ type: 'slope', rowId: row.id, photoField: 'photo2' }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
       }}
-      className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+      className="absolute bottom-1 left-1 z-20 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
     >
       Drive
     </button>
@@ -4479,7 +4479,7 @@ if (mode === 'inclination_menu') {
           e.stopPropagation();
           updateSlopePhoto(row.id, 'photo2', null);
         }}
-        className="absolute top-1 right-1 z-[120] w-6 h-6 rounded-full bg-red-600 text-white text-xs"
+        className="absolute top-1 right-1 z-30 w-6 h-6 rounded-full bg-red-600 text-white text-xs"
       >
         ✕
       </button>
@@ -4940,7 +4940,7 @@ if (mode === 'inclination_menu') {
                 e.stopPropagation();
                 openDrivePicker({ type: 'karteFirst', index }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
               }}
-              className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+              className="absolute bottom-1 left-1 z-20 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
             >
               Drive
             </button>
@@ -4962,7 +4962,7 @@ if (mode === 'inclination_menu') {
                   n[index] = null;
                   setFirstPhotos(n);
                 }}
-                className="absolute -top-1 -right-1 z-[120] bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
+                className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
               >
                 ✕
               </button>
@@ -5017,7 +5017,7 @@ if (mode === 'inclination_menu') {
                 e.stopPropagation();
                 openDrivePicker({ type: 'karteFirst', index }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
               }}
-              className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+              className="absolute bottom-1 left-1 z-20 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
             >
               Drive
             </button>
@@ -5039,7 +5039,7 @@ if (mode === 'inclination_menu') {
                   n[index] = null;
                   setFirstPhotos(n);
                 }}
-                className="absolute -top-1 -right-1 z-[120] bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
+                className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
               >
                 ✕
               </button>
@@ -5204,7 +5204,7 @@ if (mode === 'inclination_menu') {
                 e.stopPropagation();
                 openDrivePicker({ type: 'karteCurrent', index }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
               }}
-              className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+              className="absolute bottom-1 left-1 z-20 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
             >
               Drive
             </button>
@@ -5226,7 +5226,7 @@ if (mode === 'inclination_menu') {
       n[index] = null;
       setPhotos(n);
     }}
-    className="absolute -top-1 -right-1 z-[120] bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
+    className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
   >
     ✕
   </button>
@@ -5285,7 +5285,7 @@ if (mode === 'inclination_menu') {
                 e.stopPropagation();
                 openDrivePicker({ type: 'karteCurrent', index }, INSPECTION_DRIVE_ROOT_FOLDER_ID);
               }}
-              className="absolute bottom-1 left-1 z-50 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+              className="absolute bottom-1 left-1 z-20 rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white shadow"
             >
               Drive
             </button>
@@ -5307,7 +5307,7 @@ if (mode === 'inclination_menu') {
       n[index] = null;
       setPhotos(n);
     }}
-    className="absolute -top-1 -right-1 z-[120] bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
+    className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
   >
     ✕
   </button>
@@ -5388,7 +5388,7 @@ if (mode === 'inclination_menu') {
     )}
 
         {/* --- 保存ボタン --- */}
-        <div className="w-full bg-slate-800 p-3 flex flex-col items-center gap-3 sticky bottom-0 border-t border-slate-600">
+        <div className="sticky bottom-0 z-40 flex w-full flex-col items-center gap-3 border-t border-slate-600 bg-slate-800 p-3">
           {isPhoto && (
             <button
               type="button"
