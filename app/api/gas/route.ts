@@ -1,7 +1,7 @@
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL!;
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const DEFAULT_GAS_TIMEOUT_MS = 30000;
 const GAS_RETRY_COUNT = 0;
@@ -57,8 +57,8 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "saveMarkers":
       return 45000;
     case "uploadKarte":
-      // Leave a small margin below maxDuration so this route can return a useful error.
-      return 55000;
+      // Photo and Drive processing in GAS can take longer than one minute.
+      return 240000;
     case "createInspectionPdf":
       return 55000;
     case "startInspectionPdfMerge":
