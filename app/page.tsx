@@ -914,8 +914,8 @@ const fetchInspectionListDates = useCallback(async () => {
 
   return {
     stationNo: String(result.stationNo || '').trim(),
-    firstDate: formatSheetDateText(result.firstDate),
-    inspectDate: formatSheetDateText(result.latestDate),
+    firstDate: String(result.firstDate ?? ''),
+    inspectDate: String(result.latestDate ?? ''),
     message: String(result.message || ''),
   };
 }, [selectedRoute, stationName, selectedYear]);
@@ -926,8 +926,8 @@ const applyInspectionListDates = useCallback((dates: {
   inspectDate?: string;
 } | null) => {
   if (!dates) return;
-  if (dates.firstDate) setFirstDate(dates.firstDate);
-  if (dates.inspectDate) setInspectDate(dates.inspectDate);
+  if (dates.firstDate !== undefined) setFirstDate(dates.firstDate);
+  if (dates.inspectDate !== undefined) setInspectDate(dates.inspectDate);
   if (dates.stationNo) setStationNo(dates.stationNo);
 }, []);
 
@@ -1096,10 +1096,10 @@ useEffect(() => {
 }, [inspectionPlace]);
 
 useEffect(() => {
-  if ((mode === 'karte_edit' && !isEditMode) || mode === 'slope_table' || mode === 'inclination_menu') {
+  if (mode === 'karte_edit' || mode === 'slope_table' || mode === 'inclination_menu') {
     loadInspectionListDates();
   }
-}, [mode, isEditMode, loadInspectionListDates]);
+}, [mode, loadInspectionListDates]);
 
 useEffect(() => {
 
@@ -1523,6 +1523,20 @@ const result = await gasApi("getKarteData", {
     setIsSending(true);
 
     try {
+      let payloadFirstDate = firstDate;
+      let payloadInspectDate = inspectDate;
+
+      if (actionType === "uploadKarte") {
+        const masterDates = await fetchInspectionListDates();
+        if (!masterDates) {
+          throw new Error("点検リスト_マスタの日付を取得できませんでした");
+        }
+
+        payloadFirstDate = masterDates.firstDate || "";
+        payloadInspectDate = masterDates.inspectDate || "";
+        applyInspectionListDates(masterDates);
+      }
+
       // 画像のリサイズ処理
       const photoDataList = await Promise.all(
   photos.map(async (p, index) => {
@@ -1583,12 +1597,12 @@ const firstPhotoDataList = await Promise.all(
   totalEval,
   prevYearEval,
   firstKarteNo,
-  firstDate,
+  firstDate: payloadFirstDate,
   firstInspector,
   firstFinish,
   firstSituation,
   firstDetail,
-  inspectDate,
+  inspectDate: payloadInspectDate,
   contractor,
   inspector,
   buildingCategory,
@@ -1614,7 +1628,7 @@ const result = await gasApi(actionType, payload);
       }
     } catch (e) {
       console.error(e);
-      alert("通信エラーが発生しました。");
+      alert(`保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setIsSending(false);
     }
@@ -4794,13 +4808,9 @@ if (mode === 'inclination_menu') {
           </div>
           <div className="p-1 border-r border-slate-400 flex flex-col">
             <span className="text-[9px] font-bold text-black">初回点検日</span>
-            <input 
-            type="text" 
-            className="bg-transparent outline-none placeholder-slate-400" 
-            placeholder="2018/04/01" 
-            value={firstDate || ''} // ★修正
-            onChange={e => setFirstDate(e.target.value)} 
-           />
+            <div className="min-h-5 whitespace-pre-wrap text-black">
+              {firstDate}
+            </div>
           </div>
           <div className="p-1 flex flex-col">
           <span className="text-[9px] font-bold text-black">初回点検者</span>
@@ -5064,7 +5074,9 @@ if (mode === 'inclination_menu') {
             <div className="grid grid-cols-2 text-[11px] border-b border-slate-800 font-bold">
               <div className="border-r border-slate-300 p-1 flex flex-col">
                 <span className="text-[9px] text-blue-700">最新点検日</span>
-                <input type="date" className="outline-none text-black placeholder-slate-400" value={inspectDate} onChange={e => setInspectDate(e.target.value)} />
+                <div className="min-h-5 whitespace-pre-wrap font-normal text-black">
+                  {inspectDate}
+                </div>
               </div>
 <div className="p-1 flex flex-col bg-blue-50/30">
   <span className="text-[9px] text-blue-700">点検者</span>
