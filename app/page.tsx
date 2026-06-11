@@ -1944,6 +1944,7 @@ const mergeAllPdfs = async () => {
       year: selectedYear,
     });
     const jobId = String(startResult.jobId || "");
+    const mergeStartedAt = String(startResult.createdAt || new Date().toISOString());
 
     if (!jobId) {
       throw new Error("PDF結合の処理を開始できませんでした");
@@ -1956,8 +1957,27 @@ const mergeAllPdfs = async () => {
       const status = String(statusResult.status || "");
 
       if (status === "completed") {
+        setIsMergingPdfs(false);
         alert(
           `すべての資料を結合しました。\n${statusResult.fileName || ""}\n${statusResult.url || ""}`
+        );
+        return;
+      }
+
+      const completedFile = await gasApi("findCompletedInspectionPdf", {
+        spreadsheetId,
+        stationName,
+        year: selectedYear,
+        startedAt: mergeStartedAt,
+        previousOutputFileIds: Array.isArray(startResult.previousOutputFileIds)
+          ? startResult.previousOutputFileIds
+          : [],
+      });
+
+      if (completedFile.completed) {
+        setIsMergingPdfs(false);
+        alert(
+          `すべての資料を結合しました。\n${completedFile.fileName || ""}\n${completedFile.url || ""}`
         );
         return;
       }
@@ -1970,6 +1990,7 @@ const mergeAllPdfs = async () => {
     throw new Error("PDF結合に時間がかかっています。しばらく待ってから再度お試しください");
   } catch (e) {
     console.error(e);
+    setIsMergingPdfs(false);
     alert(`PDF結合に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     setIsMergingPdfs(false);
