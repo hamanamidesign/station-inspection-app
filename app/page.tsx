@@ -750,7 +750,10 @@ const getInspectionReportEvalClass = (
 };
 
 const getEvalFontColor = (field: 'structEval' | 'totalEval' | 'firstEval', value: unknown) => {
-  const text = String(value || '').trim();
+  const text = String(value || '')
+    .normalize('NFKC')
+    .replace(/\s+/g, '')
+    .toUpperCase();
   if ((field === 'totalEval' || field === 'firstEval') && ['AA', 'A1', 'A2', 'B'].includes(text)) {
     return '#dc2626';
   }

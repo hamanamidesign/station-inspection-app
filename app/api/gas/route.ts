@@ -8,6 +8,21 @@ const GAS_RETRY_COUNT = 0;
 const GAS_RETRY_DELAY_MS = 900;
 const GAS_TIMEOUT_MESSAGE =
   "GASの応答が遅く、Vercelの中継APIがタイムアウトしました。処理対象が多い場合は少し待ってからもう一度お試しください。";
+const GAS_SAVE_TIMEOUT_MESSAGE =
+  "GASの応答が遅く、Vercelの中継APIがタイムアウトしました。スプレッドシート側では処理が完了している可能性があります。反映結果を確認してから再実行してください。";
+
+const LONG_RUNNING_SAVE_ACTIONS = new Set([
+  "uploadKarte",
+  "uploadInclination",
+  "uploadSlopeTable",
+  "uploadInclinationKarteSheets",
+  "uploadInclinationKartePhoto",
+  "uploadCover",
+  "updateInspectionListMasterStation",
+  "uploadInspectionReport",
+  "uploadPhotos",
+  "saveMarkers",
+]);
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -31,7 +46,6 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "getMapEditorData":
       return 45000;
     case "createNew":
-    case "uploadKarte":
     case "uploadInclination":
     case "uploadSlopeTable":
     case "uploadInclinationKarteSheets":
@@ -42,6 +56,9 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "uploadPhotos":
     case "saveMarkers":
       return 45000;
+    case "uploadKarte":
+      // Leave a small margin below maxDuration so this route can return a useful error.
+      return 55000;
     case "createInspectionPdf":
       return 55000;
     case "startInspectionPdfMerge":
@@ -121,6 +138,11 @@ const jsonResponse = (obj: unknown, status = 200) =>
 const withActionLabel = (message: string, action?: string | null) =>
   action ? `${message} action=${action}` : message;
 
+const getGasTimeoutMessage = (action?: string | null) =>
+  action && LONG_RUNNING_SAVE_ACTIONS.has(action)
+    ? GAS_SAVE_TIMEOUT_MESSAGE
+    : GAS_TIMEOUT_MESSAGE;
+
 const detectImageMimeTypeFromBase64 = (base64: string) => {
   const value = base64.trim();
 
@@ -195,7 +217,7 @@ export async function GET(req: Request) {
     return jsonResponse({
       success: false,
       error: error instanceof Error && error.name === "AbortError"
-        ? withActionLabel(GAS_TIMEOUT_MESSAGE, action)
+        ? withActionLabel(getGasTimeoutMessage(action), action)
         : error instanceof Error
           ? withActionLabel(error.message, action)
           : String(error),
@@ -239,7 +261,7 @@ export async function POST(req: Request) {
     return jsonResponse({
       success: false,
       error: error instanceof Error && error.name === "AbortError"
-        ? withActionLabel(GAS_TIMEOUT_MESSAGE, action)
+        ? withActionLabel(getGasTimeoutMessage(action), action)
         : error instanceof Error
           ? withActionLabel(error.message, action)
           : String(error),
