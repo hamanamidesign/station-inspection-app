@@ -547,9 +547,10 @@ export default function InspectorApp() {
   const [firstKarteNo, setFirstKarteNo] = useState(''); // 初回カルテ番号 (D8)
   const [firstDate, setFirstDate] = useState('');      // 初回点検日 (F5)
   const [photoKarteMasterDates, setPhotoKarteMasterDates] = useState({
-    firstDate: '',
+    firstDates: [] as string[],
     inspectDate: '',
   });
+  const [photoKarteStoredFirstDate, setPhotoKarteStoredFirstDate] = useState('');
   const [firstInspector, setFirstInspector] = useState(''); // 初回点検者 (F6)
   const [photoKarteStoredFirstInspector, setPhotoKarteStoredFirstInspector] = useState('');
   const [photoKarteSelectedInspector, setPhotoKarteSelectedInspector] = useState('');
@@ -921,10 +922,20 @@ const fetchInspectionListDates = useCallback(async () => {
       station: stationName,
       year: selectedYear,
     });
+  const firstDates: string[] = Array.isArray(result.firstDates)
+    ? Array.from(new Set<string>(
+        result.firstDates
+          .map((value: unknown) => String(value || '').trim())
+          .filter((value: string) => Boolean(value))
+      ))
+    : String(result.firstDate || '').trim()
+      ? [String(result.firstDate).trim()]
+      : [];
 
   return {
     stationNo: String(result.stationNo || '').trim(),
     firstDate: String(result.firstDate ?? ''),
+    firstDates,
     inspectDate: String(result.latestDate ?? ''),
     message: String(result.message || ''),
   };
@@ -956,7 +967,7 @@ const loadPhotoKarteMasterDates = useCallback(async () => {
     if (!result) return;
 
     setPhotoKarteMasterDates({
-      firstDate: result.firstDate || '',
+      firstDates: result.firstDates,
       inspectDate: result.inspectDate || '',
     });
     if (result.stationNo) setStationNo(result.stationNo);
@@ -1137,11 +1148,11 @@ useEffect(() => {
   const hasCurrentPhoto = photos.some(photo => Boolean(photo));
   setFirstDate(
     hasCurrentPhoto
-      ? photoKarteMasterDates.firstDate
+      ? photoKarteStoredFirstDate || photoKarteMasterDates.firstDates[0] || ''
       : photoKarteMasterDates.inspectDate
   );
   setInspectDate(hasCurrentPhoto ? photoKarteMasterDates.inspectDate : '');
-}, [mode, photos, photoKarteMasterDates]);
+}, [mode, photos, photoKarteMasterDates, photoKarteStoredFirstDate]);
 
 useEffect(() => {
   if (mode !== 'karte_edit') return;
@@ -1529,7 +1540,9 @@ const result = await gasApi("getKarteData", {
       setTotalEval(getRecordText(d, ['totalEval', 'evaluation']));
       setPrevYearEval(getRecordText(d, ['prevYearEval', 'previousYearEval']));
       setFirstKarteNo(getRecordText(d, ['firstKarteNo', 'initialKarteNo']));
-      setFirstDate(formatSheetDateText(d.firstDate));
+      const loadedFirstDate = formatSheetDateText(d.firstDate);
+      setFirstDate(loadedFirstDate);
+      setPhotoKarteStoredFirstDate(loadedFirstDate);
       const loadedFirstInspector = getRecordText(d, ['firstInspector', 'initialInspector']);
       const loadedInspector = getRecordText(d, ['inspector']);
       setFirstInspector(loadedFirstInspector);
@@ -1592,12 +1605,12 @@ const result = await gasApi("getKarteData", {
 
         const hasCurrentPhoto = photos.some(photo => Boolean(photo));
         payloadFirstDate = hasCurrentPhoto
-          ? masterDates.firstDate || ""
+          ? firstDate || masterDates.firstDates[0] || ""
           : masterDates.inspectDate || "";
         payloadInspectDate = hasCurrentPhoto ? masterDates.inspectDate || "" : "";
 
         setPhotoKarteMasterDates({
-          firstDate: masterDates.firstDate || '',
+          firstDates: masterDates.firstDates,
           inspectDate: masterDates.inspectDate || '',
         });
         setFirstDate(payloadFirstDate);
@@ -2797,6 +2810,7 @@ const resetKarteFields = () => {
   setTotalEval('');
   setFirstKarteNo('');
   setFirstDate('');
+  setPhotoKarteStoredFirstDate('');
   setFirstInspector('');
   setPhotoKarteStoredFirstInspector('');
   setPhotoKarteSelectedInspector(
@@ -4768,6 +4782,11 @@ if (mode === 'inclination_menu') {
   if (mode === 'karte_edit' || mode === 'inclination_edit') {
     const isPhoto = mode === 'karte_edit';
     const hasCurrentPhoto = photos.some(photo => Boolean(photo));
+    const photoKarteFirstDateOptions = Array.from(new Set([
+      photoKarteStoredFirstDate,
+      firstDate,
+      ...photoKarteMasterDates.firstDates,
+    ].map(value => String(value || '').trim()).filter(Boolean)));
     const finishOptions = getFinishOptions();
     const checkItems = getCheckItems();
     return (
@@ -4966,9 +4985,27 @@ if (mode === 'inclination_menu') {
           </div>
           <div className="p-1 border-r border-slate-400 flex flex-col">
             <span className="text-[9px] font-bold text-black">初回点検日</span>
-            <div className="min-h-5 whitespace-pre-wrap text-black">
-              {firstDate}
-            </div>
+            {hasCurrentPhoto ? (
+              <select
+                className="min-h-5 bg-transparent outline-none text-black"
+                value={firstDate}
+                onChange={e => {
+                  setFirstDate(e.target.value);
+                  setPhotoKarteStoredFirstDate(e.target.value);
+                }}
+              >
+                {photoKarteFirstDateOptions.length === 0 && (
+                  <option value="">初回点検日なし</option>
+                )}
+                {photoKarteFirstDateOptions.map(date => (
+                  <option key={date} value={date}>{date}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="min-h-5 whitespace-pre-wrap text-black">
+                {firstDate}
+              </div>
+            )}
           </div>
           <div className="p-1 flex flex-col">
           <span className="text-[9px] font-bold text-black">初回点検者</span>

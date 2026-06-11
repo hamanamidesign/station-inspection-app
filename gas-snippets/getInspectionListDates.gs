@@ -12,6 +12,7 @@ function getInspectionListDates(payload) {
     return {
       success: true,
       firstDate: "",
+      firstDates: [],
       latestDate: "",
       message: "routeName, station, year のいずれかが空です",
     };
@@ -23,6 +24,7 @@ function getInspectionListDates(payload) {
     return {
       success: true,
       firstDate: "",
+      firstDates: [],
       latestDate: "",
       message: "路線名と一致するシートが見つかりません",
     };
@@ -31,7 +33,7 @@ function getInspectionListDates(payload) {
   const lastRow = sheet.getLastRow();
   const lastColumn = sheet.getLastColumn();
   if (lastRow < 2 || lastColumn < 3) {
-    return { success: true, firstDate: "", latestDate: "" };
+    return { success: true, firstDate: "", firstDates: [], latestDate: "" };
   }
 
   const stationValues = sheet.getRange(2, 2, lastRow - 1, 1).getDisplayValues();
@@ -42,6 +44,7 @@ function getInspectionListDates(payload) {
     return {
       success: true,
       firstDate: "",
+      firstDates: [],
       latestDate: "",
       message: "駅名が見つかりません",
     };
@@ -49,17 +52,21 @@ function getInspectionListDates(payload) {
 
   const targetRow = stationIndex + 2;
   const headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
-  const firstColumn = findFirstInspectionDateColumn_(headers) || 3;
+  const firstColumns = findFirstInspectionDateColumns_(headers);
   const latestColumn = findInspectionDateColumn_(headers, year);
+  const firstDates = uniqueNonEmptyValues_(
+    firstColumns.map(column => sheet.getRange(targetRow, column).getDisplayValue())
+  );
 
   return {
     success: true,
     stationNo: sheet.getRange(targetRow, 1).getDisplayValue(),
-    firstDate: sheet.getRange(targetRow, firstColumn).getDisplayValue(),
+    firstDate: firstDates[0] || "",
+    firstDates: firstDates,
     latestDate: latestColumn ? sheet.getRange(targetRow, latestColumn).getDisplayValue() : "",
     sheetName: sheet.getName(),
     row: targetRow,
-    firstHeader: headers[firstColumn - 1] || "",
+    firstHeaders: firstColumns.map(column => headers[column - 1] || ""),
     latestHeader: latestColumn ? headers[latestColumn - 1] : "",
   };
 }
@@ -82,9 +89,21 @@ function findInspectionDateColumn_(headers, year) {
   return index === -1 ? null : index + 4;
 }
 
-function findFirstInspectionDateColumn_(headers) {
-  const index = headers.findIndex(header => normalizeText_(header) === "初回_点検日");
-  return index === -1 ? null : index + 1;
+function findFirstInspectionDateColumns_(headers) {
+  return headers.reduce((columns, header, index) => {
+    if (index >= 2 && normalizeText_(header) === "初回_点検日") {
+      columns.push(index + 1);
+    }
+    return columns;
+  }, []);
+}
+
+function uniqueNonEmptyValues_(values) {
+  return values.reduce((result, value) => {
+    const text = String(value || "").trim();
+    if (text && result.indexOf(text) === -1) result.push(text);
+    return result;
+  }, []);
 }
 
 function normalizeText_(value) {
