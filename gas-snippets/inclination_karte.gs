@@ -77,6 +77,23 @@ function uploadInclinationKartePhoto(data) {
 
   const photoFolder = getOrCreateInclinationPhotoFolder_(data.folderId, data.year);
   const box = data.kind === "first" ? block.firstPhoto : block.currentPhoto;
+
+  if (data.clear) {
+    removeImagesInBox_(sheet, box);
+    const fileName = data.kind === "first"
+      ? `初回_${data.point}.jpg`
+      : `${data.year || ""}_${data.point}.jpg`;
+    trashFilesByName_(photoFolder, fileName, "");
+
+    return {
+      success: true,
+      sheetName: sheet.getName(),
+      point: data.point,
+      kind: data.kind,
+      cleared: true,
+    };
+  }
+
   const photoResult = insertInclinationPhoto_(sheet, box, data.photoFile, photoFolder);
 
   return {
@@ -306,6 +323,7 @@ function getInclinationPlaceFontSize_(value) {
 function writePointValue_(sheet, a1, row) {
   const range = sheet.getRange(a1);
   range.setValue(inclinationText_(row.point));
+  range.setFontSize(10);
   applyInclinationCellStyle_(range, getInclinationCellStyle_(row, "point"));
   if (!getInclinationCellStyle_(row, "point").color) {
     range.setFontColor(getPointFontColor_(row));

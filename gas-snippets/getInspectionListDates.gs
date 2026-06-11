@@ -6,7 +6,7 @@ function getInspectionListDates(payload) {
     payload.masterSpreadsheetId || "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
   const routeName = normalizeText_(payload.routeName);
   const stationName = normalizeStationName_(payload.station);
-  const year = String(payload.year || "").trim();
+  const year = String(payload.year || "").trim().replace(/年度?$/, "");
 
   if (!routeName || !stationName || !year) {
     return {
@@ -49,15 +49,17 @@ function getInspectionListDates(payload) {
 
   const targetRow = stationIndex + 2;
   const headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
+  const firstColumn = findFirstInspectionDateColumn_(headers) || 3;
   const latestColumn = findInspectionDateColumn_(headers, year);
 
   return {
     success: true,
     stationNo: sheet.getRange(targetRow, 1).getDisplayValue(),
-    firstDate: sheet.getRange(targetRow, 3).getDisplayValue(),
+    firstDate: sheet.getRange(targetRow, firstColumn).getDisplayValue(),
     latestDate: latestColumn ? sheet.getRange(targetRow, latestColumn).getDisplayValue() : "",
     sheetName: sheet.getName(),
     row: targetRow,
+    firstHeader: headers[firstColumn - 1] || "",
     latestHeader: latestColumn ? headers[latestColumn - 1] : "",
   };
 }
@@ -70,12 +72,18 @@ function findSheetByName_(spreadsheet, routeName) {
 
 function findInspectionDateColumn_(headers, year) {
   const targetYear = String(year).trim();
-  const index = headers.findIndex(header => {
+  const yearHeaders = headers.slice(3);
+  const index = yearHeaders.findIndex(header => {
     const text = normalizeText_(header);
-    const match = text.match(/^(\d{4})年_点検日$/);
+    const match = text.match(/^(\d{4})(?:年|年度)_点検日$/);
     return match && match[1] === targetYear;
   });
 
+  return index === -1 ? null : index + 4;
+}
+
+function findFirstInspectionDateColumn_(headers) {
+  const index = headers.findIndex(header => normalizeText_(header) === "初回_点検日");
   return index === -1 ? null : index + 1;
 }
 

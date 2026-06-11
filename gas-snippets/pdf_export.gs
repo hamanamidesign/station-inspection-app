@@ -1,0 +1,756 @@
+// PDF作成用です。
+// コード.gs の doPost(e) 内の switch (action) に、以下を追加して再デプロイしてください。
+// case "getPdfSheetOptions":
+//   return createJsonResponse(getPdfSheetOptions(body));
+// case "createInspectionPdf":
+//   return createJsonResponse(createInspectionPdf(body));
+// case "startInspectionPdfMerge":
+//   return createJsonResponse(startInspectionPdfMerge(body));
+// case "getInspectionPdfMergeStatus":
+//   return createJsonResponse(getInspectionPdfMergeStatus(body));
+// case "findCompletedInspectionPdf":
+//   return createJsonResponse(findCompletedInspectionPdf(body));
+//
+// PDF結合には、GASプロジェクトへPDFAppライブラリを追加してください。
+// Script ID: 1Xmtr5XXEakVql7N6FqwdCNdpdijsJOxgqH173JSB0UOwdb0GJYJbnJLk
+
+function getPdfSheetOptions(data) {
+  const ss = SpreadsheetApp.openById(data.spreadsheetId);
+  const sheets = ss.getSheets();
+
+  const groups = {
+    cover: [],
+    photo: [],
+    photoPositionMap: [],
+    slope: [],
+    inclination: [],
+    inspectionReport: [],
+  };
+  let hasInspectionReportPdfPages = false;
+
+  sheets.forEach(sheet => {
+    const name = sheet.getName();
+    const normalizedName = String(name || "").trim();
+
+    if (/^施設点検報告書_\d+$/.test(normalizedName)) {
+      hasInspectionReportPdfPages = true;
+      return;
+    }
+
+    if (normalizedName === "表紙") {
+      groups.cover.push({ name: name, label: normalizedName, group: "cover" });
+      return;
+    }
+
+    if (/^\d+$/.test(normalizedName)) {
+      groups.photo.push({ name: name, label: normalizedName, group: "photo" });
+      return;
+    }
+
+    if (isPhotoPositionMapPdfSheetName_(normalizedName)) {
+      groups.photoPositionMap.push({ name: name, label: normalizedName, group: "photoPositionMap" });
+      return;
+    }
+
+    if (isSlopeTablePdfSheetName_(normalizedName)) {
+      groups.slope.push({ name: name, label: normalizedName, group: "slope" });
+      return;
+    }
+
+    if (isInclinationPdfSheetName_(normalizedName)) {
+      groups.inclination.push({ name: name, label: normalizedName, group: "inclination" });
+      return;
+    }
+  });
+
+  groups.photo.sort((a, b) => Number(a.name) - Number(b.name));
+  groups.slope.sort((a, b) => getSlopeTablePdfPageNumber_(a.name) - getSlopeTablePdfPageNumber_(b.name));
+  groups.inclination.sort((a, b) => a.name.localeCompare(b.name, "ja", { numeric: true }));
+  if (hasInspectionReportPdfPages) {
+    groups.inspectionReport.push({ name: "施設点検報告書", label: "施設点検報告書", group: "inspectionReport" });
+  }
+
+  return {
+    success: true,
+    groups: groups,
+  };
+}
+
+function createInspectionPdf(data) {
+  const sheetNames = Array.isArray(data.sheetNames)
+    ? data.sheetNames.map(name => String(name || "")).filter(Boolean)
+    : [];
+
+  if (sheetNames.length === 0) {
+    throw new Error("PDF化するシートが選択されていません");
+  }
+
+  if (data.pdfKind === "inspectionReport" || (sheetNames.length === 1 && sheetNames[0] === "施設点検報告書")) {
+    return createInspectionReportPdf_(data);
+  }
+
+  return createGenericInspectionPdf_(data, sheetNames);
+}
+
+const INSPECTION_PDF_MERGE_JOB_PREFIX_ = "inspectionPdfMergeJob:";
+const INSPECTION_PDF_MERGE_TRIGGER_HANDLER_ = "runPendingInspectionPdfMerges";
+const INSPECTION_PDF_MERGE_ORDER_ = [
+  "表紙",
+  "写真カルテ番号位置図",
+  "施設点検報告書",
+  "写真カルテ",
+  "傾斜表",
+  "傾斜測定カルテ",
+];
+
+// PDF結合機能を初めて導入したときに、GASエディタから1回実行してください。
+// appsscript.jsonでoauthScopesを明示している場合は、script.scriptappも追加が必要です。
+function authorizeInspectionPdfMerge() {
+  ScriptApp.requireScopes(ScriptApp.AuthMode.FULL, [
+    "https://www.googleapis.com/auth/script.scriptapp",
+  ]);
+  ScriptApp.getProjectTriggers();
+  return "PDF結合用トリガーの権限を確認しました";
+}
+
+function startInspectionPdfMerge(data) {
+  const spreadsheetId = String(data.spreadsheetId || "").trim();
+  const stationName = String(data.stationName || "").trim();
+  const year = String(data.year || "").trim();
+
+  if (!spreadsheetId) throw new Error("スプレッドシートIDがありません");
+  if (!stationName) throw new Error("駅名がありません");
+  if (!year) throw new Error("年度がありません");
+
+  const folder = getInspectionPdfFolder_(spreadsheetId);
+  const pdfFiles = [];
+  const missing = [];
+
+  INSPECTION_PDF_MERGE_ORDER_.forEach(suffix => {
+    const fileName = buildInspectionPdfFileName_({
+      stationName: stationName,
+      year: year,
+    }, suffix) + ".pdf";
+    const files = folder.getFilesByName(fileName);
+
+    if (!files.hasNext()) {
+      missing.push(suffix);
+      return;
+    }
+
+    const file = files.next();
+    if (file.getMimeType() !== MimeType.PDF) {
+      missing.push(suffix);
+      return;
+    }
+
+    pdfFiles.push({
+      suffix: suffix,
+      fileName: fileName,
+      fileId: file.getId(),
+    });
+  });
+
+  if (missing.length > 0) {
+    throw new Error(
+      "すべてのファイルがありません。" +
+      missing.map(name => name + "のPDFが未作成です").join("、")
+    );
+  }
+
+  const jobId = Utilities.getUuid();
+  const job = {
+    jobId: jobId,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    folderId: folder.getId(),
+    outputFileName: buildInspectionPdfFileName_({
+      stationName: stationName,
+      year: year,
+    }, "報告書") + ".pdf",
+    previousOutputFileIds: getFileIdsByName_(
+      folder,
+      buildInspectionPdfFileName_({
+        stationName: stationName,
+        year: year,
+      }, "報告書") + ".pdf"
+    ),
+    files: pdfFiles,
+  };
+
+  saveInspectionPdfMergeJob_(job);
+  ensureInspectionPdfMergeTrigger_();
+
+  return {
+    success: true,
+    jobId: jobId,
+    status: job.status,
+    createdAt: job.createdAt,
+    previousOutputFileIds: job.previousOutputFileIds,
+    message: "PDF結合を開始しました",
+  };
+}
+
+function getInspectionPdfMergeStatus(data) {
+  const jobId = String(data.jobId || "").trim();
+  if (!jobId) throw new Error("PDF結合ジョブIDがありません");
+
+  const job = loadInspectionPdfMergeJob_(jobId);
+  if (!job) throw new Error("PDF結合の処理状況が見つかりません");
+  reconcileInspectionPdfMergeJob_(job);
+
+  return {
+    success: true,
+    jobId: job.jobId,
+    status: job.status,
+    message: job.message || "",
+    fileName: job.fileName || "",
+    url: job.url || "",
+  };
+}
+
+function findCompletedInspectionPdf(data) {
+  const spreadsheetId = String(data.spreadsheetId || "").trim();
+  const stationName = String(data.stationName || "").trim();
+  const year = String(data.year || "").trim();
+  const startedAt = String(data.startedAt || "").trim();
+  const previousOutputFileIds = Array.isArray(data.previousOutputFileIds)
+    ? data.previousOutputFileIds.map(id => String(id || ""))
+    : [];
+
+  if (!spreadsheetId || !stationName || !year) {
+    throw new Error("完成PDFの確認条件が不足しています");
+  }
+
+  const folder = getInspectionPdfFolder_(spreadsheetId);
+  const fileName = buildInspectionPdfFileName_({
+    stationName: stationName,
+    year: year,
+  }, "報告書") + ".pdf";
+  const files = folder.getFilesByName(fileName);
+  const startedTime = startedAt ? new Date(startedAt).getTime() : 0;
+
+  while (files.hasNext()) {
+    const file = files.next();
+    if (file.getMimeType() !== MimeType.PDF) continue;
+    if (previousOutputFileIds.indexOf(file.getId()) !== -1) continue;
+    if (startedTime && file.getLastUpdated().getTime() < startedTime - 5000) continue;
+
+    return {
+      success: true,
+      completed: true,
+      fileName: file.getName(),
+      url: file.getUrl(),
+    };
+  }
+
+  return {
+    success: true,
+    completed: false,
+  };
+}
+
+function reconcileInspectionPdfMergeJob_(job) {
+  if (job.status !== "pending" && job.status !== "processing") return;
+  if (!job.folderId || !job.outputFileName) return;
+
+  const folder = DriveApp.getFolderById(job.folderId);
+  const files = folder.getFilesByName(job.outputFileName);
+  let file = null;
+
+  while (files.hasNext()) {
+    const candidate = files.next();
+    if (candidate.getMimeType() !== MimeType.PDF) continue;
+    if (
+      Array.isArray(job.previousOutputFileIds) &&
+      job.previousOutputFileIds.indexOf(candidate.getId()) !== -1
+    ) {
+      continue;
+    }
+    file = candidate;
+    break;
+  }
+
+  if (!file) return;
+
+  job.status = "completed";
+  job.message = "すべての資料を結合しました";
+  job.fileName = file.getName();
+  job.url = file.getUrl();
+  job.completedAt = job.completedAt || new Date().toISOString();
+  saveInspectionPdfMergeJob_(job);
+}
+
+function runPendingInspectionPdfMerges() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  let job = null;
+
+  try {
+    const properties = PropertiesService.getScriptProperties().getProperties();
+    const pendingJobs = Object.keys(properties)
+      .filter(key => key.indexOf(INSPECTION_PDF_MERGE_JOB_PREFIX_) === 0)
+      .map(key => JSON.parse(properties[key]))
+      .filter(job => job && job.status === "pending")
+      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+
+    if (pendingJobs.length === 0) {
+      deleteInspectionPdfMergeTriggers_();
+      lock.releaseLock();
+      return;
+    }
+
+    job = pendingJobs[0];
+    job.status = "processing";
+    job.message = "PDFを結合しています";
+    saveInspectionPdfMergeJob_(job);
+
+    const pdfBlobs = job.files.map(item => DriveApp.getFileById(item.fileId).getBlob());
+
+    return PDFApp.mergePDFs(pdfBlobs)
+      .then(mergedBlob => {
+        const folder = DriveApp.getFolderById(job.folderId);
+        trashExistingFilesByName_(folder, job.outputFileName);
+        const file = folder.createFile(mergedBlob.setName(job.outputFileName));
+
+        job.status = "completed";
+        job.message = "すべての資料を結合しました";
+        job.fileName = file.getName();
+        job.url = file.getUrl();
+        job.completedAt = new Date().toISOString();
+        saveInspectionPdfMergeJob_(job);
+        scheduleNextInspectionPdfMerge_();
+      })
+      .catch(error => {
+        job.status = "failed";
+        job.message = error instanceof Error ? error.message : String(error);
+        job.completedAt = new Date().toISOString();
+        saveInspectionPdfMergeJob_(job);
+        scheduleNextInspectionPdfMerge_();
+      })
+      .finally(() => {
+        lock.releaseLock();
+      });
+  } catch (error) {
+    if (job) {
+      job.status = "failed";
+      job.message = error instanceof Error ? error.message : String(error);
+      job.completedAt = new Date().toISOString();
+      saveInspectionPdfMergeJob_(job);
+    }
+    scheduleNextInspectionPdfMerge_();
+    lock.releaseLock();
+  }
+}
+
+function getInspectionPdfFolder_(spreadsheetId) {
+  const spreadsheetFile = DriveApp.getFileById(spreadsheetId);
+  const parents = spreadsheetFile.getParents();
+  if (!parents.hasNext()) {
+    throw new Error("選択中の駅フォルダが見つかりません");
+  }
+  return parents.next();
+}
+
+function getFileIdsByName_(folder, fileName) {
+  const ids = [];
+  const files = folder.getFilesByName(fileName);
+  while (files.hasNext()) {
+    ids.push(files.next().getId());
+  }
+  return ids;
+}
+
+function saveInspectionPdfMergeJob_(job) {
+  PropertiesService.getScriptProperties().setProperty(
+    INSPECTION_PDF_MERGE_JOB_PREFIX_ + job.jobId,
+    JSON.stringify(job)
+  );
+}
+
+function loadInspectionPdfMergeJob_(jobId) {
+  const value = PropertiesService.getScriptProperties().getProperty(
+    INSPECTION_PDF_MERGE_JOB_PREFIX_ + jobId
+  );
+  return value ? JSON.parse(value) : null;
+}
+
+function ensureInspectionPdfMergeTrigger_() {
+  let triggers;
+
+  try {
+    triggers = ScriptApp.getProjectTriggers();
+  } catch (error) {
+    if (/permissions are not sufficient|script\.scriptapp|Authorization is required/i.test(String(error))) {
+      throw new Error(
+        "PDF結合用トリガーの権限がありません。GASエディタでauthorizeInspectionPdfMergeを1回実行し、権限を許可してから再デプロイしてください。"
+      );
+    }
+    throw error;
+  }
+
+  const exists = triggers.some(
+    trigger => trigger.getHandlerFunction() === INSPECTION_PDF_MERGE_TRIGGER_HANDLER_
+  );
+
+  if (!exists) {
+    ScriptApp.newTrigger(INSPECTION_PDF_MERGE_TRIGGER_HANDLER_)
+      .timeBased()
+      .after(1000)
+      .create();
+  }
+}
+
+function deleteInspectionPdfMergeTriggers_() {
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === INSPECTION_PDF_MERGE_TRIGGER_HANDLER_) {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
+function scheduleNextInspectionPdfMerge_() {
+  deleteInspectionPdfMergeTriggers_();
+
+  const properties = PropertiesService.getScriptProperties().getProperties();
+  const hasPendingJob = Object.keys(properties)
+    .filter(key => key.indexOf(INSPECTION_PDF_MERGE_JOB_PREFIX_) === 0)
+    .some(key => {
+      try {
+        const job = JSON.parse(properties[key]);
+        return job && job.status === "pending" && job.jobId;
+      } catch (error) {
+        return false;
+      }
+    });
+
+  if (hasPendingJob) {
+    ScriptApp.newTrigger(INSPECTION_PDF_MERGE_TRIGGER_HANDLER_)
+      .timeBased()
+      .after(1000)
+      .create();
+  }
+}
+
+function createInspectionReportPdf_(data) {
+  const ss = SpreadsheetApp.openById(data.spreadsheetId);
+  const pageSheetNames = ss
+    .getSheets()
+    .map(sheet => sheet.getName())
+    .filter(name => /^施設点検報告書_\d+$/.test(name))
+    .sort((a, b) => Number(a.replace("施設点検報告書_", "")) - Number(b.replace("施設点検報告書_", "")));
+
+  if (pageSheetNames.length === 0) {
+    throw new Error("PDF用の施設点検報告書ページが見つかりません。先に施設点検報告書をスプレッドシートへ反映してください。");
+  }
+
+  return createGenericInspectionPdf_({
+    ...data,
+    pdfKind: "inspectionReport",
+    fileSuffix: "施設点検報告書",
+  }, pageSheetNames);
+}
+
+function buildInspectionReportPdfSheet_(source, output) {
+  output.setHiddenGridlines(true);
+  copyColumnWidths_(source, output, 1, 17);
+
+  const lastRow = Math.max(source.getLastRow(), 8);
+  copyRows_(source, output, 1, lastRow, 1);
+  applyInspectionReportPdfHeaderAlignment_(output, 4);
+  trimSheet_(output, lastRow, 17);
+}
+
+function applyInspectionReportPdfHeaderAlignment_(sheet, headerStartRow) {
+  sheet
+    .getRange(headerStartRow, 1, 2, 6)
+    .setVerticalAlignment("middle");
+}
+
+function collectRowsByHeight_(sheet, startRow, lastRow, maxHeightPx) {
+  let height = 0;
+  let count = 0;
+
+  for (let row = startRow; row <= lastRow; row++) {
+    const rowHeight = sheet.getRowHeight(row);
+    if (count > 0 && height + rowHeight > maxHeightPx) break;
+    height += rowHeight;
+    count += 1;
+  }
+
+  return Math.max(1, count);
+}
+
+function copyRows_(source, target, sourceStartRow, rowCount, targetStartRow) {
+  const maxRows = target.getMaxRows();
+  const requiredRows = targetStartRow + rowCount - 1;
+
+  if (requiredRows > maxRows) {
+    target.insertRowsAfter(maxRows, requiredRows - maxRows);
+  }
+
+  source
+    .getRange(sourceStartRow, 1, rowCount, 17)
+    .copyTo(target.getRange(targetStartRow, 1, rowCount, 17), { contentsOnly: false });
+
+  for (let offset = 0; offset < rowCount; offset += 1) {
+    target.setRowHeight(targetStartRow + offset, source.getRowHeight(sourceStartRow + offset));
+  }
+
+  return targetStartRow + rowCount;
+}
+
+function copyColumnWidths_(source, target, startColumn, columnCount) {
+  for (let offset = 0; offset < columnCount; offset += 1) {
+    const column = startColumn + offset;
+    target.setColumnWidth(column, source.getColumnWidth(column));
+  }
+}
+
+function getRowsHeight_(sheet, startRow, rowCount) {
+  let height = 0;
+
+  for (let offset = 0; offset < rowCount; offset += 1) {
+    height += sheet.getRowHeight(startRow + offset);
+  }
+
+  return height;
+}
+
+function trimSheet_(sheet, lastRow, lastColumn) {
+  const maxRows = sheet.getMaxRows();
+  const maxColumns = sheet.getMaxColumns();
+
+  if (maxRows > lastRow) {
+    sheet.deleteRows(lastRow + 1, maxRows - lastRow);
+  }
+
+  if (maxColumns > lastColumn) {
+    sheet.deleteColumns(lastColumn + 1, maxColumns - lastColumn);
+  }
+}
+
+function createGenericInspectionPdf_(data, sheetNames) {
+  const ss = SpreadsheetApp.openById(data.spreadsheetId);
+  const settings = getGenericPdfSettings_(data, sheetNames);
+  const selected = {};
+  sheetNames.forEach(name => {
+    selected[name] = true;
+  });
+  const sheets = ss.getSheets();
+  const hiddenStates = sheets.map(sheet => ({
+    sheet: sheet,
+    hidden: sheet.isSheetHidden(),
+  }));
+  let selectedCount = 0;
+  let firstSelectedSheet = null;
+
+  try {
+    sheets.forEach(sheet => {
+      if (selected[sheet.getName()]) {
+        sheet.showSheet();
+        if (!firstSelectedSheet) firstSelectedSheet = sheet;
+        selectedCount += 1;
+      }
+    });
+
+    if (selectedCount === 0) {
+      throw new Error("PDF化できるシートが見つかりません");
+    }
+
+    firstSelectedSheet.activate();
+    SpreadsheetApp.flush();
+
+    sheets.forEach(sheet => {
+      if (!selected[sheet.getName()]) {
+        sheet.hideSheet();
+      }
+    });
+
+    SpreadsheetApp.flush();
+
+    const fileName = buildInspectionPdfFileName_(data, settings.fileSuffix);
+    const blob = exportSheetPdfBlob_(ss.getId(), null, fileName, {
+      portrait: settings.portrait,
+      size: "A4",
+      fitw: true,
+      horizontal_alignment: settings.horizontalAlignment || "LEFT",
+      gridlines: false,
+      printtitle: false,
+      sheetnames: false,
+      pagenumbers: false,
+      attachment: false,
+    });
+    const file = savePdfBlob_(data.spreadsheetId, blob);
+
+    return {
+      success: true,
+      files: [{
+        fileName: file.getName(),
+        url: file.getUrl(),
+      }],
+    };
+  } finally {
+    hiddenStates.forEach(state => {
+      if (!state.hidden) {
+        state.sheet.showSheet();
+      }
+    });
+    SpreadsheetApp.flush();
+    hiddenStates.forEach(state => {
+      if (state.hidden) {
+        state.sheet.hideSheet();
+      }
+    });
+    SpreadsheetApp.flush();
+  }
+}
+
+function isInclinationPdfSheetName_(sheetName) {
+  if (!sheetName) return false;
+  if (sheetName === "傾斜測定カルテ_マスタ") return false;
+  if (sheetName.indexOf("_マスタ") !== -1) return false;
+  if (/^\d+$/.test(sheetName)) return false;
+  if (/^傾斜測定カルテ/.test(sheetName)) return false;
+
+  if ([
+    "現場管理台帳",
+    "写真カルテ番号",
+    "表紙",
+    "点検結果総括表",
+    "施設点検報告書",
+    "写真カルテ番号位置",
+    "写真カルテ番号位置図",
+    "傾斜表",
+    "リスト",
+  ].indexOf(sheetName) !== -1) {
+    return false;
+  }
+
+  return /^[A-Za-zＡ-Ｚａ-ｚ]+(?:[,-][A-Za-zＡ-Ｚａ-ｚ]+)*$/.test(sheetName);
+}
+
+function isPhotoPositionMapPdfSheetName_(sheetName) {
+  return sheetName === "写真カルテ番号位置図" || sheetName === "写真カルテ番号位置";
+}
+
+function isSlopeTablePdfSheetName_(sheetName) {
+  return /^傾斜表(?:_\d+)?$/.test(sheetName);
+}
+
+function getSlopeTablePdfPageNumber_(sheetName) {
+  const name = String(sheetName || "").trim();
+  if (name === "傾斜表") return 1;
+  const match = name.match(/^傾斜表_(\d+)$/);
+  return match ? Number(match[1]) : 9999;
+}
+
+function getGenericPdfSettings_(data, sheetNames) {
+  const kind = String(data.pdfKind || "");
+  const suffix = String(data.fileSuffix || "").trim();
+  const normalizedSheetNames = sheetNames.map(name => String(name || "").trim());
+
+  if (kind === "cover" || suffix === "表紙" || sheetNames.indexOf("表紙") !== -1) {
+    return { fileSuffix: "表紙", portrait: false, horizontalAlignment: "CENTER" };
+  }
+
+  if (kind === "inspectionReport" || suffix === "施設点検報告書") {
+    return { fileSuffix: "施設点検報告書", portrait: false };
+  }
+
+  if (
+    kind === "photoPositionMap" ||
+    suffix === "写真カルテ番号位置図" ||
+    normalizedSheetNames.some(isPhotoPositionMapPdfSheetName_)
+  ) {
+    return { fileSuffix: "写真カルテ番号位置図", portrait: false };
+  }
+
+  if (kind === "slope" || suffix === "傾斜表" || normalizedSheetNames.some(isSlopeTablePdfSheetName_)) {
+    return { fileSuffix: "傾斜表", portrait: false, horizontalAlignment: "CENTER" };
+  }
+
+  if (kind === "inclination" || suffix === "傾斜測定カルテ") {
+    return { fileSuffix: "傾斜測定カルテ", portrait: false };
+  }
+
+  return { fileSuffix: suffix || "写真カルテ", portrait: false };
+}
+
+function exportSheetPdfBlob_(spreadsheetId, sheetId, fileName, options) {
+  const params = Object.keys(options)
+    .map(key => key + "=" + encodeURIComponent(String(options[key])))
+    .join("&");
+  const gidParam = sheetId === null || sheetId === undefined ? "" : "&gid=" + sheetId;
+  const url = "https://docs.google.com/spreadsheets/d/" + spreadsheetId + "/export?format=pdf" + gidParam + "&" + params;
+  let response = null;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    response = UrlFetchApp.fetch(url, {
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken(),
+      },
+      muteHttpExceptions: true,
+    });
+
+    const code = response.getResponseCode();
+    if (code >= 200 && code < 300) break;
+    if (code !== 429 && code < 500) {
+      throw new Error("PDF export failed: HTTP " + code + " " + response.getContentText().slice(0, 300));
+    }
+
+    Utilities.sleep(1200 * (attempt + 1));
+  }
+
+  const finalCode = response.getResponseCode();
+  if (finalCode < 200 || finalCode >= 300) {
+    throw new Error("PDF export failed: HTTP " + finalCode + " " + response.getContentText().slice(0, 300));
+  }
+
+  return response.getBlob().setName(fileName + ".pdf");
+}
+
+function savePdfBlob_(spreadsheetId, blob) {
+  const spreadsheetFile = DriveApp.getFileById(spreadsheetId);
+  const parents = spreadsheetFile.getParents();
+  const fileName = blob.getName();
+
+  if (parents.hasNext()) {
+    const folder = parents.next();
+    trashExistingFilesByName_(folder, fileName);
+    return folder.createFile(blob);
+  }
+
+  trashExistingRootFilesByName_(fileName);
+  return DriveApp.createFile(blob);
+}
+
+function trashExistingFilesByName_(folder, fileName) {
+  const files = folder.getFilesByName(fileName);
+
+  while (files.hasNext()) {
+    files.next().setTrashed(true);
+  }
+}
+
+function trashExistingRootFilesByName_(fileName) {
+  const files = DriveApp.getFilesByName(fileName);
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const parents = file.getParents();
+
+    if (!parents.hasNext()) {
+      file.setTrashed(true);
+    }
+  }
+}
+
+function buildInspectionPdfFileName_(data, suffix) {
+  const station = String(data.stationName || "駅名未設定").trim();
+  const year = String(data.year || "").trim();
+  const suffixText = String(suffix || "PDF").trim();
+  const parts = [station, year ? year + "年度" : "", suffixText].filter(Boolean);
+
+  return parts.join("_");
+}
