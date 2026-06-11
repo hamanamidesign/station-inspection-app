@@ -551,6 +551,8 @@ export default function InspectorApp() {
     inspectDate: '',
   });
   const [firstInspector, setFirstInspector] = useState(''); // 初回点検者 (F6)
+  const [photoKarteStoredFirstInspector, setPhotoKarteStoredFirstInspector] = useState('');
+  const [photoKarteSelectedInspector, setPhotoKarteSelectedInspector] = useState('');
   const [firstFinish, setFirstFinish] = useState(''); // 初回 仕上げ材
   const [firstSituation, setFirstSituation] = useState(''); // 初回 状況
   const [firstDetail, setFirstDetail] = useState(''); // 初回 サイズ詳細
@@ -1138,6 +1140,16 @@ useEffect(() => {
 }, [mode, photos, photoKarteMasterDates]);
 
 useEffect(() => {
+  if (mode !== 'karte_edit') return;
+
+  setPhotoKarteSelectedInspector(current => {
+    if (current && inspectorOptions.includes(current)) return current;
+    if (inspector && inspectorOptions.includes(inspector)) return inspector;
+    return inspectorOptions[0] || '';
+  });
+}, [mode, inspector, inspectorOptions]);
+
+useEffect(() => {
 
   if (mode !== 'slope_table' && mode !== 'inclination_menu') return;
   if (!spreadsheetId) return;
@@ -1514,7 +1526,11 @@ const result = await gasApi("getKarteData", {
       setPrevYearEval(getRecordText(d, ['prevYearEval', 'previousYearEval']));
       setFirstKarteNo(getRecordText(d, ['firstKarteNo', 'initialKarteNo']));
       setFirstDate(formatSheetDateText(d.firstDate));
-      setFirstInspector(getRecordText(d, ['firstInspector', 'initialInspector']));
+      const loadedFirstInspector = getRecordText(d, ['firstInspector', 'initialInspector']);
+      const loadedInspector = getRecordText(d, ['inspector']);
+      setFirstInspector(loadedFirstInspector);
+      setPhotoKarteStoredFirstInspector(loadedFirstInspector);
+      setPhotoKarteSelectedInspector(loadedInspector);
       setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
       setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
       setFirstDetail(getRecordText(d, ['firstDetail', 'initialDetail', 'firstRemarks3']));
@@ -1527,7 +1543,7 @@ const result = await gasApi("getKarteData", {
       setBuildingCategory(getRecordText(d, ['buildingCategory', 'buildingName']));
       setInspectionPlace(getRecordText(d, ['inspectionPlace', 'place']));
       setLocationDetail(getRecordText(d, ['locationDetail', 'detailPlace']));
-      setInspector(getRecordText(d, ['inspector']));
+      setInspector(loadedInspector);
       setRemarks1(getRecordText(d, ['remarks1', 'currentFinish', 'latestFinish']));
       setRemarks2(getRecordText(d, ['remarks2', 'currentSituation', 'latestSituation', 'situation']));
       setRemarks3(getRecordText(d, ['remarks3', 'currentDetail', 'latestDetail', 'detail']));
@@ -1561,6 +1577,8 @@ const result = await gasApi("getKarteData", {
     try {
       let payloadFirstDate = firstDate;
       let payloadInspectDate = inspectDate;
+      let payloadFirstInspector = firstInspector;
+      let payloadInspector = inspector;
 
       if (actionType === "uploadKarte") {
         const masterDates = await fetchInspectionListDates();
@@ -1581,6 +1599,13 @@ const result = await gasApi("getKarteData", {
         setFirstDate(payloadFirstDate);
         setInspectDate(payloadInspectDate);
         if (masterDates.stationNo) setStationNo(masterDates.stationNo);
+
+        payloadFirstInspector = hasCurrentPhoto
+          ? photoKarteStoredFirstInspector
+          : photoKarteSelectedInspector;
+        payloadInspector = hasCurrentPhoto ? photoKarteSelectedInspector : "";
+        setFirstInspector(payloadFirstInspector);
+        setInspector(payloadInspector);
       }
 
       // 画像のリサイズ処理
@@ -1644,13 +1669,13 @@ const firstPhotoDataList = await Promise.all(
   prevYearEval,
   firstKarteNo,
   firstDate: payloadFirstDate,
-  firstInspector,
+  firstInspector: payloadFirstInspector,
   firstFinish,
   firstSituation,
   firstDetail,
   inspectDate: payloadInspectDate,
   contractor,
-  inspector,
+  inspector: payloadInspector,
   buildingCategory,
   inspectionPlace,
   locationDetail,
@@ -2687,6 +2712,10 @@ const resetKarteFields = () => {
   setFirstKarteNo('');
   setFirstDate('');
   setFirstInspector('');
+  setPhotoKarteStoredFirstInspector('');
+  setPhotoKarteSelectedInspector(
+    inspectorOptions.includes(inspector) ? inspector : inspectorOptions[0] || ''
+  );
 
   setBuildingCategory('');
   setInspectionPlace('');
@@ -4652,12 +4681,9 @@ if (mode === 'inclination_menu') {
   }
   if (mode === 'karte_edit' || mode === 'inclination_edit') {
     const isPhoto = mode === 'karte_edit';
+    const hasCurrentPhoto = photos.some(photo => Boolean(photo));
     const finishOptions = getFinishOptions();
     const checkItems = getCheckItems();
-    const inspectorSelectOptions =
-      inspector && !inspectorOptions.includes(inspector)
-        ? [inspector, ...inspectorOptions]
-        : inspectorOptions;
     return (
       <div className="flex flex-col items-center justify-start min-h-screen bg-slate-300 text-black" style={routePageStyle}>
         <Nav />
@@ -4860,13 +4886,34 @@ if (mode === 'inclination_menu') {
           </div>
           <div className="p-1 flex flex-col">
           <span className="text-[9px] font-bold text-black">初回点検者</span>
-          <input 
-          type="text" 
-          className="bg-transparent outline-none placeholder-slate-400" 
-          placeholder="氏名" 
-          value={firstInspector || ''} // ★修正 
-          onChange={e => setFirstInspector(e.target.value)} 
-           />
+          {hasCurrentPhoto ? (
+            <input
+              type="text"
+              className="bg-transparent outline-none placeholder-slate-400"
+              placeholder="氏名"
+              value={photoKarteStoredFirstInspector}
+              onChange={e => {
+                setPhotoKarteStoredFirstInspector(e.target.value);
+                setFirstInspector(e.target.value);
+              }}
+            />
+          ) : (
+            <select
+              className="bg-transparent outline-none text-black"
+              value={photoKarteSelectedInspector}
+              onChange={e => {
+                setPhotoKarteSelectedInspector(e.target.value);
+                setFirstInspector(e.target.value);
+              }}
+            >
+              <option value="">
+                {inspectorOptions.length ? "点検者を選択" : "点検者未登録"}
+              </option>
+              {inspectorOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          )}
           </div>
           </div>
 
@@ -5127,20 +5174,27 @@ if (mode === 'inclination_menu') {
 <div className="p-1 flex flex-col bg-blue-50/30">
   <span className="text-[9px] text-blue-700">点検者</span>
 
-  <select
-    className="outline-none text-black bg-transparent text-[12px]"
-    value={inspector}
-    onChange={e => setInspector(e.target.value)}
-  >
-    <option value="">
-      {inspectorOptions.length ? "点検者を選択" : "点検者未登録"}
-    </option>
-    {inspectorSelectOptions.map(option => (
-      <option key={option} value={option}>
-        {option}
+  {hasCurrentPhoto ? (
+    <select
+      className="outline-none text-black bg-transparent text-[12px]"
+      value={photoKarteSelectedInspector}
+      onChange={e => {
+        setPhotoKarteSelectedInspector(e.target.value);
+        setInspector(e.target.value);
+      }}
+    >
+      <option value="">
+        {inspectorOptions.length ? "点検者を選択" : "点検者未登録"}
       </option>
-    ))}
-  </select>
+      {inspectorOptions.map(option => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  ) : (
+    <div className="min-h-5 font-normal text-black"></div>
+  )}
 </div>
             </div>
 
