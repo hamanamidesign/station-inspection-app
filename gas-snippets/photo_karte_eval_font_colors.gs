@@ -5,6 +5,7 @@
 // ルール:
 // - ① 構造度評価(F3): 常に黒
 // - 総合評価(L3): AA / A1 / A2 / B のとき赤、それ以外は黒
+// - 初回カルテ番号(D8): ＭＳ 明朝
 
 function applyPhotoKarteEvalFontColors_(sheet, data) {
   SpreadsheetApp.flush();
@@ -24,6 +25,8 @@ function applyPhotoKarteEvalFontColors_(sheet, data) {
     .setFontWeight(
     totalEvalColor === "#dc2626" ? "bold" : "normal"
   );
+  getPhotoKarteStyleRange_(sheet, "D8")
+    .setFontFamily("ＭＳ 明朝");
 }
 
 function normalizePhotoKarteEval_(value) {
