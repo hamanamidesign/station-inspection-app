@@ -546,6 +546,10 @@ export default function InspectorApp() {
   const [prevYearEval, setPrevYearEval] = useState(''); // 前年度評価 (Q3)
   const [firstKarteNo, setFirstKarteNo] = useState(''); // 初回カルテ番号 (D8)
   const [firstDate, setFirstDate] = useState('');      // 初回点検日 (F5)
+  const [photoKarteMasterDates, setPhotoKarteMasterDates] = useState({
+    firstDate: '',
+    inspectDate: '',
+  });
   const [firstInspector, setFirstInspector] = useState(''); // 初回点検者 (F6)
   const [firstFinish, setFirstFinish] = useState(''); // 初回 仕上げ材
   const [firstSituation, setFirstSituation] = useState(''); // 初回 状況
@@ -940,6 +944,21 @@ const loadInspectionListDates = useCallback(async () => {
   }
 }, [fetchInspectionListDates, applyInspectionListDates]);
 
+const loadPhotoKarteMasterDates = useCallback(async () => {
+  try {
+    const result = await fetchInspectionListDates();
+    if (!result) return;
+
+    setPhotoKarteMasterDates({
+      firstDate: result.firstDate || '',
+      inspectDate: result.inspectDate || '',
+    });
+    if (result.stationNo) setStationNo(result.stationNo);
+  } catch (e) {
+    console.warn("写真カルテ用の日付取得に失敗しました", e);
+  }
+}, [fetchInspectionListDates]);
+
 const loadCoverInspectionDate = useCallback(async () => {
   if (!selectedRoute || !stationName || !selectedYear) {
     setCoverDateStatus("路線・駅名・年度を選択してください");
@@ -1096,10 +1115,27 @@ useEffect(() => {
 }, [inspectionPlace]);
 
 useEffect(() => {
-  if (mode === 'karte_edit' || mode === 'slope_table' || mode === 'inclination_menu') {
+  if (mode === 'karte_edit') {
+    loadPhotoKarteMasterDates();
+    return;
+  }
+
+  if (mode === 'slope_table' || mode === 'inclination_menu') {
     loadInspectionListDates();
   }
-}, [mode, loadInspectionListDates]);
+}, [mode, loadInspectionListDates, loadPhotoKarteMasterDates]);
+
+useEffect(() => {
+  if (mode !== 'karte_edit') return;
+
+  const hasCurrentPhoto = photos.some(photo => Boolean(photo));
+  setFirstDate(
+    hasCurrentPhoto
+      ? photoKarteMasterDates.firstDate
+      : photoKarteMasterDates.inspectDate
+  );
+  setInspectDate(hasCurrentPhoto ? photoKarteMasterDates.inspectDate : '');
+}, [mode, photos, photoKarteMasterDates]);
 
 useEffect(() => {
 
@@ -1532,9 +1568,19 @@ const result = await gasApi("getKarteData", {
           throw new Error("点検リスト_マスタの日付を取得できませんでした");
         }
 
-        payloadFirstDate = masterDates.firstDate || "";
-        payloadInspectDate = masterDates.inspectDate || "";
-        applyInspectionListDates(masterDates);
+        const hasCurrentPhoto = photos.some(photo => Boolean(photo));
+        payloadFirstDate = hasCurrentPhoto
+          ? masterDates.firstDate || ""
+          : masterDates.inspectDate || "";
+        payloadInspectDate = hasCurrentPhoto ? masterDates.inspectDate || "" : "";
+
+        setPhotoKarteMasterDates({
+          firstDate: masterDates.firstDate || '',
+          inspectDate: masterDates.inspectDate || '',
+        });
+        setFirstDate(payloadFirstDate);
+        setInspectDate(payloadInspectDate);
+        if (masterDates.stationNo) setStationNo(masterDates.stationNo);
       }
 
       // 画像のリサイズ処理
