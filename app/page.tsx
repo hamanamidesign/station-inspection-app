@@ -573,6 +573,7 @@ export default function InspectorApp() {
   const [stationFolderId, setStationFolderId] = useState('');
   const [existingData, setExistingData] = useState<ExistingStation[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [isMergingPdfs, setIsMergingPdfs] = useState(false);
   const [activePlaceRowId, setActivePlaceRowId] = useState<number | null>(null);
   // 長押し判定や移動状態を保持するRef
   const dragRef = useRef<{
@@ -1926,6 +1927,55 @@ const createPdf = async () => {
   }
 };
 
+const waitForPdfMerge = (ms: number) =>
+  new Promise(resolve => window.setTimeout(resolve, ms));
+
+const mergeAllPdfs = async () => {
+  if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+  if (!stationName) return alert("駅名がありません");
+  if (!selectedYear) return alert("年度がありません");
+
+  setIsMergingPdfs(true);
+
+  try {
+    const startResult = await gasApi("startInspectionPdfMerge", {
+      spreadsheetId,
+      stationName,
+      year: selectedYear,
+    });
+    const jobId = String(startResult.jobId || "");
+
+    if (!jobId) {
+      throw new Error("PDF結合の処理を開始できませんでした");
+    }
+
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      await waitForPdfMerge(3000);
+
+      const statusResult = await gasApi("getInspectionPdfMergeStatus", { jobId });
+      const status = String(statusResult.status || "");
+
+      if (status === "completed") {
+        alert(
+          `すべての資料を結合しました。\n${statusResult.fileName || ""}\n${statusResult.url || ""}`
+        );
+        return;
+      }
+
+      if (status === "failed") {
+        throw new Error(statusResult.message || "PDFの結合に失敗しました");
+      }
+    }
+
+    throw new Error("PDF結合に時間がかかっています。しばらく待ってから再度お試しください");
+  } catch (e) {
+    console.error(e);
+    alert(`PDF結合に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+  } finally {
+    setIsMergingPdfs(false);
+  }
+};
+
 const registerUnavailableKarteNumber = async () => {
   const no = registerKarteNo.trim();
 
@@ -2599,14 +2649,22 @@ if (mode === 'pdf_export') {
           })}
         </div>
 
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 grid gap-3 md:grid-cols-2">
           <button
             type="button"
             onClick={createPdf}
-            disabled={isSending || selectedPdfSheets.length === 0}
-            className="w-full max-w-md rounded-xl bg-blue-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+            disabled={isSending || isMergingPdfs || selectedPdfSheets.length === 0}
+            className="w-full rounded-xl bg-blue-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
           >
-            {isSending ? "PDF作成中..." : "PDFを作成する"}
+            {isSending ? "PDF作成中..." : "種類別PDF作成"}
+          </button>
+          <button
+            type="button"
+            onClick={mergeAllPdfs}
+            disabled={isSending || isMergingPdfs || !spreadsheetId}
+            className="w-full rounded-xl bg-emerald-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+          >
+            {isMergingPdfs ? "資料を結合中..." : "すべての資料を結合"}
           </button>
         </div>
       </div>
