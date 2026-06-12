@@ -2501,15 +2501,11 @@ if (mode === 'exist_select') return (
             <input className="px-2 py-1 text-center outline-none" value={contractor} onChange={e => setContractor(e.target.value)} />
           </div>
 
-          <div className="mb-3 grid grid-cols-[220px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
-            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">初回点検日</div>
-            <textarea className="min-h-10 resize-y border-r-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={firstDate} onChange={e => setFirstDate(e.target.value)} rows={2} />
+          <div className="mb-3 grid grid-cols-[130px_1fr_130px_1fr] border-2 border-slate-800 bg-white shadow-sm">
             <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">最新点検日</div>
-            <textarea className="min-h-10 resize-y px-2 py-3 text-center leading-5 outline-none" value={inspectDate} onChange={e => setInspectDate(e.target.value)} rows={2} />
-            <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">初回点検者</div>
-            <textarea className="min-h-10 resize-y border-r-2 border-t-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={firstInspector} onChange={e => setFirstInspector(e.target.value)} rows={2} />
-            <div className="border-r-2 border-t-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">点検者</div>
-            <textarea className="min-h-10 resize-y border-t-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={inspector} onChange={e => setInspector(e.target.value)} rows={2} />
+            <textarea className="min-h-10 resize-y border-r-2 border-slate-800 px-2 py-3 text-center leading-5 outline-none" value={inspectDate} onChange={e => setInspectDate(e.target.value)} rows={2} />
+            <div className="border-r-2 border-slate-800 bg-slate-200 p-2 text-center font-bold">点検者</div>
+            <textarea className="min-h-10 resize-y px-2 py-3 text-center leading-5 outline-none" value={inspector} onChange={e => setInspector(e.target.value)} rows={2} />
           </div>
 
           <div className="overflow-hidden border-2 border-slate-800 bg-white shadow-sm">
@@ -2928,8 +2924,6 @@ async function sendInspectionReport() {
       stationName,
       year: selectedYear,
       contractor,
-      firstDate,
-      firstInspector,
       inspectDate,
       inspector,
       rows: rows.map(row => ({
@@ -2976,9 +2970,7 @@ async function loadInspectionReport() {
     let offset = 0;
     const limit = 5;
     let hasMore = true;
-    let mergedFirstDate = "";
     let mergedInspectDate = "";
-    let mergedFirstInspector = "";
     let mergedInspector = "";
 
     while (hasMore) {
@@ -3007,14 +2999,10 @@ async function loadInspectionReport() {
         if (header.contractor !== undefined) setContractor(String(header.contractor || ''));
       }
 
-      mergedFirstDate = mergeUniqueMultilineText(mergedFirstDate, header.firstDate);
       mergedInspectDate = mergeUniqueMultilineText(mergedInspectDate, header.inspectDate);
-      mergedFirstInspector = mergeUniqueMultilineText(mergedFirstInspector, header.firstInspector);
       mergedInspector = mergeUniqueMultilineText(mergedInspector, header.inspector);
 
-      setFirstDate(mergedFirstDate);
       setInspectDate(mergedInspectDate);
-      setFirstInspector(mergedFirstInspector);
       setInspector(mergedInspector);
 
       const pageRows = Array.isArray(result.rows)
@@ -3061,7 +3049,6 @@ async function loadInspectionReportLegacy(loadId: number) {
   if (inspectionReportLoadIdRef.current !== loadId) return;
 
   if (dateResult.stationNo !== undefined) setStationNo(String(dateResult.stationNo || ''));
-  setFirstDate(formatSheetDateText(dateResult.firstDate));
   setInspectDate(formatSheetDateText(dateResult.latestDate));
 
   const listResult = await gasApi("getKarteList", {
@@ -3091,9 +3078,7 @@ async function loadInspectionReportLegacy(loadId: number) {
     if (karteResult.success && karteResult.data) {
       const data = karteResult.data;
       setContractor(String(data.contractor || ''));
-      setFirstDate(formatSheetDateText(data.firstDate));
       setInspectDate(formatSheetDateText(data.inspectDate));
-      setFirstInspector(String(data.firstInspector || ''));
       setInspector(String(data.inspector || ''));
     }
   }

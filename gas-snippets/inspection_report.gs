@@ -22,9 +22,7 @@ function getInspectionReportData(data) {
   const baseSheet = offset === 0 ? (ss.getSheetByName("1") || karteSheets[0] || null) : null;
   const baseValues = baseSheet ? baseSheet.getRange("A1:V16").getDisplayValues() : null;
   const pageHeader = {
-    firstDates: [],
     inspectDates: [],
-    firstInspectors: [],
     inspectors: [],
   };
 
@@ -32,9 +30,7 @@ function getInspectionReportData(data) {
     const values = sheet.getRange("A1:V16").getDisplayValues();
     const firstDate = getInspectionReportCell_(values, 5, 6);
 
-    addInspectionReportUnique_(pageHeader.firstDates, firstDate);
     addInspectionReportUnique_(pageHeader.inspectDates, getInspectionReportCell_(values, 5, 18));
-    addInspectionReportUnique_(pageHeader.firstInspectors, getInspectionReportCell_(values, 6, 6));
     addInspectionReportUnique_(pageHeader.inspectors, getInspectionReportCell_(values, 6, 18));
 
     return {
@@ -64,10 +60,8 @@ function getInspectionReportData(data) {
   const header = {
     stationNo: data.stationNo || "",
     stationName: data.station || "",
-    firstDate: pageHeader.firstDates.join(",　") || (baseValues ? getInspectionReportCell_(baseValues, 5, 6) : ""),
     inspectDate: pageHeader.inspectDates.join(",　") || (baseValues ? getInspectionReportCell_(baseValues, 5, 18) : ""),
     contractor: baseValues ? getInspectionReportCell_(baseValues, 3, 22) : "",
-    firstInspector: pageHeader.firstInspectors.join(",　") || (baseValues ? getInspectionReportCell_(baseValues, 6, 6) : ""),
     inspector: pageHeader.inspectors.join(",　") || (baseValues ? getInspectionReportCell_(baseValues, 6, 18) : ""),
   };
 
@@ -89,28 +83,6 @@ function getInspectionReportCell_(values, row, column) {
   return values[row - 1] && values[row - 1][column - 1]
     ? String(values[row - 1][column - 1]).trim()
     : "";
-}
-
-function buildInspectionReportPageHeader_(sheets) {
-  const firstDates = [];
-  const inspectDates = [];
-  const firstInspectors = [];
-  const inspectors = [];
-
-  sheets.forEach(sheet => {
-    const values = sheet.getRange("A1:V6").getDisplayValues();
-    addInspectionReportUnique_(firstDates, getInspectionReportCell_(values, 5, 6));
-    addInspectionReportUnique_(inspectDates, getInspectionReportCell_(values, 5, 18));
-    addInspectionReportUnique_(firstInspectors, getInspectionReportCell_(values, 6, 6));
-    addInspectionReportUnique_(inspectors, getInspectionReportCell_(values, 6, 18));
-  });
-
-  return {
-    firstDate: firstDates.join(",　"),
-    inspectDate: inspectDates.join(",　"),
-    firstInspector: firstInspectors.join(",　"),
-    inspector: inspectors.join(",　"),
-  };
 }
 
 function addInspectionReportUnique_(items, value) {
@@ -156,8 +128,7 @@ function uploadInspectionReport(data) {
   sheet.getRange("M2").setNumberFormat("@").setValue(inspectionReportText_(data.contractor));
   sheet.getRange("B3").setNumberFormat("@").setValue(inspectionReportText_(data.stationNo));
   sheet.getRange("D3").setNumberFormat("@").setValue(inspectionReportText_(data.stationName));
-  sheet.getRange("H4").setNumberFormat("@").setValue(inspectionReportText_(data.firstDate));
-  sheet.getRange("H5").setNumberFormat("@").setValue(inspectionReportText_(data.firstInspector));
+  ["H4", "H5"].forEach(a1Notation => sheet.getRange(a1Notation).clearContent());
   sheet.getRange("M4").setNumberFormat("@").setValue(inspectionReportText_(data.inspectDate));
   sheet.getRange("M5").setNumberFormat("@").setValue(inspectionReportText_(data.inspector));
   sheet.getRange("A1").setNumberFormat("@").setValue(buildInspectionReportTitle_(data.year));
@@ -554,7 +525,7 @@ function applyInspectionReportTableWraps_(sheet, startRow, rowCount) {
 }
 
 function applyInspectionReportHeaderWraps_(sheet) {
-  ["M2", "H4", "H5", "M4", "M5"].forEach(a1Notation => {
+  ["M2", "M4", "M5"].forEach(a1Notation => {
     sheet
       .getRange(a1Notation)
       .setWrap(true)
