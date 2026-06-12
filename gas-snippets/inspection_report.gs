@@ -292,7 +292,7 @@ function createInspectionReportPdfSheets_(ss, source, startRow, dataRowCount) {
 
 function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
   const pages = [];
-  const firstPageBodyHeightPx = 900;
+  const firstPageBodyHeightPx = 756; // 約20cm（96dpi換算）
   const repeatPageBodyHeightPx = 980;
   const maxFirstPageRows = 17;
   const maxRepeatPageRows = 25;
