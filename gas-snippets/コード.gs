@@ -1349,7 +1349,9 @@ if (lowerPhotos.length === 1) {
       ? mergedRanges[0]
       : firstKarteCell;
 
-    fontRange.setFontFamily("MS Mincho");
+    fontRange
+      .setFontFamily("MS Mincho")
+      .setFontSize(8);
   }
 
   SpreadsheetApp.flush();
