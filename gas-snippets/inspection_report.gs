@@ -294,7 +294,7 @@ function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
   const pages = [];
   const firstPageBodyHeightPx = 900;
   const repeatPageBodyHeightPx = 980;
-  const maxFirstPageRows = 16;
+  const maxFirstPageRows = 17;
   const maxRepeatPageRows = 25;
   let pageStartRow = startRow;
   let usedHeight = 0;
