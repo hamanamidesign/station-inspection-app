@@ -154,8 +154,8 @@ function uploadInspectionReport(data) {
     : [];
 
   sheet.getRange("M2").setNumberFormat("@").setValue(inspectionReportText_(data.contractor));
-  sheet.getRange("B4").setNumberFormat("@").setValue(inspectionReportText_(data.stationNo));
-  sheet.getRange("D4").setNumberFormat("@").setValue(inspectionReportText_(data.stationName));
+  sheet.getRange("B3").setNumberFormat("@").setValue(inspectionReportText_(data.stationNo));
+  sheet.getRange("D3").setNumberFormat("@").setValue(inspectionReportText_(data.stationName));
   sheet.getRange("H4").setNumberFormat("@").setValue(inspectionReportText_(data.firstDate));
   sheet.getRange("H5").setNumberFormat("@").setValue(inspectionReportText_(data.firstInspector));
   sheet.getRange("M4").setNumberFormat("@").setValue(inspectionReportText_(data.inspectDate));
