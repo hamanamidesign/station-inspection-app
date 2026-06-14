@@ -2478,9 +2478,7 @@ if (mode === 'exist_select') return (
     );
   }
   if (mode === 'inspection_report') {
-    const previousYearLabel = Number.isFinite(Number(selectedYear))
-      ? `${Number(selectedYear) - 1}年評価`
-      : '前年度評価';
+    const previousYearLabel = '前年度評価';
 
     return (
       <div className="min-h-screen overflow-x-auto bg-slate-300 p-4 text-black" style={routePageStyle}>
@@ -2532,7 +2530,7 @@ if (mode === 'exist_select') return (
             <div className="col-span-3 border-r border-b border-slate-900 p-2">初回点検</div>
             <div className="col-span-4 border-b border-slate-900 bg-blue-700 p-2 text-white">{selectedYear || '----'}年度点検</div>
             <div className="border-r border-b border-slate-900 p-2">状況説明</div>
-            <div className="border-r border-b border-slate-900 p-2">初回評価</div>
+            <div className="border-r border-b border-slate-900 p-2">初年度</div>
             <div className="border-r border-b border-slate-900 p-2">{previousYearLabel}</div>
             <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">状況説明</div>
             <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">構造</div>
