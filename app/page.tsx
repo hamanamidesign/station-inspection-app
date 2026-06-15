@@ -623,6 +623,7 @@ useEffect(() => {
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [mapImageAspect, setMapImageAspect] = useState(4 / 3);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [mapTexts, setMapTexts] = useState<MapTextAnnotation[]>([]);
@@ -5995,15 +5996,68 @@ if (mode === 'editor') {
           style={{ touchAction: 'none' }}
         >
           {sourceImage && !finalImage && (
-            <Cropper 
-              image={sourceImage} 
-              crop={crop} 
-              zoom={zoom} 
-              onCropChange={setCrop} 
-              onCropComplete={(_, p) => setCroppedAreaPixels(p)} 
-              onZoomChange={setZoom} 
-              style={{ containerStyle: { background: '#e2e8f0' } }} 
-            />
+            <>
+              <Cropper
+                image={sourceImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={mapImageAspect}
+                minZoom={1}
+                maxZoom={3}
+                objectFit="contain"
+                onCropChange={setCrop}
+                onCropComplete={(_, p) => setCroppedAreaPixels(p)}
+                onZoomChange={setZoom}
+                onMediaLoaded={({ naturalWidth, naturalHeight }) => {
+                  if (naturalWidth > 0 && naturalHeight > 0) {
+                    setMapImageAspect(naturalWidth / naturalHeight);
+                  }
+                  setCrop({ x: 0, y: 0 });
+                  setZoom(1);
+                }}
+                style={{ containerStyle: { background: '#e2e8f0' } }}
+              />
+              <div className="absolute bottom-3 left-1/2 z-10 flex w-[min(92%,420px)] -translate-x-1/2 items-center gap-2 rounded-xl bg-white/95 p-2 shadow-lg">
+                <button
+                  type="button"
+                  aria-label="縮小"
+                  onClick={() => setZoom(current => Math.max(1, Number((current - 0.1).toFixed(2))))}
+                  disabled={zoom <= 1}
+                  className="h-10 w-10 shrink-0 rounded-lg bg-slate-200 text-xl font-black text-slate-700 disabled:opacity-40"
+                >
+                  －
+                </button>
+                <input
+                  type="range"
+                  aria-label="画像の拡大率"
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  value={zoom}
+                  onChange={(event) => setZoom(Number(event.target.value))}
+                  className="min-w-0 flex-1 accent-indigo-600"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCrop({ x: 0, y: 0 });
+                    setZoom(1);
+                  }}
+                  className="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white"
+                >
+                  全体表示
+                </button>
+                <button
+                  type="button"
+                  aria-label="拡大"
+                  onClick={() => setZoom(current => Math.min(3, Number((current + 0.1).toFixed(2))))}
+                  disabled={zoom >= 3}
+                  className="h-10 w-10 shrink-0 rounded-lg bg-slate-200 text-xl font-black text-slate-700 disabled:opacity-40"
+                >
+                  ＋
+                </button>
+              </div>
+            </>
           )}
 
           {finalImage && (
