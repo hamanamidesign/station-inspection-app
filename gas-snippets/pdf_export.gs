@@ -570,7 +570,7 @@ function createGenericInspectionPdf_(data, sheetNames) {
     SpreadsheetApp.flush();
 
     const fileName = buildInspectionPdfFileName_(data, settings.fileSuffix);
-    const blob = exportSheetPdfBlob_(ss.getId(), null, fileName, {
+    const exportOptions = {
       portrait: settings.portrait,
       size: "A4",
       fitw: true,
@@ -580,7 +580,19 @@ function createGenericInspectionPdf_(data, sheetNames) {
       sheetnames: false,
       pagenumbers: false,
       attachment: false,
+    };
+
+    if (settings.scale) {
+      exportOptions.scale = settings.scale;
+    }
+
+    ["top_margin", "bottom_margin", "left_margin", "right_margin"].forEach(key => {
+      if (settings[key] !== undefined) {
+        exportOptions[key] = settings[key];
+      }
     });
+
+    const blob = exportSheetPdfBlob_(ss.getId(), null, fileName, exportOptions);
     const file = savePdfBlob_(data.spreadsheetId, blob);
 
     return {
@@ -655,7 +667,15 @@ function getGenericPdfSettings_(data, sheetNames) {
   }
 
   if (kind === "inspectionReport" || suffix === "施設点検報告書") {
-    return { fileSuffix: "施設点検報告書", portrait: false };
+    return {
+      fileSuffix: "施設点検報告書",
+      portrait: false,
+      scale: 4,
+      top_margin: 0.25,
+      bottom_margin: 0.25,
+      left_margin: 0.25,
+      right_margin: 0.25,
+    };
   }
 
   if (

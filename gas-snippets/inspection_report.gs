@@ -292,10 +292,29 @@ function createInspectionReportPdfSheets_(ss, source, startRow, dataRowCount) {
 
 function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
   const pages = [];
-  const firstPageBodyHeightPx = 756; // 約20cm（96dpi換算）
-  const repeatPageBodyHeightPx = 980;
-  const maxFirstPageRows = 17;
-  const maxRepeatPageRows = 25;
+  const pageWidthInches = 11.69;
+  const pageHeightInches = 8.27;
+  const horizontalMarginInches = 0.25 * 2;
+  const verticalMarginInches = 0.25 * 2;
+  const safetyRatio = 0.92;
+  let contentWidth = 0;
+
+  for (let column = 1; column <= 17; column += 1) {
+    contentWidth += sheet.getColumnWidth(column);
+  }
+
+  const printableAspect =
+    (pageHeightInches - verticalMarginInches) /
+    (pageWidthInches - horizontalMarginInches);
+  const maxPageHeight = contentWidth * printableAspect * safetyRatio;
+  const firstPageBodyHeight = Math.max(
+    1,
+    maxPageHeight - getInspectionReportRowsHeight_(sheet, 1, 8)
+  );
+  const repeatPageBodyHeight = Math.max(
+    1,
+    maxPageHeight - getInspectionReportRowsHeight_(sheet, 7, 2)
+  );
   let pageStartRow = startRow;
   let usedHeight = 0;
   let rowsOnPage = 0;
@@ -304,14 +323,16 @@ function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
   for (let index = 0; index < dataRowCount; index += 1) {
     const currentRow = startRow + index;
     const rowHeight = sheet.getRowHeight(currentRow);
-    const maxHeight = isFirstPage ? firstPageBodyHeightPx : repeatPageBodyHeightPx;
-    const maxRows = isFirstPage ? maxFirstPageRows : maxRepeatPageRows;
+    const availableHeight = isFirstPage
+      ? firstPageBodyHeight
+      : repeatPageBodyHeight;
 
-    if (rowsOnPage > 0 && (usedHeight + rowHeight > maxHeight || rowsOnPage >= maxRows)) {
+    if (rowsOnPage > 0 && usedHeight + rowHeight > availableHeight) {
       pages.push({
         startRow: pageStartRow,
         rowCount: rowsOnPage,
       });
+
       pageStartRow = currentRow;
       usedHeight = 0;
       rowsOnPage = 0;
