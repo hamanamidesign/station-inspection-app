@@ -1978,11 +1978,11 @@ const loadPdfSheetOptions = async () => {
 
     const allSheetNames = [
       ...groups.cover,
-      ...groups.photo,
       ...groups.photoPositionMap,
+      ...groups.inspectionReport,
+      ...groups.photo,
       ...groups.slope,
       ...groups.inclination,
-      ...groups.inspectionReport,
     ].map(sheet => sheet.name);
 
     setSelectedPdfSheets(allSheetNames);
@@ -2034,9 +2034,9 @@ const createPdf = async () => {
   try {
     const basePdfJobs = [
       { kind: "cover", suffix: "表紙", sheetNames: pdfSheets.cover.map(sheet => sheet.name) },
+      { kind: "photoPositionMap", suffix: "写真カルテ番号位置図", sheetNames: pdfSheets.photoPositionMap.map(sheet => sheet.name) },
       { kind: "inspectionReport", suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
       { kind: "photo", suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
-      { kind: "photoPositionMap", suffix: "写真カルテ番号位置図", sheetNames: pdfSheets.photoPositionMap.map(sheet => sheet.name) },
       { kind: "slope", suffix: "傾斜表", sheetNames: pdfSheets.slope.map(sheet => sheet.name) },
       { kind: "inclination", suffix: "傾斜測定カルテ", sheetNames: pdfSheets.inclination.map(sheet => sheet.name) },
     ]
@@ -2164,6 +2164,14 @@ const mergeAllPdfs = async () => {
       spreadsheetId,
       stationName,
       year: selectedYear,
+      mergeOrder: [
+        "表紙",
+        "写真カルテ番号位置図",
+        "施設点検報告書",
+        "写真カルテ",
+        "傾斜表",
+        "傾斜測定カルテ",
+      ],
     });
     const jobId = String(startResult.jobId || "");
     const mergeStartedAt = String(startResult.createdAt || new Date().toISOString());
