@@ -64,6 +64,7 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "startInspectionPdfMerge":
     case "getInspectionPdfMergeStatus":
     case "findCompletedInspectionPdf":
+    case "findCompletedInspectionPdfFile":
       return 30000;
     default:
       return DEFAULT_GAS_TIMEOUT_MS;

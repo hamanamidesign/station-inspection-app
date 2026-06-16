@@ -8,6 +8,7 @@ const RETRYABLE_ACTIONS = new Set([
   "getPdfSheetOptions",
   "getInspectionPdfMergeStatus",
   "findCompletedInspectionPdf",
+  "findCompletedInspectionPdfFile",
   "getMaps",
   "getKarteData",
   "getSlopeTableData",

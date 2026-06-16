@@ -2066,14 +2066,44 @@ const createPdf = async () => {
     const createdFiles = [];
 
     for (const job of pdfJobs) {
-      const result = await gasApi("createInspectionPdf", {
+      const startedAt = new Date().toISOString();
+      const payload = {
         spreadsheetId,
         stationName,
         year: selectedYear,
         pdfKind: job.kind,
         fileSuffix: job.suffix,
         sheetNames: job.sheetNames,
-      });
+      };
+      let result: any;
+
+      try {
+        result = await gasApi("createInspectionPdf", payload);
+      } catch (error) {
+        if (!isPdfCreationTimeoutError(error)) {
+          throw error;
+        }
+
+        const completed = await waitForCompletedPdfFile({
+          spreadsheetId,
+          stationName,
+          year: selectedYear,
+          fileSuffix: job.suffix,
+          startedAt,
+        });
+
+        if (!completed) {
+          throw error;
+        }
+
+        result = {
+          success: true,
+          files: [{
+            fileName: completed.fileName,
+            url: completed.url,
+          }],
+        };
+      }
 
       if (Array.isArray(result.files) && result.files.length > 0) {
         createdFiles.push(...result.files);
@@ -2097,6 +2127,30 @@ const createPdf = async () => {
 
 const waitForPdfMerge = (ms: number) =>
   new Promise(resolve => window.setTimeout(resolve, ms));
+
+const isPdfCreationTimeoutError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /タイムアウト|504|Gateway Timeout|FUNCTION_INVOCATION_TIMEOUT/i.test(message);
+};
+
+const waitForCompletedPdfFile = async (params: {
+  spreadsheetId: string;
+  stationName: string;
+  year: string;
+  fileSuffix: string;
+  startedAt: string;
+}) => {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    await waitForPdfMerge(5000);
+    const completed = await gasApi("findCompletedInspectionPdfFile", params);
+
+    if (completed.completed) {
+      return completed;
+    }
+  }
+
+  return null;
+};
 
 const mergeAllPdfs = async () => {
   if (!spreadsheetId) return alert("スプレッドシートIDがありません");
