@@ -353,19 +353,6 @@ const createEmptyInspectionReportRows = (count = 23, startIndex = 0): Inspection
     totalEval: '',
   }));
 
-const buildInspectionReportFirstEvalDisplay = (row: InspectionReportSourceRow) => {
-  const firstEval = toDisplayText(row.firstEval);
-  if (firstEval.includes('\n')) return firstEval;
-
-  const firstYear = toDisplayText(row.firstYear) || firstEval;
-  const firstYearEval = toDisplayText(row.firstYearEval);
-
-  return [firstYear, firstYearEval]
-    .map(value => value.trim())
-    .filter(Boolean)
-    .join('\n');
-};
-
 const normalizeInspectionReportRow = (row: InspectionReportSourceRow, index: number): InspectionReportRow => ({
   id: Number(row.id) || index + 1,
   buildingName: toDisplayText(row.buildingName),
@@ -373,7 +360,7 @@ const normalizeInspectionReportRow = (row: InspectionReportSourceRow, index: num
   photoNo: toDisplayText(row.photoNo),
   finishType: toDisplayText(row.finishType),
   firstSituation: toDisplayText(row.firstSituation),
-  firstEval: buildInspectionReportFirstEvalDisplay(row),
+  firstEval: toDisplayText(row.firstEval || row.firstYear),
   previousYearEval: toDisplayText(row.previousYearEval),
   currentSituation: toDisplayText(row.currentSituation),
   structEval: toDisplayText(row.structEval),
@@ -762,7 +749,7 @@ const getInspectionReportEvalClass = (
 ) => {
   const text = String(value || '').trim();
 
-  if (field === 'totalEval') {
+  if (field === 'previousYearEval' || field === 'totalEval') {
     return isInspectionReportRedEval(text) ? 'text-red-600 font-black' : 'text-black';
   }
 
@@ -781,23 +768,7 @@ const renderInspectionReportCellValue = (
   field: keyof Omit<InspectionReportRow, 'id'>,
   value: string
 ) => {
-  if (field !== 'firstEval') return value;
-
-  const lines = String(value || '').split(/\r?\n/);
-  return (
-    <span className="flex flex-col items-center justify-center leading-tight">
-      {lines.map((line, index) => (
-        <span
-          key={`${field}-${index}`}
-          className={index === lines.length - 1 && isInspectionReportRedEval(line)
-            ? 'text-red-600 font-black'
-            : 'text-black'}
-        >
-          {line}
-        </span>
-      ))}
-    </span>
-  );
+  return value;
 };
 
 const getEvalFontColor = (field: 'structEval' | 'totalEval', value: unknown) => {

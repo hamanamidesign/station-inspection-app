@@ -53,13 +53,8 @@ function getInspectionReportData(data) {
     photoNo: getInspectionReportCell_(values, 1, 4) || sheet.getName(),
     finishType: getInspectionReportCell_(values, 10, 10),
     firstSituation: useFirstSituationAsCurrent ? "" : firstSituation,
-    firstYear: extractInspectionReportYear_(firstDate),
-    firstYearEval: getInspectionReportCell_(values, 3, 17),
-    firstEval: buildInspectionReportFirstYearCell_(
-      firstDate,
-      getInspectionReportCell_(values, 3, 17)
-    ),
-    previousYearEval: getInspectionReportPreviousYearMark_(firstDate, data.year),
+    firstEval: extractInspectionReportYear_(firstDate),
+    previousYearEval: getInspectionReportCell_(values, 3, 17),
     currentSituation: useFirstSituationAsCurrent
       ? joinInspectionReportText_(currentSituation, firstSituation)
       : currentSituation,
@@ -115,15 +110,6 @@ function joinInspectionReportText_() {
     .join("\n");
 }
 
-function getInspectionReportPreviousYearMark_(firstDate, year) {
-  const targetYear = Number(extractInspectionReportYear_(year));
-  const previousYear = targetYear - 1;
-  if (!Number.isFinite(previousYear)) return "";
-
-  const firstYear = Number(extractInspectionReportYear_(firstDate));
-  return firstYear === previousYear ? "➡" : "";
-}
-
 function isInspectionReportCurrentYearFirstInspection_(firstDate, year) {
   const firstYear = extractInspectionReportYear_(firstDate);
   const targetYear = extractInspectionReportYear_(year);
@@ -135,13 +121,6 @@ function extractInspectionReportYear_(value) {
   const text = String(value || "").trim();
   const match = text.match(/(?:19|20)\d{2}/);
   return match ? match[0] : "";
-}
-
-function buildInspectionReportFirstYearCell_(firstDate, firstEval) {
-  return joinInspectionReportText_(
-    extractInspectionReportYear_(firstDate),
-    firstEval
-  );
 }
 
 function uploadInspectionReport(data) {
@@ -212,7 +191,6 @@ function uploadInspectionReport(data) {
   });
 
   applyInspectionReportDefaultFontColors_(sheet, startRow, rows.length);
-  applyInspectionReportFirstYearRichText_(sheet, startRow, rows);
   applyInspectionReportEvalFontColors_(sheet, startRow, rows);
 
   SpreadsheetApp.flush();
@@ -580,6 +558,7 @@ function applyInspectionReportLayoutSettings_(sheet) {
 
 function applyInspectionReportEvalFontColors_(sheet, startRow, rows) {
   const targets = [
+    { column: 11, field: "previousYearEval", redValues: ["AA", "A1", "A2", "B"] },
     { column: 15, field: "structEval", redValues: [] },
     { column: 17, field: "totalEval", redValues: ["AA", "A1", "A2", "B"] },
   ];
@@ -587,7 +566,7 @@ function applyInspectionReportEvalFontColors_(sheet, startRow, rows) {
   targets.forEach(target => {
     const colors = rows.map(row => {
       const value = inspectionReportText_(row[target.field]).trim();
-      return [target.redValues.indexOf(value) === -1 ? "#000000" : "#dc2626"];
+      return [target.redValues.some(redValue => isInspectionReportSameEval_(value, redValue)) ? "#dc2626" : "#000000"];
     });
 
     sheet
@@ -597,43 +576,7 @@ function applyInspectionReportEvalFontColors_(sheet, startRow, rows) {
   });
 }
 
-function applyInspectionReportFirstYearRichText_(sheet, startRow, rows) {
-  const blackStyle = SpreadsheetApp.newTextStyle()
-    .setForegroundColor("#000000")
-    .setBold(false)
-    .build();
-  const redStyle = SpreadsheetApp.newTextStyle()
-    .setForegroundColor("#dc2626")
-    .setBold(true)
-    .build();
-  const richTextValues = rows.map(row => {
-    const text = inspectionReportText_(row.firstEval);
-    const builder = SpreadsheetApp
-      .newRichTextValue()
-      .setText(text);
-    const lines = text.split(/\r?\n/);
-    const evalText = lines.length > 1 ? lines[lines.length - 1].trim() : "";
-
-    if (text.length > 0) {
-      builder.setTextStyle(0, text.length, blackStyle);
-    }
-
-    if (isInspectionReportRedEval_(evalText)) {
-      const start = text.lastIndexOf(evalText);
-      if (start >= 0) {
-        builder.setTextStyle(start, start + evalText.length, redStyle);
-      }
-    }
-
-    return [builder.build()];
-  });
-
-  sheet
-    .getRange(startRow, 10, rows.length, 1)
-    .setRichTextValues(richTextValues);
-}
-
-function isInspectionReportRedEval_(value) {
+function normalizeInspectionReportEval_(value) {
   const text = String(value || "")
     .replace(/[Ａ-Ｚａ-ｚ０-９]/g, character =>
       String.fromCharCode(character.charCodeAt(0) - 0xFEE0)
@@ -641,7 +584,11 @@ function isInspectionReportRedEval_(value) {
     .replace(/\s+/g, "")
     .toUpperCase();
 
-  return ["B", "A1", "A2", "AA"].indexOf(text) !== -1;
+  return text;
+}
+
+function isInspectionReportSameEval_(value, expected) {
+  return normalizeInspectionReportEval_(value) === normalizeInspectionReportEval_(expected);
 }
 
 function applyInspectionReportDefaultFontColors_(sheet, startRow, rowCount) {
