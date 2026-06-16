@@ -1431,12 +1431,18 @@ const handleCreateNewSheet = async () => {
   const reader = new FileReader();
 
   reader.onload = async (ev) => {
+    try {
+      const compressed = await resizeImage(ev.target?.result as string);
 
-    const compressed = await resizeImage(ev.target?.result as string);
-
-    const newPhotos = [...photos];
-    newPhotos[index] = compressed;
-    setPhotos(newPhotos);
+      const newPhotos = [...photos];
+      newPhotos[index] = compressed;
+      setPhotos(newPhotos);
+    } catch (error) {
+      alert(
+        "写真を読み込めませんでした。JPEGまたはPNG形式の写真を選択してください。" +
+        (error instanceof Error ? `\n${error.message}` : "")
+      );
+    }
   };
 
   reader.readAsDataURL(file);
@@ -1449,12 +1455,18 @@ const handleCreateNewSheet = async () => {
   const reader = new FileReader();
 
   reader.onload = async (ev) => {
+    try {
+      const compressed = await resizeImage(ev.target?.result as string);
 
-    const compressed = await resizeImage(ev.target?.result as string);
-
-    const newPhotos = [...firstPhotos];
-    newPhotos[index] = compressed;
-    setFirstPhotos(newPhotos);
+      const newPhotos = [...firstPhotos];
+      newPhotos[index] = compressed;
+      setFirstPhotos(newPhotos);
+    } catch (error) {
+      alert(
+        "写真を読み込めませんでした。JPEGまたはPNG形式の写真を選択してください。" +
+        (error instanceof Error ? `\n${error.message}` : "")
+      );
+    }
   };
 
   reader.readAsDataURL(file);
@@ -1468,10 +1480,9 @@ const handleCreateNewSheet = async () => {
     maxPixels = 1000000
   ): Promise<string> => {
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
 
     const img = new Image();
-    img.src = base64Str;
 
     img.onload = () => {
 
@@ -1510,6 +1521,12 @@ const handleCreateNewSheet = async () => {
 
       resolve(result);
     };
+
+    img.onerror = () => {
+      reject(new Error("この画像形式はブラウザで表示できません"));
+    };
+
+    img.src = base64Str;
 
   });
 
@@ -3488,19 +3505,38 @@ const handleSlopeCapture = async (
 ) => {
 
   const file = e.target.files?.[0];
+  e.target.value = "";
 
   if (!file) return;
 
   const reader = new FileReader();
 
-  reader.onload = () => {
+  reader.onload = async () => {
+    try {
+      const compressed = await resizeImage(
+        reader.result as string,
+        900,
+        1000000,
+        0.3,
+        1000000
+      );
 
-updateSlopePhoto(
-  rowId,
-  photoField,
-  reader.result as string
-);
+      updateSlopePhoto(
+        rowId,
+        photoField,
+        compressed
+      );
+    } catch (error) {
+      alert(
+        "写真を読み込めませんでした。JPEGまたはPNG形式の写真を選択してください。" +
+        (error instanceof Error ? `\n${error.message}` : "")
+      );
+    }
 
+  };
+
+  reader.onerror = () => {
+    alert("写真ファイルの読み込みに失敗しました");
   };
 
   reader.readAsDataURL(file);
