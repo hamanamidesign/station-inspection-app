@@ -123,6 +123,11 @@ interface InspectionReportRow {
   totalEval: string;
 }
 
+type InspectionReportSourceRow = Partial<InspectionReportRow> & {
+  firstYear?: unknown;
+  firstYearEval?: unknown;
+};
+
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 const INSPECTION_DRIVE_ROOT_FOLDER_ID = "1L_a6as-Wxc-BOOojkLo7BDtbx2wSZT30";
 const PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY = "station-check:photo-drive-last-folder-id";
@@ -348,14 +353,27 @@ const createEmptyInspectionReportRows = (count = 23, startIndex = 0): Inspection
     totalEval: '',
   }));
 
-const normalizeInspectionReportRow = (row: Partial<InspectionReportRow>, index: number): InspectionReportRow => ({
+const buildInspectionReportFirstEvalDisplay = (row: InspectionReportSourceRow) => {
+  const firstEval = toDisplayText(row.firstEval);
+  if (firstEval.includes('\n')) return firstEval;
+
+  const firstYear = toDisplayText(row.firstYear) || firstEval;
+  const firstYearEval = toDisplayText(row.firstYearEval);
+
+  return [firstYear, firstYearEval]
+    .map(value => value.trim())
+    .filter(Boolean)
+    .join('\n');
+};
+
+const normalizeInspectionReportRow = (row: InspectionReportSourceRow, index: number): InspectionReportRow => ({
   id: Number(row.id) || index + 1,
   buildingName: toDisplayText(row.buildingName),
   inspectionPlace: toDisplayText(row.inspectionPlace),
   photoNo: toDisplayText(row.photoNo),
   finishType: toDisplayText(row.finishType),
   firstSituation: toDisplayText(row.firstSituation),
-  firstEval: toDisplayText(row.firstEval),
+  firstEval: buildInspectionReportFirstEvalDisplay(row),
   previousYearEval: toDisplayText(row.previousYearEval),
   currentSituation: toDisplayText(row.currentSituation),
   structEval: toDisplayText(row.structEval),
