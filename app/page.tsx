@@ -784,17 +784,20 @@ const renderInspectionReportCellValue = (
   if (field !== 'firstEval') return value;
 
   const lines = String(value || '').split(/\r?\n/);
-  return lines.map((line, index) => (
-    <span
-      key={`${field}-${index}`}
-      className={index === lines.length - 1 && isInspectionReportRedEval(line)
-        ? 'text-red-600 font-black'
-        : 'text-black'}
-    >
-      {line}
-      {index < lines.length - 1 ? '\n' : ''}
+  return (
+    <span className="flex flex-col items-center justify-center leading-tight">
+      {lines.map((line, index) => (
+        <span
+          key={`${field}-${index}`}
+          className={index === lines.length - 1 && isInspectionReportRedEval(line)
+            ? 'text-red-600 font-black'
+            : 'text-black'}
+        >
+          {line}
+        </span>
+      ))}
     </span>
-  ));
+  );
 };
 
 const getEvalFontColor = (field: 'structEval' | 'totalEval', value: unknown) => {
