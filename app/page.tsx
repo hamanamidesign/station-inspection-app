@@ -1430,8 +1430,7 @@ const handleCreateNewSheet = async () => {
   if (!file) return;
 
   try {
-    const dataUrl = await readPhotoFileAsDataUrl(file);
-    const compressed = await resizeImage(dataUrl);
+    const compressed = await resizePhotoFile(file);
 
     const newPhotos = [...photos];
     newPhotos[index] = compressed;
@@ -1450,8 +1449,7 @@ const handleCreateNewSheet = async () => {
   if (!file) return;
 
   try {
-    const dataUrl = await readPhotoFileAsDataUrl(file);
-    const compressed = await resizeImage(dataUrl);
+    const compressed = await resizePhotoFile(file);
 
     const newPhotos = [...firstPhotos];
     newPhotos[index] = compressed;
@@ -1467,6 +1465,15 @@ const handleCreateNewSheet = async () => {
   const isHeicFile = (file: File) =>
     /hei[cf]/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
 
+  const isHeicBlob = async (blob: Blob) => {
+    const header = await blob.slice(0, 32).arrayBuffer();
+    const text = Array.from(new Uint8Array(header))
+      .map(byte => String.fromCharCode(byte))
+      .join("");
+
+    return /ftyp(?:heic|heix|hevc|hevx|mif1|msf1)/i.test(text);
+  };
+
   const isHeicDataUrl = (dataUrl: string) =>
     /^data:image\/hei[cf][;,]/i.test(dataUrl) ||
     /^data:application\/octet-stream[;,]/i.test(dataUrl);
@@ -1480,11 +1487,32 @@ const handleCreateNewSheet = async () => {
     });
 
   const readPhotoFileAsDataUrl = async (file: File): Promise<string> => {
-    if (!isHeicFile(file)) {
-      return convertHeicDataUrlToJpegIfNeeded(await readBlobAsDataUrl(file));
+    if (isHeicFile(file) || await isHeicBlob(file)) {
+      return convertHeicBlobToJpegDataUrl(file);
     }
 
-    return convertHeicBlobToJpegDataUrl(file);
+    return convertHeicDataUrlToJpegIfNeeded(await readBlobAsDataUrl(file));
+  };
+
+  const resizePhotoFile = async (
+    file: File,
+    maxSize = 900,
+    maxBytes = 1000000,
+    minQuality = 0.3,
+    maxPixels = 1000000
+  ) => {
+    const dataUrl = await readPhotoFileAsDataUrl(file);
+
+    try {
+      return await resizeImage(dataUrl, maxSize, maxBytes, minQuality, maxPixels);
+    } catch (error) {
+      try {
+        const converted = await convertHeicBlobToJpegDataUrl(file);
+        return await resizeImage(converted, maxSize, maxBytes, minQuality, maxPixels);
+      } catch (_) {
+        throw error;
+      }
+    }
   };
 
   const convertHeicBlobToJpegDataUrl = async (blob: Blob): Promise<string> => {
@@ -1508,6 +1536,26 @@ const handleCreateNewSheet = async () => {
 
     const response = await fetch(dataUrl);
     return convertHeicBlobToJpegDataUrl(await response.blob());
+  };
+
+  const resizeImageWithHeicFallback = async (
+    dataUrl: string,
+    maxSize = 900,
+    maxBytes = 1000000,
+    minQuality = 0.3,
+    maxPixels = 1000000
+  ) => {
+    try {
+      return await resizeImage(dataUrl, maxSize, maxBytes, minQuality, maxPixels);
+    } catch (error) {
+      try {
+        const response = await fetch(dataUrl);
+        const converted = await convertHeicBlobToJpegDataUrl(await response.blob());
+        return await resizeImage(converted, maxSize, maxBytes, minQuality, maxPixels);
+      } catch (_) {
+        throw error;
+      }
+    }
   };
 
   const resizeImage = async (
@@ -3548,9 +3596,8 @@ const handleSlopeCapture = async (
   if (!file) return;
 
   try {
-    const dataUrl = await readPhotoFileAsDataUrl(file);
-    const compressed = await resizeImage(
-      dataUrl,
+    const compressed = await resizePhotoFile(
+      file,
       900,
       1000000,
       0.3,
@@ -4164,23 +4211,32 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
       const imageDataUrl = await convertHeicDataUrlToJpegIfNeeded(
         buildImageDataUrl(base64, result.mimeType)
       );
+      const displayImageDataUrl = drivePickerTarget.type === 'map'
+        ? imageDataUrl
+        : await resizeImageWithHeicFallback(
+            imageDataUrl,
+            900,
+            1000000,
+            0.3,
+            1000000
+          );
 
       if (drivePickerTarget.type === 'map') {
-        setSourceImage(imageDataUrl);
+        setSourceImage(displayImageDataUrl);
       } else if (drivePickerTarget.type === 'karteFirst') {
         setFirstPhotos(current => {
           const next = [...current];
-          next[drivePickerTarget.index] = imageDataUrl;
+          next[drivePickerTarget.index] = displayImageDataUrl;
           return next;
         });
       } else if (drivePickerTarget.type === 'karteCurrent') {
         setPhotos(current => {
           const next = [...current];
-          next[drivePickerTarget.index] = imageDataUrl;
+          next[drivePickerTarget.index] = displayImageDataUrl;
           return next;
         });
       } else {
-        updateSlopePhoto(drivePickerTarget.rowId, drivePickerTarget.photoField, imageDataUrl);
+        updateSlopePhoto(drivePickerTarget.rowId, drivePickerTarget.photoField, displayImageDataUrl);
       }
 
       setShowMapPicker(false);
