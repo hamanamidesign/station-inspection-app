@@ -402,7 +402,7 @@ function insertInclinationPhoto_(sheet, box, photoFile, folder) {
 
   const image = photoFile.base64
     ? insertInclinationBase64Photo_(sheet, box, photoFile, folder, fileName)
-    : insertInclinationDrivePhoto_(sheet, box, photoFile.fileId);
+    : insertInclinationDrivePhoto_(sheet, box, photoFile.fileId, folder, fileName);
 
   fitImageToBox_(sheet, image, box);
 
@@ -428,11 +428,14 @@ function insertInclinationBase64Photo_(sheet, box, photoFile, folder, fileName) 
   return sheet.insertImage(file.getBlob(), box.startCol, box.startRow);
 }
 
-function insertInclinationDrivePhoto_(sheet, box, fileId) {
-  const url =
-    `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w600`;
+function insertInclinationDrivePhoto_(sheet, box, fileId, folder, fileName) {
+  const sourceFile = DriveApp.getFileById(fileId);
+  const blob = sourceFile.getBlob().setName(fileName);
 
-  return sheet.insertImage(url, box.startCol, box.startRow);
+  trashFilesByName_(folder, fileName, "");
+  const savedFile = folder.createFile(blob);
+
+  return sheet.insertImage(savedFile.getBlob(), box.startCol, box.startRow);
 }
 
 function clearInclinationBlocks_(sheet, rows) {

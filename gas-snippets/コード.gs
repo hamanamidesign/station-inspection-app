@@ -1097,11 +1097,13 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
   sheet.getRange("V13").setValue(data.remarks2);
   sheet.getRange("V16").setValue(data.remarks3);
 
-  // 2. 写真の保存と配置処理
-  if (
-  (data.photoFiles && data.photoFiles.length > 0) ||
-  (data.firstPhotoFiles && data.firstPhotoFiles.length > 0)
-) {
+  // 2. 写真保存エリア内の写真カルテ番号フォルダを準備
+  const hasPhotoFiles =
+    (data.photoFiles && data.photoFiles.length > 0) ||
+    (data.firstPhotoFiles && data.firstPhotoFiles.length > 0);
+  let karteSubFolder = null;
+
+  if (templateName === "写真カルテ_マスタ" || hasPhotoFiles) {
 
     const photoFolderId = getPhotoFolderId(
     data.station,
@@ -1112,16 +1114,23 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
     if (!photoFolderId) throw new Error("写真フォルダIDが台帳に見つかりません");
     
     const parentPhotoFolder = DriveApp.getFolderById(photoFolderId);
-    let karteSubFolder;
     const subFolders = parentPhotoFolder.getFoldersByName(newSheetName);
     
     if (subFolders.hasNext()) {
       karteSubFolder = subFolders.next();
-      const files = karteSubFolder.getFiles();
-      while (files.hasNext()) files.next().setTrashed(true);
     } else {
       karteSubFolder = parentPhotoFolder.createFolder(newSheetName);
     }
+  }
+
+  // 3. 写真の保存と配置処理
+  if (hasPhotoFiles) {
+    if (!karteSubFolder) {
+      throw new Error("写真カルテ番号フォルダを作成できませんでした");
+    }
+
+    const files = karteSubFolder.getFiles();
+    while (files.hasNext()) files.next().setTrashed(true);
 
 const savedBlobs = {};
 

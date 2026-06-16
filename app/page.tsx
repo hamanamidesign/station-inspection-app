@@ -3566,24 +3566,34 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
   const fileName = kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`;
 
   if (!photo.startsWith("data:image")) {
-    const fileId = photo.match(/[?&]id=([^&]+)/)?.[1] || photo.match(/\/d\/([^/]+)/)?.[1] || "";
-    if (!fileId) return null;
+    const fileId =
+      photo.match(/[?&]id=([^&#]+)/)?.[1] ||
+      photo.match(/\/d\/([^/]+)/)?.[1] ||
+      photo.match(/\/file\/d\/([^/]+)/)?.[1] ||
+      "";
+    if (!fileId) {
+      throw new Error(`${point} の写真ファイルIDを取得できませんでした`);
+    }
 
     return {
       point,
       kind,
       fileName,
-      fileId,
+      fileId: decodeURIComponent(fileId),
     };
   }
 
   const resized = await resizeImage(photo, 800, 350000, 0.4, 490000);
+  const base64 = resized.includes(',') ? resized.split(',')[1] : "";
+  if (!base64) {
+    throw new Error(`${point} の写真データを作成できませんでした`);
+  }
 
   return {
     point,
     kind,
     fileName,
-    base64: resized.includes(',') ? resized.split(',')[1] : "",
+    base64,
   };
 };
 
