@@ -148,6 +148,7 @@ const DEFAULT_ROUTE_LIST: RouteItem[] = [
     createdAt: "2026-06-06T00:49:23.505Z",
   },
 ];
+const PHOTO_PDF_CHUNK_SIZE = 10;
 
 const createEmptySlopeRows = (count = 10): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -2014,6 +2015,16 @@ const togglePdfGroup = (sheets: PdfSheetOption[]) => {
   });
 };
 
+const chunkPdfSheetNames = (sheetNames: string[], size: number) => {
+  const chunks: string[][] = [];
+
+  for (let index = 0; index < sheetNames.length; index += size) {
+    chunks.push(sheetNames.slice(index, index + size));
+  }
+
+  return chunks;
+};
+
 const createPdf = async () => {
   if (!spreadsheetId) return alert("スプレッドシートIDがありません");
   if (selectedPdfSheets.length === 0) return alert("PDF化するシートを選択してください");
@@ -2021,7 +2032,7 @@ const createPdf = async () => {
   setIsSending(true);
 
   try {
-    const pdfJobs = [
+    const basePdfJobs = [
       { kind: "cover", suffix: "表紙", sheetNames: pdfSheets.cover.map(sheet => sheet.name) },
       { kind: "inspectionReport", suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
       { kind: "photo", suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
@@ -2034,6 +2045,23 @@ const createPdf = async () => {
         sheetNames: job.sheetNames.filter(name => selectedPdfSheets.includes(name)),
       }))
       .filter(job => job.sheetNames.length > 0);
+    const pdfJobs = basePdfJobs.flatMap(job => {
+      if (job.kind !== "photo" || job.sheetNames.length <= PHOTO_PDF_CHUNK_SIZE) {
+        return [job];
+      }
+
+      return chunkPdfSheetNames(job.sheetNames, PHOTO_PDF_CHUNK_SIZE).map((sheetNames, index) => {
+        const first = sheetNames[0] || "";
+        const last = sheetNames[sheetNames.length - 1] || "";
+        const rangeLabel = first && last ? `${first}-${last}` : `${index + 1}`;
+
+        return {
+          ...job,
+          suffix: `${job.suffix}_${rangeLabel}`,
+          sheetNames,
+        };
+      });
+    });
 
     const createdFiles = [];
 
