@@ -1426,51 +1426,72 @@ const handleCreateNewSheet = async () => {
   // 写真撮影ハンドラ
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
   const file = e.target.files?.[0];
+  e.target.value = "";
   if (!file) return;
 
-  const reader = new FileReader();
+  try {
+    const dataUrl = await readPhotoFileAsDataUrl(file);
+    const compressed = await resizeImage(dataUrl);
 
-  reader.onload = async (ev) => {
-    try {
-      const compressed = await resizeImage(ev.target?.result as string);
-
-      const newPhotos = [...photos];
-      newPhotos[index] = compressed;
-      setPhotos(newPhotos);
-    } catch (error) {
-      alert(
-        "写真を読み込めませんでした。JPEGまたはPNG形式の写真を選択してください。" +
-        (error instanceof Error ? `\n${error.message}` : "")
-      );
-    }
-  };
-
-  reader.readAsDataURL(file);
+    const newPhotos = [...photos];
+    newPhotos[index] = compressed;
+    setPhotos(newPhotos);
+  } catch (error) {
+    alert(
+      "写真を読み込めませんでした。JPEG、PNG、HEIC/HEIF形式の写真を選択してください。" +
+      (error instanceof Error ? `\n${error.message}` : "")
+    );
+  }
 };
 
   const handleFirstCapture = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
   const file = e.target.files?.[0];
+  e.target.value = "";
   if (!file) return;
 
-  const reader = new FileReader();
+  try {
+    const dataUrl = await readPhotoFileAsDataUrl(file);
+    const compressed = await resizeImage(dataUrl);
 
-  reader.onload = async (ev) => {
-    try {
-      const compressed = await resizeImage(ev.target?.result as string);
-
-      const newPhotos = [...firstPhotos];
-      newPhotos[index] = compressed;
-      setFirstPhotos(newPhotos);
-    } catch (error) {
-      alert(
-        "写真を読み込めませんでした。JPEGまたはPNG形式の写真を選択してください。" +
-        (error instanceof Error ? `\n${error.message}` : "")
-      );
-    }
-  };
-
-  reader.readAsDataURL(file);
+    const newPhotos = [...firstPhotos];
+    newPhotos[index] = compressed;
+    setFirstPhotos(newPhotos);
+  } catch (error) {
+    alert(
+      "写真を読み込めませんでした。JPEG、PNG、HEIC/HEIF形式の写真を選択してください。" +
+      (error instanceof Error ? `\n${error.message}` : "")
+    );
+  }
 };
+
+  const isHeicFile = (file: File) =>
+    /hei[cf]/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
+
+  const readBlobAsDataUrl = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("写真ファイルの読み込みに失敗しました"));
+      reader.readAsDataURL(blob);
+    });
+
+  const readPhotoFileAsDataUrl = async (file: File): Promise<string> => {
+    if (!isHeicFile(file)) return readBlobAsDataUrl(file);
+
+    const { default: heic2any } = await import("heic2any");
+    const converted = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.85,
+    });
+    const convertedBlob = Array.isArray(converted) ? converted[0] : converted;
+
+    if (!convertedBlob) {
+      throw new Error("HEIC/HEIF写真をJPEGに変換できませんでした");
+    }
+
+    return readBlobAsDataUrl(convertedBlob);
+  };
 
   const resizeImage = async (
     base64Str: string,
@@ -3509,37 +3530,27 @@ const handleSlopeCapture = async (
 
   if (!file) return;
 
-  const reader = new FileReader();
+  try {
+    const dataUrl = await readPhotoFileAsDataUrl(file);
+    const compressed = await resizeImage(
+      dataUrl,
+      900,
+      1000000,
+      0.3,
+      1000000
+    );
 
-  reader.onload = async () => {
-    try {
-      const compressed = await resizeImage(
-        reader.result as string,
-        900,
-        1000000,
-        0.3,
-        1000000
-      );
-
-      updateSlopePhoto(
-        rowId,
-        photoField,
-        compressed
-      );
-    } catch (error) {
-      alert(
-        "写真を読み込めませんでした。JPEGまたはPNG形式の写真を選択してください。" +
-        (error instanceof Error ? `\n${error.message}` : "")
-      );
-    }
-
-  };
-
-  reader.onerror = () => {
-    alert("写真ファイルの読み込みに失敗しました");
-  };
-
-  reader.readAsDataURL(file);
+    updateSlopePhoto(
+      rowId,
+      photoField,
+      compressed
+    );
+  } catch (error) {
+    alert(
+      "写真を読み込めませんでした。JPEG、PNG、HEIC/HEIF形式の写真を選択してください。" +
+      (error instanceof Error ? `\n${error.message}` : "")
+    );
+  }
 
 };
 
