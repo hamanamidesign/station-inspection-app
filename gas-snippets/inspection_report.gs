@@ -29,8 +29,19 @@ function getInspectionReportData(data) {
   const rows = pageSheets.map(sheet => {
     const values = sheet.getRange("A1:V16").getDisplayValues();
     const firstDate = getInspectionReportCell_(values, 5, 6);
+    const latestDate = getInspectionReportCell_(values, 5, 18);
+    const firstSituation = joinInspectionReportText_(
+      getInspectionReportCell_(values, 13, 10),
+      getInspectionReportCell_(values, 16, 10)
+    );
+    const currentSituation = joinInspectionReportText_(
+      getInspectionReportCell_(values, 13, 22),
+      getInspectionReportCell_(values, 16, 22)
+    );
+    const useFirstSituationAsCurrent =
+      isInspectionReportCurrentYearFirstInspection_(firstDate, data.year);
 
-    addInspectionReportUnique_(pageHeader.inspectDates, getInspectionReportCell_(values, 5, 18));
+    addInspectionReportUnique_(pageHeader.inspectDates, latestDate);
     addInspectionReportUnique_(pageHeader.inspectors, getInspectionReportCell_(values, 6, 18));
 
     return {
@@ -41,16 +52,15 @@ function getInspectionReportData(data) {
     ),
     photoNo: getInspectionReportCell_(values, 1, 4) || sheet.getName(),
     finishType: getInspectionReportCell_(values, 10, 10),
-    firstSituation: joinInspectionReportText_(
-      getInspectionReportCell_(values, 13, 10),
-      getInspectionReportCell_(values, 16, 10)
+    firstSituation: useFirstSituationAsCurrent ? "" : firstSituation,
+    firstEval: buildInspectionReportFirstYearCell_(
+      firstDate,
+      getInspectionReportCell_(values, 3, 17)
     ),
-    firstEval: getInspectionReportCell_(values, 3, 17),
     previousYearEval: getInspectionReportPreviousYearMark_(firstDate, data.year),
-    currentSituation: joinInspectionReportText_(
-      getInspectionReportCell_(values, 13, 22),
-      getInspectionReportCell_(values, 16, 22)
-    ),
+    currentSituation: useFirstSituationAsCurrent
+      ? joinInspectionReportText_(currentSituation, firstSituation)
+      : currentSituation,
     structEval: getInspectionReportCell_(values, 3, 6),
     impactEval: getInspectionReportCell_(values, 3, 9),
     totalEval: getInspectionReportCell_(values, 3, 12),
@@ -93,7 +103,7 @@ function addInspectionReportUnique_(items, value) {
 function buildInspectionReportPlace_(place, detail) {
   const placeText = String(place || "").trim();
   const detailText = String(detail || "").trim();
-  if (placeText && detailText) return placeText + " " + detailText;
+  if (placeText && detailText) return placeText + "\n" + detailText;
   return placeText || detailText;
 }
 function joinInspectionReportText_() {
@@ -104,11 +114,32 @@ function joinInspectionReportText_() {
 }
 
 function getInspectionReportPreviousYearMark_(firstDate, year) {
-  const previousYear = Number(year) - 1;
+  const targetYear = Number(extractInspectionReportYear_(year));
+  const previousYear = targetYear - 1;
   if (!Number.isFinite(previousYear)) return "";
 
-  const text = String(firstDate || "").trim();
-  return text.indexOf(String(previousYear)) === 0 ? "➡" : "";
+  const firstYear = Number(extractInspectionReportYear_(firstDate));
+  return firstYear === previousYear ? "➡" : "";
+}
+
+function isInspectionReportCurrentYearFirstInspection_(firstDate, year) {
+  const firstYear = extractInspectionReportYear_(firstDate);
+  const targetYear = extractInspectionReportYear_(year);
+
+  return !!firstYear && !!targetYear && firstYear === targetYear;
+}
+
+function extractInspectionReportYear_(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/(?:19|20)\d{2}/);
+  return match ? match[0] : "";
+}
+
+function buildInspectionReportFirstYearCell_(firstDate, firstEval) {
+  return joinInspectionReportText_(
+    extractInspectionReportYear_(firstDate),
+    firstEval
+  );
 }
 
 function uploadInspectionReport(data) {
@@ -132,6 +163,7 @@ function uploadInspectionReport(data) {
   sheet.getRange("M4").setNumberFormat("@").setValue(inspectionReportText_(data.inspectDate));
   sheet.getRange("M5").setNumberFormat("@").setValue(inspectionReportText_(data.inspector));
   sheet.getRange("A1").setNumberFormat("@").setValue(buildInspectionReportTitle_(data.year));
+  applyInspectionReportLayoutSettings_(sheet);
   applyInspectionReportCurrentYearHeader_(sheet, data.year);
   applyInspectionReportHeaderWraps_(sheet);
 
@@ -177,11 +209,12 @@ function uploadInspectionReport(data) {
       .setValues(values);
   });
 
+  applyInspectionReportDefaultFontColors_(sheet, startRow, rows.length);
+  applyInspectionReportFirstYearRichText_(sheet, startRow, rows);
   applyInspectionReportEvalFontColors_(sheet, startRow, rows);
 
   SpreadsheetApp.flush();
-  sheet.autoResizeRows(startRow, rows.length);
-  SpreadsheetApp.flush();
+  applyInspectionReportEstimatedRowHeights_(sheet, startRow, rows.length);
   createInspectionReportPdfSheets_(ss, sheet, startRow, rows.length);
   SpreadsheetApp.flush();
 
@@ -254,49 +287,67 @@ function createInspectionReportPdfSheets_(ss, source, startRow, dataRowCount) {
   if (dataRowCount <= 0) return;
 
   const pages = buildInspectionReportPdfPages_(source, startRow, dataRowCount);
+  const mergedSingleLastRow = mergeInspectionReportSingleLastPage_(pages);
+  setInspectionReportTightBottomMarginFlag_(ss.getId(), mergedSingleLastRow);
 
   pages.forEach((page, pageIndex) => {
     const pageSheet = source.copyTo(ss).setName(`施設点検報告書_${pageIndex + 1}`);
     pageSheet.setHiddenGridlines(true);
-    resetInspectionReportPdfPageSheet_(pageSheet);
-
-    if (pageIndex === 0) {
-      source
-        .getRange(1, 1, 8, 17)
-        .copyTo(pageSheet.getRange(1, 1, 8, 17), { contentsOnly: false });
-      for (let row = 1; row <= 8; row += 1) {
-        pageSheet.setRowHeight(row, source.getRowHeight(row));
-      }
-    } else {
-      source
-        .getRange(7, 1, 2, 17)
-        .copyTo(pageSheet.getRange(1, 1, 2, 17), { contentsOnly: false });
-      pageSheet.setRowHeight(1, source.getRowHeight(7));
-      pageSheet.setRowHeight(2, source.getRowHeight(8));
-      pageSheet.getRange(1, 1, 2, 6).setVerticalAlignment("middle");
-    }
-
-    const targetStartRow = pageIndex === 0 ? 9 : 3;
-    source
-      .getRange(page.startRow, 1, page.rowCount, 17)
-      .copyTo(pageSheet.getRange(targetStartRow, 1, page.rowCount, 17), { contentsOnly: false });
-
-    for (let offset = 0; offset < page.rowCount; offset += 1) {
-      pageSheet.setRowHeight(targetStartRow + offset, source.getRowHeight(page.startRow + offset));
-    }
-
-    trimInspectionReportRows_(pageSheet, targetStartRow + page.rowCount - 1);
+    populateInspectionReportPdfPage_(
+      pageSheet,
+      source,
+      pageIndex,
+      page.startRow,
+      page.rowCount
+    );
     pageSheet.hideSheet();
   });
+}
+
+function populateInspectionReportPdfPage_(pageSheet, source, pageIndex, sourceStartRow, rowCount) {
+  resetInspectionReportPdfPageSheet_(pageSheet);
+
+  if (pageIndex === 0) {
+    source
+      .getRange(1, 1, 8, 17)
+      .copyTo(pageSheet.getRange(1, 1, 8, 17), { contentsOnly: false });
+    for (let row = 1; row <= 8; row += 1) {
+      pageSheet.setRowHeight(row, source.getRowHeight(row));
+    }
+  } else {
+    source
+      .getRange(7, 1, 2, 17)
+      .copyTo(pageSheet.getRange(1, 1, 2, 17), { contentsOnly: false });
+    pageSheet.setRowHeight(1, source.getRowHeight(7));
+    pageSheet.setRowHeight(2, source.getRowHeight(8));
+    pageSheet.getRange(1, 1, 2, 6).setVerticalAlignment("middle");
+  }
+
+  const targetStartRow = pageIndex === 0 ? 9 : 3;
+  ensureInspectionReportRows_(pageSheet, targetStartRow + rowCount - 1);
+  source
+    .getRange(sourceStartRow, 1, rowCount, 17)
+    .copyTo(pageSheet.getRange(targetStartRow, 1, rowCount, 17), { contentsOnly: false });
+
+  for (let offset = 0; offset < rowCount; offset += 1) {
+    pageSheet.setRowHeight(
+      targetStartRow + offset,
+      source.getRowHeight(sourceStartRow + offset)
+    );
+  }
+
+  trimInspectionReportRows_(pageSheet, targetStartRow + rowCount - 1);
 }
 
 function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
   const pages = [];
   const pageWidthInches = 11.69;
   const pageHeightInches = 8.27;
-  const horizontalMarginInches = 0.25 * 2;
-  const verticalMarginInches = 0.25 * 2;
-  const safetyRatio = 0.92;
+  const horizontalMargins = (1.7 / 2.54) * 2;
+  const verticalMargins = (2.5 / 2.54) + (2.0 / 2.54);
+  const safetyRatio = 1.0;
+  const maxFirstPageRows = 15;
+  const maxRepeatPageRows = 23;
   let contentWidth = 0;
 
   for (let column = 1; column <= 17; column += 1) {
@@ -304,17 +355,13 @@ function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
   }
 
   const printableAspect =
-    (pageHeightInches - verticalMarginInches) /
-    (pageWidthInches - horizontalMarginInches);
+    (pageHeightInches - verticalMargins) /
+    (pageWidthInches - horizontalMargins);
   const maxPageHeight = contentWidth * printableAspect * safetyRatio;
-  const firstPageBodyHeight = Math.max(
-    1,
-    maxPageHeight - getInspectionReportRowsHeight_(sheet, 1, 8)
-  );
-  const repeatPageBodyHeight = Math.max(
-    1,
-    maxPageHeight - getInspectionReportRowsHeight_(sheet, 7, 2)
-  );
+  const firstPageBodyHeight =
+    maxPageHeight - getInspectionReportRowsHeight_(sheet, 1, 8);
+  const repeatPageBodyHeight =
+    maxPageHeight - getInspectionReportRowsHeight_(sheet, 7, 2);
   let pageStartRow = startRow;
   let usedHeight = 0;
   let rowsOnPage = 0;
@@ -326,13 +373,10 @@ function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
     const availableHeight = isFirstPage
       ? firstPageBodyHeight
       : repeatPageBodyHeight;
+    const maxRows = isFirstPage ? maxFirstPageRows : maxRepeatPageRows;
 
-    if (rowsOnPage > 0 && usedHeight + rowHeight > availableHeight) {
-      pages.push({
-        startRow: pageStartRow,
-        rowCount: rowsOnPage,
-      });
-
+    if (rowsOnPage > 0 && (usedHeight + rowHeight > availableHeight || rowsOnPage >= maxRows)) {
+      pages.push({ startRow: pageStartRow, rowCount: rowsOnPage });
       pageStartRow = currentRow;
       usedHeight = 0;
       rowsOnPage = 0;
@@ -344,13 +388,103 @@ function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
   }
 
   if (rowsOnPage > 0) {
-    pages.push({
-      startRow: pageStartRow,
-      rowCount: rowsOnPage,
-    });
+    pages.push({ startRow: pageStartRow, rowCount: rowsOnPage });
   }
 
   return pages;
+}
+
+function mergeInspectionReportSingleLastPage_(pages) {
+  if (!Array.isArray(pages) || pages.length < 2) return false;
+
+  const lastPage = pages[pages.length - 1];
+  if (!lastPage || lastPage.rowCount !== 1) return false;
+
+  const previousPage = pages[pages.length - 2];
+  previousPage.rowCount += 1;
+  pages.pop();
+  return true;
+}
+
+function setInspectionReportTightBottomMarginFlag_(spreadsheetId, enabled) {
+  PropertiesService
+    .getScriptProperties()
+    .setProperty(
+      "inspectionReportTightBottomMargin:" + spreadsheetId,
+      enabled ? "1" : "0"
+    );
+}
+
+function applyInspectionReportEstimatedRowHeights_(sheet, startRow, rowCount) {
+  if (rowCount <= 0) return;
+
+  const cellGroups = [
+    { column: 1, columnCount: 2 },
+    { column: 3, columnCount: 2 },
+    { column: 5, columnCount: 1 },
+    { column: 6, columnCount: 1 },
+    { column: 7, columnCount: 3 },
+    { column: 10, columnCount: 1 },
+    { column: 11, columnCount: 1 },
+    { column: 12, columnCount: 3 },
+    { column: 15, columnCount: 1 },
+    { column: 16, columnCount: 1 },
+    { column: 17, columnCount: 1 },
+  ];
+  const values = sheet.getRange(startRow, 1, rowCount, 17).getDisplayValues();
+  const fontSizes = sheet.getRange(startRow, 1, rowCount, 17).getFontSizes();
+  const groupWidths = cellGroups.map(group => {
+    let width = 0;
+
+    for (let offset = 0; offset < group.columnCount; offset += 1) {
+      width += sheet.getColumnWidth(group.column + offset);
+    }
+
+    return width;
+  });
+
+  for (let offset = 0; offset < rowCount; offset += 1) {
+    const row = startRow + offset;
+    let estimatedLines = 1;
+    let rowFontSize = 10;
+
+    cellGroups.forEach((group, groupIndex) => {
+      const columnIndex = group.column - 1;
+      const text = values[offset][columnIndex];
+      const fontSize = Number(fontSizes[offset][columnIndex]) || 10;
+      estimatedLines = Math.max(
+        estimatedLines,
+        estimateInspectionReportWrappedLines_(text, groupWidths[groupIndex], fontSize)
+      );
+      rowFontSize = Math.max(rowFontSize, fontSize);
+    });
+
+    const lineHeight = Math.max(13, rowFontSize * 1.35);
+    const estimatedHeight = Math.ceil(estimatedLines * lineHeight + 6);
+    sheet.setRowHeight(row, Math.max(33, estimatedHeight));
+  }
+}
+
+function estimateInspectionReportWrappedLines_(value, cellWidth, fontSize) {
+  const text = inspectionReportText_(value);
+  if (!text) return 1;
+
+  const usableWidth = Math.max(8, cellWidth - 8);
+  let totalLines = 0;
+
+  text.split(/\r?\n/).forEach(line => {
+    let lineWidth = 0;
+
+    Array.from(line || " ").forEach(character => {
+      lineWidth += /[\x00-\x7f]/.test(character)
+        ? fontSize * 0.58
+        : fontSize;
+    });
+
+    totalLines += Math.max(1, Math.ceil(lineWidth / usableWidth));
+  });
+
+  return totalLines;
 }
 
 function deleteInspectionReportPdfSheets_(ss) {
@@ -433,9 +567,17 @@ function ensureInspectionReportRows_(sheet, requiredLastRow) {
   }
 }
 
+function applyInspectionReportLayoutSettings_(sheet) {
+  sheet.setColumnWidth(3, 80);
+  sheet.setColumnWidth(4, 80);
+  [10, 11, 15, 16, 17].forEach(column => {
+    sheet.setColumnWidth(column, 60);
+  });
+  sheet.getRange("K8").setFontSize(8);
+}
+
 function applyInspectionReportEvalFontColors_(sheet, startRow, rows) {
   const targets = [
-    { column: 10, field: "firstEval", redValues: ["AA", "A1", "A2", "B"] },
     { column: 15, field: "structEval", redValues: [] },
     { column: 17, field: "totalEval", redValues: ["AA", "A1", "A2", "B"] },
   ];
@@ -451,6 +593,62 @@ function applyInspectionReportEvalFontColors_(sheet, startRow, rows) {
       .setFontColors(colors)
       .setFontWeights(colors.map(row => [row[0] === "#dc2626" ? "bold" : "normal"]));
   });
+}
+
+function applyInspectionReportFirstYearRichText_(sheet, startRow, rows) {
+  const blackStyle = SpreadsheetApp.newTextStyle()
+    .setForegroundColor("#000000")
+    .setBold(false)
+    .build();
+  const redStyle = SpreadsheetApp.newTextStyle()
+    .setForegroundColor("#dc2626")
+    .setBold(true)
+    .build();
+  const richTextValues = rows.map(row => {
+    const text = inspectionReportText_(row.firstEval);
+    const builder = SpreadsheetApp
+      .newRichTextValue()
+      .setText(text);
+    const lines = text.split(/\r?\n/);
+    const evalText = lines.length > 1 ? lines[lines.length - 1].trim() : "";
+
+    if (text.length > 0) {
+      builder.setTextStyle(0, text.length, blackStyle);
+    }
+
+    if (isInspectionReportRedEval_(evalText)) {
+      const start = text.lastIndexOf(evalText);
+      if (start >= 0) {
+        builder.setTextStyle(start, start + evalText.length, redStyle);
+      }
+    }
+
+    return [builder.build()];
+  });
+
+  sheet
+    .getRange(startRow, 10, rows.length, 1)
+    .setRichTextValues(richTextValues);
+}
+
+function isInspectionReportRedEval_(value) {
+  const text = String(value || "")
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, character =>
+      String.fromCharCode(character.charCodeAt(0) - 0xFEE0)
+    )
+    .replace(/\s+/g, "")
+    .toUpperCase();
+
+  return ["B", "A1", "A2", "AA"].indexOf(text) !== -1;
+}
+
+function applyInspectionReportDefaultFontColors_(sheet, startRow, rowCount) {
+  if (rowCount <= 0) return;
+
+  sheet
+    .getRange(startRow, 1, rowCount, 17)
+    .setFontColor("#000000")
+    .setFontWeight("normal");
 }
 
 function applyInspectionReportTableBorders_(sheet, startRow, rowCount, dataRowCount, clearRowCount) {

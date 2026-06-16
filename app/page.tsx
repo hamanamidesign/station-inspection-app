@@ -744,19 +744,47 @@ const getInspectionReportEvalClass = (
 ) => {
   const text = String(value || '').trim();
 
-  if (field === 'firstEval' || field === 'totalEval') {
-    return ['AA', 'A1', 'A2', 'B'].includes(text) ? 'text-red-600 font-black' : 'text-black';
+  if (field === 'totalEval') {
+    return isInspectionReportRedEval(text) ? 'text-red-600 font-black' : 'text-black';
   }
 
   return 'text-black';
 };
 
-const getEvalFontColor = (field: 'structEval' | 'totalEval' | 'firstEval', value: unknown) => {
+const isInspectionReportRedEval = (value: unknown) => {
   const text = String(value || '')
     .normalize('NFKC')
     .replace(/\s+/g, '')
     .toUpperCase();
-  if ((field === 'totalEval' || field === 'firstEval') && ['AA', 'A1', 'A2', 'B'].includes(text)) {
+  return ['AA', 'A1', 'A2', 'B'].includes(text);
+};
+
+const renderInspectionReportCellValue = (
+  field: keyof Omit<InspectionReportRow, 'id'>,
+  value: string
+) => {
+  if (field !== 'firstEval') return value;
+
+  const lines = String(value || '').split(/\r?\n/);
+  return lines.map((line, index) => (
+    <span
+      key={`${field}-${index}`}
+      className={index === lines.length - 1 && isInspectionReportRedEval(line)
+        ? 'text-red-600 font-black'
+        : 'text-black'}
+    >
+      {line}
+      {index < lines.length - 1 ? '\n' : ''}
+    </span>
+  ));
+};
+
+const getEvalFontColor = (field: 'structEval' | 'totalEval', value: unknown) => {
+  const text = String(value || '')
+    .normalize('NFKC')
+    .replace(/\s+/g, '')
+    .toUpperCase();
+  if (field === 'totalEval' && isInspectionReportRedEval(text)) {
     return '#dc2626';
   }
 
@@ -2573,7 +2601,7 @@ if (mode === 'exist_select') return (
                       />
                     ) : (
                       <div key={cell.field} className={`flex items-center justify-center border-r border-slate-300 p-1.5 text-center last:border-r-0 whitespace-pre-wrap break-words ${getInspectionReportEvalClass(cell.field, row[cell.field])}`}>
-                        {row[cell.field]}
+                        {renderInspectionReportCellValue(cell.field, row[cell.field])}
                       </div>
                     )
                   )}
@@ -2928,7 +2956,6 @@ async function sendInspectionReport() {
       rows: rows.map(row => ({
         ...row,
         evalFontColors: {
-          firstEval: getEvalFontColor('firstEval', row.firstEval),
           structEval: getEvalFontColor('structEval', row.structEval),
           totalEval: getEvalFontColor('totalEval', row.totalEval),
         },

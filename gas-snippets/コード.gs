@@ -1823,6 +1823,10 @@ function buildSpreadsheetPdfExportUrl_(spreadsheetId, portrait) {
     "printtitle=false",
     "pagenumbers=false",
     "gridlines=false",
+    `top_margin=${2.5 / 2.54}`,
+    `bottom_margin=${2.0 / 2.54}`,
+    `left_margin=${1.7 / 2.54}`,
+    `right_margin=${1.7 / 2.54}`,
     "fzr=false",
   ];
 

@@ -14,6 +14,11 @@
 // PDF結合には、GASプロジェクトへPDFAppライブラリを追加してください。
 // Script ID: 1Xmtr5XXEakVql7N6FqwdCNdpdijsJOxgqH173JSB0UOwdb0GJYJbnJLk
 
+const INSPECTION_PDF_MARGIN_TOP_INCHES_ = 2.5 / 2.54;
+const INSPECTION_PDF_MARGIN_BOTTOM_INCHES_ = 2.0 / 2.54;
+const INSPECTION_PDF_MARGIN_LEFT_INCHES_ = 1.7 / 2.54;
+const INSPECTION_PDF_MARGIN_RIGHT_INCHES_ = 1.7 / 2.54;
+
 function getPdfSheetOptions(data) {
   const ss = SpreadsheetApp.openById(data.spreadsheetId);
   const sheets = ss.getSheets();
@@ -582,9 +587,7 @@ function createGenericInspectionPdf_(data, sheetNames) {
       attachment: false,
     };
 
-    if (settings.scale) {
-      exportOptions.scale = settings.scale;
-    }
+    Object.assign(exportOptions, getInspectionPdfMarginOptions_());
 
     ["top_margin", "bottom_margin", "left_margin", "right_margin"].forEach(key => {
       if (settings[key] !== undefined) {
@@ -667,15 +670,16 @@ function getGenericPdfSettings_(data, sheetNames) {
   }
 
   if (kind === "inspectionReport" || suffix === "施設点検報告書") {
-    return {
+    const settings = {
       fileSuffix: "施設点検報告書",
       portrait: false,
-      scale: 4,
-      top_margin: 0.25,
-      bottom_margin: 0.25,
-      left_margin: 0.25,
-      right_margin: 0.25,
     };
+
+    if (shouldUseInspectionReportTightBottomMargin_(data.spreadsheetId)) {
+      settings.bottom_margin = 1.2 / 2.54;
+    }
+
+    return settings;
   }
 
   if (
@@ -695,6 +699,22 @@ function getGenericPdfSettings_(data, sheetNames) {
   }
 
   return { fileSuffix: suffix || "写真カルテ", portrait: false };
+}
+
+function getInspectionPdfMarginOptions_() {
+  return {
+    top_margin: INSPECTION_PDF_MARGIN_TOP_INCHES_,
+    bottom_margin: INSPECTION_PDF_MARGIN_BOTTOM_INCHES_,
+    left_margin: INSPECTION_PDF_MARGIN_LEFT_INCHES_,
+    right_margin: INSPECTION_PDF_MARGIN_RIGHT_INCHES_,
+  };
+}
+
+function shouldUseInspectionReportTightBottomMargin_(spreadsheetId) {
+  if (!spreadsheetId) return false;
+  return PropertiesService
+    .getScriptProperties()
+    .getProperty("inspectionReportTightBottomMargin:" + spreadsheetId) === "1";
 }
 
 function exportSheetPdfBlob_(spreadsheetId, sheetId, fileName, options) {
