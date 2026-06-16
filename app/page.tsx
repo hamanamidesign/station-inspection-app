@@ -1467,6 +1467,10 @@ const handleCreateNewSheet = async () => {
   const isHeicFile = (file: File) =>
     /hei[cf]/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
 
+  const isHeicDataUrl = (dataUrl: string) =>
+    /^data:image\/hei[cf][;,]/i.test(dataUrl) ||
+    /^data:application\/octet-stream[;,]/i.test(dataUrl);
+
   const readBlobAsDataUrl = (blob: Blob): Promise<string> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1476,11 +1480,17 @@ const handleCreateNewSheet = async () => {
     });
 
   const readPhotoFileAsDataUrl = async (file: File): Promise<string> => {
-    if (!isHeicFile(file)) return readBlobAsDataUrl(file);
+    if (!isHeicFile(file)) {
+      return convertHeicDataUrlToJpegIfNeeded(await readBlobAsDataUrl(file));
+    }
 
+    return convertHeicBlobToJpegDataUrl(file);
+  };
+
+  const convertHeicBlobToJpegDataUrl = async (blob: Blob): Promise<string> => {
     const { default: heic2any } = await import("heic2any");
     const converted = await heic2any({
-      blob: file,
+      blob,
       toType: "image/jpeg",
       quality: 0.85,
     });
@@ -1491,6 +1501,13 @@ const handleCreateNewSheet = async () => {
     }
 
     return readBlobAsDataUrl(convertedBlob);
+  };
+
+  const convertHeicDataUrlToJpegIfNeeded = async (dataUrl: string): Promise<string> => {
+    if (!isHeicDataUrl(dataUrl)) return dataUrl;
+
+    const response = await fetch(dataUrl);
+    return convertHeicBlobToJpegDataUrl(await response.blob());
   };
 
   const resizeImage = async (
@@ -4144,7 +4161,9 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
         throw new Error("Base64取得失敗");
       }
 
-      const imageDataUrl = buildImageDataUrl(base64, result.mimeType);
+      const imageDataUrl = await convertHeicDataUrlToJpegIfNeeded(
+        buildImageDataUrl(base64, result.mimeType)
+      );
 
       if (drivePickerTarget.type === 'map') {
         setSourceImage(imageDataUrl);
