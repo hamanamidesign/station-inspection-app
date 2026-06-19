@@ -6623,7 +6623,7 @@ if (mode === 'inclination_menu') {
                   <img
                     ref={photoEditorImageRef}
                     src={editorPhoto}
-                    className="max-h-[calc(100vh-188px)] max-w-full select-none object-contain"
+                    className="max-h-full max-w-full select-none object-contain"
                     draggable={false}
                   />
                   <div className="pointer-events-none absolute inset-0">
@@ -6632,7 +6632,7 @@ if (mode === 'inclination_menu') {
                 </div>
               </div>
 
-              <div className="shrink-0 space-y-2 border-t border-white/15 bg-slate-900 p-3">
+              <div className="h-[204px] shrink-0 space-y-2 overflow-y-auto border-t border-white/15 bg-slate-900 p-3">
                 <div className="grid grid-cols-3 gap-2">
                   {([
                     { id: 'ellipse', label: '楕円○' },
@@ -6666,7 +6666,7 @@ if (mode === 'inclination_menu') {
                       />
                     ))}
                   </div>
-                  {selectedMark && (
+                  {selectedMark ? (
                     <button
                       type="button"
                       onClick={() => deletePhotoMark(selectedMark.id)}
@@ -6674,11 +6674,14 @@ if (mode === 'inclination_menu') {
                     >
                       選択を削除
                     </button>
+                  ) : (
+                    <div className="min-w-[96px]" />
                   )}
                 </div>
 
-                {selectedMark && (
-                  <div className="text-center text-xs font-bold text-white/70">
+                <div className="h-[62px] overflow-y-auto text-center text-xs font-bold text-white/70">
+                  {selectedMark ? (
+                    <>
                     {selectedMark.type === 'ellipse' && '中央をスライドで移動、四隅の■をスライドでサイズ変更できます。'}
                     {selectedMark.type === 'line' && '線をスライドで移動、両端の■をスライドで長さと向きを変更できます。'}
                     {selectedMark.type === 'text' && '文字をスライドで移動、文字変更は下のボタンか文字をダブルタップします。'}
@@ -6699,8 +6702,11 @@ if (mode === 'inclination_menu') {
                         文字を変更
                       </button>
                     )}
-                  </div>
-                )}
+                    </>
+                  ) : (
+                    '写真をタップすると選択中のマークを追加できます。マークをタップすると編集できます。'
+                  )}
+                </div>
               </div>
             </div>
           );

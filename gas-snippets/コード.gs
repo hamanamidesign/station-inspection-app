@@ -610,9 +610,7 @@ try {
         const name = f.getName();
 
         if (name.startsWith("_編集元_初回点検_")) {
-          const baseName = name.replace(".jpg", "");
-          const parts = baseName.split("_");
-          const idx = parseInt(parts[4], 10) - 1;
+          const idx = getPhotoIndexFromFileName_(name);
 
           if (idx >= 0 && idx < 4) {
             firstPhotos[idx] =
@@ -620,9 +618,7 @@ try {
               Utilities.base64Encode(f.getBlob().getBytes());
           }
         } else if (name.startsWith("_編集元_")) {
-          const baseName = name.replace(".jpg", "");
-          const parts = baseName.split("_");
-          const idx = parseInt(parts[3], 10) - 1;
+          const idx = getPhotoIndexFromFileName_(name);
 
           if (idx >= 0 && idx < 4) {
             photos[idx] =
@@ -630,11 +626,7 @@ try {
               Utilities.base64Encode(f.getBlob().getBytes());
           }
         } else if (name.startsWith("初回点検_")) {
-          const baseName = name.replace(".jpg", "");
-          const parts = baseName.split("_");
-          // 初回点検_2026_12_1.jpg
-          // [初回点検, 2026, 12, 1]
-          const idx = parseInt(parts[3]) - 1;
+          const idx = getPhotoIndexFromFileName_(name);
 
           if (idx >= 0 && idx < 4 && !firstPhotos[idx]) {
             firstPhotos[idx] =
@@ -642,11 +634,7 @@ try {
               Utilities.base64Encode(f.getBlob().getBytes());
           }
         } else {
-          const baseName = name.replace(".jpg", "");
-          const parts = baseName.split("_");
-          // 2026_12_1.jpg
-          // [2026, 12, 1]
-          const idx = parseInt(parts[2]) - 1;
+          const idx = getPhotoIndexFromFileName_(name);
 
           if (idx >= 0 && idx < 4 && !photos[idx]) {
             photos[idx] =
@@ -746,6 +734,13 @@ function getPhotoKarteEditorData_(ss, karteNo) {
     Logger.log(e);
     return {};
   }
+}
+
+function getPhotoIndexFromFileName_(fileName) {
+  const match = String(fileName || "").match(/_(\d+)\.[^.]+$/);
+  if (!match) return -1;
+
+  return parseInt(match[1], 10) - 1;
 }
 
 function savePhotoKarteEditorData_(ss, karteNo, editorData) {
