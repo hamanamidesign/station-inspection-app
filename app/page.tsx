@@ -4619,14 +4619,20 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
 
   const openDrivePicker = (target: DrivePickerTarget, folderId?: string, routeNameOverride?: string) => {
     setDrivePickerTarget(target);
+
+    if (target.type === 'map') {
+      loadDriveMapFolder(undefined, "", false);
+      return;
+    }
+
     const rememberedFolderId =
-      target.type !== 'map' && typeof window !== 'undefined'
+      typeof window !== 'undefined'
         ? window.localStorage.getItem(PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY)
         : "";
     loadDriveMapFolder(
-      target.type === 'map' ? folderId : (rememberedFolderId || folderId),
+      rememberedFolderId || folderId,
       routeNameOverride,
-      target.type !== 'map'
+      true
     );
   };
 
@@ -4712,7 +4718,8 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
             type="button"
             onClick={() => loadDriveMapFolder(
               drivePickerTarget.type === 'map' ? undefined : INSPECTION_DRIVE_ROOT_FOLDER_ID,
-              drivePickerTarget.type === 'map' ? "" : undefined
+              drivePickerTarget.type === 'map' ? "" : undefined,
+              drivePickerTarget.type !== 'map'
             )}
             className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 active:scale-95"
           >
@@ -7107,7 +7114,7 @@ if (mode === 'editor') {
         保存済み
         </button>
         <button onClick={() => window.open(`https://www.google.com/search?q=${stationName}+構内図&tbm=isch`, '_blank')} className="flex-1 rounded-md bg-slate-800 px-2 py-2 text-sm font-bold text-white">Web検索</button>
-        <button onClick={() => openDrivePicker({ type: 'map' }, undefined, "")} className="transition-all active:scale-95 active:brightness-90 flex-1 rounded-md bg-emerald-600 px-2 py-2 text-sm font-bold text-white">
+        <button onClick={() => openDrivePicker({ type: 'map' })} className="transition-all active:scale-95 active:brightness-90 flex-1 rounded-md bg-emerald-600 px-2 py-2 text-sm font-bold text-white">
         ドライブ
         </button>
       </>
@@ -7676,7 +7683,7 @@ if (mode === 'editor') {
               )}
               <button
                 type="button"
-                onClick={() => loadDriveMapFolder(undefined, "")}
+                onClick={() => loadDriveMapFolder(undefined, "", false)}
                 className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 active:scale-95"
               >
                 初期フォルダ
