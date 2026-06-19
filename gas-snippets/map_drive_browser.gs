@@ -50,6 +50,7 @@ function handleGetMaps(folderId, routeName) {
       id: folder.getId(),
       name: folder.getName(),
     },
+    folderPath: getMapFolderPath_(folder),
     parentFolder: parent
       ? {
           id: parent.getId(),
@@ -100,4 +101,31 @@ function normalizeMapFolderName_(value) {
 function getMapParentFolder_(folder) {
   const parents = folder.getParents();
   return parents.hasNext() ? parents.next() : null;
+}
+
+function getMapFolderPath_(folder) {
+  const path = [];
+  const rootId = String(CONFIG.MAP_FOLDER_ID || "");
+  let current = folder;
+  let guard = 0;
+
+  while (current && guard < 20) {
+    path.unshift({
+      id: current.getId(),
+      name: current.getName(),
+    });
+
+    if (current.getId() === rootId) break;
+
+    const parents = current.getParents();
+    if (!parents.hasNext()) break;
+    current = parents.next();
+    guard++;
+  }
+
+  if (path.length > 1 && path[0].id === rootId) {
+    path.shift();
+  }
+
+  return path;
 }

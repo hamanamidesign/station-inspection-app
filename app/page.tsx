@@ -730,6 +730,7 @@ useEffect(() => {
   const [driveFolders, setDriveFolders] = useState<DriveFolderItem[]>([]);
   const [driveCurrentFolder, setDriveCurrentFolder] = useState<DriveFolderItem | null>(null);
   const [driveParentFolder, setDriveParentFolder] = useState<DriveFolderItem | null>(null);
+  const [driveFolderPath, setDriveFolderPath] = useState('');
   const [drivePickerTarget, setDrivePickerTarget] = useState<DrivePickerTarget>({ type: 'map' });
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -4575,14 +4576,21 @@ const chunkSlopeRows = (rows: SlopeTableRow[], size = 4) => {
 const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
   buildRangeLabel(rows.map(row => row.point));
 
-  const normalizeDriveFolderName = (value: unknown) =>
-    String(value || '').replace(/駅/g, '').replace(/\s+/g, '').trim();
+  const applyDriveBrowserResult = (result: Record<string, unknown>) => {
+    const currentFolder = result.currentFolder as DriveFolderItem | null | undefined;
+    const path = Array.isArray(result.folderPath)
+      ? result.folderPath
+          .map(item => toRecord(item).name)
+          .map(name => String(name || '').trim())
+          .filter(Boolean)
+          .join(' / ')
+      : '';
 
-  const findStationDriveFolder = (folders: DriveFolderItem[]) => {
-    const stationKey = normalizeDriveFolderName(stationName);
-    if (!stationKey) return null;
-
-    return folders.find(folder => normalizeDriveFolderName(folder.name) === stationKey) || null;
+    setDriveMaps(Array.isArray(result.list) ? result.list as DriveMapItem[] : []);
+    setDriveFolders(Array.isArray(result.folders) ? result.folders as DriveFolderItem[] : []);
+    setDriveCurrentFolder(currentFolder || null);
+    setDriveParentFolder(result.parentFolder as DriveFolderItem | null || null);
+    setDriveFolderPath(path || currentFolder?.name || '');
   };
 
   const loadDriveMapFolder = async (
@@ -4597,10 +4605,7 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
         folderId ? { folderId } : { routeName: routeNameOverride ?? selectedRoute }
       );
 
-      setDriveMaps(Array.isArray(result.list) ? result.list : []);
-      setDriveFolders(Array.isArray(result.folders) ? result.folders : []);
-      setDriveCurrentFolder(result.currentFolder || null);
-      setDriveParentFolder(result.parentFolder || null);
+      applyDriveBrowserResult(result);
       if (rememberPhotoFolder && result.currentFolder?.id && typeof window !== 'undefined') {
         window.localStorage.setItem(PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY, String(result.currentFolder.id));
       }
@@ -4612,67 +4617,8 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
     }
   };
 
-  const openStationDrivePicker = async (target: DrivePickerTarget, rootFolderId?: string, routeNameOverride?: string) => {
-    setDrivePickerTarget(target);
-    setIsLoading(true);
-
-    try {
-      const rootResult = await gasApi(
-        "getMaps",
-        rootFolderId ? { folderId: rootFolderId } : { routeName: routeNameOverride ?? selectedRoute }
-      );
-      const rootFolders = Array.isArray(rootResult.folders) ? rootResult.folders : [];
-      const stationFolder = findStationDriveFolder(rootFolders);
-
-      if (stationFolder) {
-        const stationResult = await gasApi("getMaps", { folderId: stationFolder.id });
-
-        setDriveMaps(Array.isArray(stationResult.list) ? stationResult.list : []);
-        setDriveFolders(Array.isArray(stationResult.folders) ? stationResult.folders : []);
-        setDriveCurrentFolder(stationResult.currentFolder || stationFolder);
-        setDriveParentFolder(stationResult.parentFolder || rootResult.currentFolder || null);
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY, String(stationFolder.id));
-        }
-        setShowMapPicker(true);
-        return;
-      }
-
-      const rememberedFolderId =
-        typeof window !== 'undefined'
-          ? window.localStorage.getItem(PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY)
-          : "";
-
-      if (rememberedFolderId) {
-        const rememberedResult = await gasApi("getMaps", { folderId: rememberedFolderId });
-
-        setDriveMaps(Array.isArray(rememberedResult.list) ? rememberedResult.list : []);
-        setDriveFolders(Array.isArray(rememberedResult.folders) ? rememberedResult.folders : []);
-        setDriveCurrentFolder(rememberedResult.currentFolder || null);
-        setDriveParentFolder(rememberedResult.parentFolder || null);
-        setShowMapPicker(true);
-        return;
-      }
-
-      setDriveMaps(Array.isArray(rootResult.list) ? rootResult.list : []);
-      setDriveFolders(rootFolders);
-      setDriveCurrentFolder(rootResult.currentFolder || null);
-      setDriveParentFolder(rootResult.parentFolder || null);
-      setShowMapPicker(true);
-    } catch (e) {
-      alert("ドライブの取得に失敗しました");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const openDrivePicker = (target: DrivePickerTarget, folderId?: string, routeNameOverride?: string) => {
     setDrivePickerTarget(target);
-    if (target.type !== 'map') {
-      openStationDrivePicker(target, folderId, routeNameOverride);
-      return;
-    }
-
     const rememberedFolderId =
       target.type !== 'map' && typeof window !== 'undefined'
         ? window.localStorage.getItem(PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY)
@@ -4746,7 +4692,7 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
           <div className="min-w-0">
             <h3 className="text-xl font-bold">{drivePickerTitle}</h3>
             <p className="mt-1 truncate text-sm font-bold text-slate-500">
-              {driveCurrentFolder?.name || "初期フォルダ"}
+              {driveFolderPath || driveCurrentFolder?.name || "初期フォルダ"}
             </p>
           </div>
           <button onClick={() => setShowMapPicker(false)} className="transition-all active:scale-95 active:brightness-90 text-2xl">✕</button>
@@ -7712,7 +7658,7 @@ if (mode === 'editor') {
               <div className="min-w-0">
                 <h3 className="text-xl font-bold">ドライブから位置図を選択</h3>
                 <p className="mt-1 truncate text-sm font-bold text-slate-500">
-                  {driveCurrentFolder?.name || "初期フォルダ"}
+                  {driveFolderPath || driveCurrentFolder?.name || "初期フォルダ"}
                 </p>
               </div>
               <button onClick={() => setShowMapPicker(false)} className="transition-all active:scale-95 active:brightness-90 text-2xl">✕</button>
