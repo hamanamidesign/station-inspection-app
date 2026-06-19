@@ -763,6 +763,13 @@ useEffect(() => {
   const [photoMarkColor, setPhotoMarkColor] = useState<PhotoMarkColor>('red');
   const [editingPhotoMark, setEditingPhotoMark] = useState<PhotoMark | null>(null);
   const [photoMarkText, setPhotoMarkText] = useState('');
+  const photoMarkDragRef = useRef<{
+    id: number | null;
+    mode: 'move' | 'resize' | 'line-start' | 'line-end' | null;
+    corner?: 'nw' | 'ne' | 'sw' | 'se';
+    lastX: number;
+    lastY: number;
+  }>({ id: null, mode: null, lastX: 0, lastY: 0 });
   const textDragRef = useRef<{ id: number | null; lastX: number; lastY: number; isMoved: boolean }>({
     id: null,
     lastX: 0,
@@ -1809,26 +1816,32 @@ const handleCreateNewSheet = async () => {
     if (photoMarkTool === 'text') {
       const text = window.prompt("入れる文字を入力してください", photoMarkText || "");
       if (!text?.trim()) return;
+      const nextMark: PhotoTextMark = { id, type: 'text', x, y, text: text.trim(), color: photoMarkColor };
       setPhotoMarkText(text);
       setPhotoMarksForTarget(photoEditorTarget, marks => [
         ...marks,
-        { id, type: 'text', x, y, text: text.trim(), color: photoMarkColor },
+        nextMark,
       ]);
+      setEditingPhotoMark(nextMark);
       return;
     }
 
     if (photoMarkTool === 'line') {
+      const nextMark: PhotoLineMark = { id, type: 'line', x1: x, y1: y, x2: Math.min(100, x + 18), y2: y, color: photoMarkColor };
       setPhotoMarksForTarget(photoEditorTarget, marks => [
         ...marks,
-        { id, type: 'line', x1: x, y1: y, x2: Math.min(100, x + 18), y2: y, color: photoMarkColor },
+        nextMark,
       ]);
+      setEditingPhotoMark(nextMark);
       return;
     }
 
+    const nextMark: PhotoEllipseMark = { id, type: 'ellipse', x, y, width: 24, height: 16, color: photoMarkColor };
     setPhotoMarksForTarget(photoEditorTarget, marks => [
       ...marks,
-      { id, type: 'ellipse', x, y, width: 24, height: 16, color: photoMarkColor },
+      nextMark,
     ]);
+    setEditingPhotoMark(nextMark);
   };
 
 let pressTimer: NodeJS.Timeout;
@@ -6256,35 +6269,295 @@ if (mode === 'inclination_menu') {
 
           if (!editorPhoto) return null;
 
-          const moveSelectedMark = (dx: number, dy: number) => {
-            if (!selectedMark) return;
-            if (selectedMark.type === 'ellipse') {
-              updatePhotoMark({ ...selectedMark, x: clampPhotoPercent(selectedMark.x + dx), y: clampPhotoPercent(selectedMark.y + dy) });
-            } else if (selectedMark.type === 'line') {
+          const getPhotoEditorPoint = (event: React.PointerEvent<HTMLElement>) => {
+            const rect = photoEditorImageRef.current?.getBoundingClientRect();
+            if (!rect) return null;
+
+            return {
+              x: clampPhotoPercent(((event.clientX - rect.left) / rect.width) * 100),
+              y: clampPhotoPercent(((event.clientY - rect.top) / rect.height) * 100),
+            };
+          };
+
+          const beginPhotoMarkDrag = (
+            event: React.PointerEvent<HTMLElement>,
+            mark: PhotoMark,
+            mode: 'move' | 'resize' | 'line-start' | 'line-end',
+            corner?: 'nw' | 'ne' | 'sw' | 'se'
+          ) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const point = getPhotoEditorPoint(event);
+            if (!point) return;
+
+            event.currentTarget.setPointerCapture(event.pointerId);
+            photoMarkDragRef.current = {
+              id: mark.id,
+              mode,
+              corner,
+              lastX: point.x,
+              lastY: point.y,
+            };
+            setEditingPhotoMark(mark);
+            setPhotoMarkTool(mark.type);
+            setPhotoMarkColor(mark.color);
+            if (mark.type === 'text') setPhotoMarkText(mark.text);
+          };
+
+          const handlePhotoMarkDragMove = (event: React.PointerEvent<HTMLElement>, mark: PhotoMark) => {
+            const drag = photoMarkDragRef.current;
+            if (drag.id !== mark.id || !drag.mode) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            const point = getPhotoEditorPoint(event);
+            if (!point) return;
+
+            if (drag.mode === 'move') {
+              const dx = point.x - drag.lastX;
+              const dy = point.y - drag.lastY;
+              drag.lastX = point.x;
+              drag.lastY = point.y;
+
+              if (mark.type === 'ellipse') {
+                updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
+              } else if (mark.type === 'line') {
+                updatePhotoMark({
+                  ...mark,
+                  x1: clampPhotoPercent(mark.x1 + dx),
+                  y1: clampPhotoPercent(mark.y1 + dy),
+                  x2: clampPhotoPercent(mark.x2 + dx),
+                  y2: clampPhotoPercent(mark.y2 + dy),
+                });
+              } else {
+                updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
+              }
+              return;
+            }
+
+            if (mark.type === 'ellipse' && drag.mode === 'resize' && drag.corner) {
+              const left = mark.x - mark.width / 2;
+              const right = mark.x + mark.width / 2;
+              const top = mark.y - mark.height / 2;
+              const bottom = mark.y + mark.height / 2;
+              const nextLeft = drag.corner.includes('w') ? point.x : left;
+              const nextRight = drag.corner.includes('e') ? point.x : right;
+              const nextTop = drag.corner.includes('n') ? point.y : top;
+              const nextBottom = drag.corner.includes('s') ? point.y : bottom;
+              const width = Math.max(4, Math.abs(nextRight - nextLeft));
+              const height = Math.max(4, Math.abs(nextBottom - nextTop));
+
               updatePhotoMark({
-                ...selectedMark,
-                x1: clampPhotoPercent(selectedMark.x1 + dx),
-                y1: clampPhotoPercent(selectedMark.y1 + dy),
-                x2: clampPhotoPercent(selectedMark.x2 + dx),
-                y2: clampPhotoPercent(selectedMark.y2 + dy),
+                ...mark,
+                x: clampPhotoPercent((nextLeft + nextRight) / 2),
+                y: clampPhotoPercent((nextTop + nextBottom) / 2),
+                width: Math.min(100, width),
+                height: Math.min(100, height),
               });
-            } else {
-              updatePhotoMark({ ...selectedMark, x: clampPhotoPercent(selectedMark.x + dx), y: clampPhotoPercent(selectedMark.y + dy) });
+              return;
+            }
+
+            if (mark.type === 'line' && drag.mode === 'line-start') {
+              updatePhotoMark({ ...mark, x1: point.x, y1: point.y });
+              return;
+            }
+
+            if (mark.type === 'line' && drag.mode === 'line-end') {
+              updatePhotoMark({ ...mark, x2: point.x, y2: point.y });
             }
           };
 
-          const resizeSelectedMark = (dw: number, dh: number) => {
-            if (!selectedMark || selectedMark.type !== 'ellipse') return;
-            updatePhotoMark({
-              ...selectedMark,
-              width: Math.max(4, Math.min(100, selectedMark.width + dw)),
-              height: Math.max(4, Math.min(100, selectedMark.height + dh)),
-            });
+          const endPhotoMarkDrag = (event: React.PointerEvent<HTMLElement>) => {
+            event.preventDefault();
+            event.stopPropagation();
+            photoMarkDragRef.current = { id: null, mode: null, lastX: 0, lastY: 0 };
+            try {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            } catch (_) {
+              // Pointer capture may already be released by the browser.
+            }
           };
 
           const changeSelectedColor = (color: PhotoMarkColor) => {
             setPhotoMarkColor(color);
             if (selectedMark) updatePhotoMark({ ...selectedMark, color } as PhotoMark);
+          };
+
+          const handleEditorCanvasTap = (event: React.PointerEvent<HTMLDivElement>) => {
+            if (event.target !== event.currentTarget && event.target !== photoEditorImageRef.current) return;
+            const point = getPhotoEditorPoint(event);
+            if (!point) return;
+
+            if (selectedMark) {
+              setEditingPhotoMark(null);
+              return;
+            }
+
+            addPhotoMarkAt(point.x, point.y);
+          };
+
+          const renderEditorMark = (mark: PhotoMark) => {
+            const isSelected = selectedMark?.id === mark.id;
+            const selectMark = (event: React.PointerEvent<HTMLElement>) => {
+              beginPhotoMarkDrag(event, mark, 'move');
+            };
+
+            if (mark.type === 'ellipse') {
+              const handles = [
+                { key: 'nw', left: mark.x - mark.width / 2, top: mark.y - mark.height / 2, cursor: 'nwse-resize' },
+                { key: 'ne', left: mark.x + mark.width / 2, top: mark.y - mark.height / 2, cursor: 'nesw-resize' },
+                { key: 'sw', left: mark.x - mark.width / 2, top: mark.y + mark.height / 2, cursor: 'nesw-resize' },
+                { key: 'se', left: mark.x + mark.width / 2, top: mark.y + mark.height / 2, cursor: 'nwse-resize' },
+              ] as const;
+
+              return (
+                <React.Fragment key={mark.id}>
+                  <div
+                    className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 touch-none rounded-full border-[3px] bg-transparent"
+                    style={{
+                      left: `${mark.x}%`,
+                      top: `${mark.y}%`,
+                      width: `${mark.width}%`,
+                      height: `${mark.height}%`,
+                      borderColor: mark.color,
+                      boxShadow: isSelected ? '0 0 0 2px rgba(255,255,255,0.9)' : undefined,
+                      cursor: 'move',
+                    }}
+                    onPointerDown={selectMark}
+                    onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                    onPointerUp={endPhotoMarkDrag}
+                    onPointerCancel={endPhotoMarkDrag}
+                  />
+                  {isSelected && handles.map(handle => (
+                    <div
+                      key={`${mark.id}-${handle.key}`}
+                      className="pointer-events-auto absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 touch-none border-2 border-white bg-slate-900 shadow"
+                      style={{
+                        left: `${handle.left}%`,
+                        top: `${handle.top}%`,
+                        cursor: handle.cursor,
+                      }}
+                      onPointerDown={(event) => beginPhotoMarkDrag(event, mark, 'resize', handle.key)}
+                      onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                      onPointerUp={endPhotoMarkDrag}
+                      onPointerCancel={endPhotoMarkDrag}
+                    />
+                  ))}
+                  {isSelected && (
+                    <button
+                      type="button"
+                      className="pointer-events-auto absolute z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-rose-600 text-sm font-black text-white shadow"
+                      style={{ left: `${Math.min(98, mark.x + mark.width / 2 + 4)}%`, top: `${Math.max(2, mark.y - mark.height / 2 - 4)}%` }}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        deletePhotoMark(mark.id);
+                      }}
+                    >
+                      x
+                    </button>
+                  )}
+                </React.Fragment>
+              );
+            }
+
+            if (mark.type === 'line') {
+              const length = Math.hypot(mark.x2 - mark.x1, mark.y2 - mark.y1);
+              const angle = Math.atan2(mark.y2 - mark.y1, mark.x2 - mark.x1) * 180 / Math.PI;
+
+              return (
+                <React.Fragment key={mark.id}>
+                  <div
+                    className="pointer-events-auto absolute h-[4px] origin-left touch-none rounded-full"
+                    style={{
+                      left: `${mark.x1}%`,
+                      top: `${mark.y1}%`,
+                      width: `${length}%`,
+                      backgroundColor: mark.color,
+                      transform: `rotate(${angle}deg)`,
+                      boxShadow: isSelected ? '0 0 0 2px rgba(255,255,255,0.9)' : undefined,
+                      cursor: 'move',
+                    }}
+                    onPointerDown={selectMark}
+                    onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                    onPointerUp={endPhotoMarkDrag}
+                    onPointerCancel={endPhotoMarkDrag}
+                  />
+                  {isSelected && ([
+                    { mode: 'line-start' as const, x: mark.x1, y: mark.y1 },
+                    { mode: 'line-end' as const, x: mark.x2, y: mark.y2 },
+                  ]).map(handle => (
+                    <div
+                      key={`${mark.id}-${handle.mode}`}
+                      className="pointer-events-auto absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 touch-none border-2 border-white bg-slate-900 shadow"
+                      style={{ left: `${handle.x}%`, top: `${handle.y}%`, cursor: 'grab' }}
+                      onPointerDown={(event) => beginPhotoMarkDrag(event, mark, handle.mode)}
+                      onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                      onPointerUp={endPhotoMarkDrag}
+                      onPointerCancel={endPhotoMarkDrag}
+                    />
+                  ))}
+                  {isSelected && (
+                    <button
+                      type="button"
+                      className="pointer-events-auto absolute z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-rose-600 text-sm font-black text-white shadow"
+                      style={{ left: `${Math.min(98, Math.max(mark.x1, mark.x2) + 4)}%`, top: `${Math.max(2, Math.min(mark.y1, mark.y2) - 4)}%` }}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        deletePhotoMark(mark.id);
+                      }}
+                    >
+                      x
+                    </button>
+                  )}
+                </React.Fragment>
+              );
+            }
+
+            return (
+              <React.Fragment key={mark.id}>
+                <div
+                  className="pointer-events-auto absolute touch-none whitespace-pre rounded bg-white/60 px-1 text-[16px] font-black leading-tight"
+                  style={{
+                    left: `${mark.x}%`,
+                    top: `${mark.y}%`,
+                    color: mark.color,
+                    fontFamily: '"MS Gothic", "ＭＳ ゴシック", sans-serif',
+                    boxShadow: isSelected ? '0 0 0 2px rgba(255,255,255,0.9)' : undefined,
+                    cursor: 'move',
+                  }}
+                  onPointerDown={selectMark}
+                  onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                  onPointerUp={endPhotoMarkDrag}
+                  onPointerCancel={endPhotoMarkDrag}
+                  onDoubleClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const text = window.prompt("文字を編集してください", mark.text);
+                    if (text === null) return;
+                    if (!text.trim()) deletePhotoMark(mark.id);
+                    else updatePhotoMark({ ...mark, text: text.trim() });
+                  }}
+                >
+                  {mark.text}
+                </div>
+                {isSelected && (
+                  <button
+                    type="button"
+                    className="pointer-events-auto absolute z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-rose-600 text-sm font-black text-white shadow"
+                    style={{ left: `${Math.min(98, mark.x + 12)}%`, top: `${Math.max(2, mark.y - 5)}%` }}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      deletePhotoMark(mark.id);
+                    }}
+                  >
+                    x
+                  </button>
+                )}
+              </React.Fragment>
+            );
           };
 
           return (
@@ -6317,16 +6590,8 @@ if (mode === 'inclination_menu') {
 
               <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-2">
                 <div
-                  className="relative max-h-full max-w-full"
-                  onClick={(e) => {
-                    if (e.target !== e.currentTarget && e.target !== photoEditorImageRef.current) return;
-                    const rect = photoEditorImageRef.current?.getBoundingClientRect();
-                    if (!rect) return;
-                    addPhotoMarkAt(
-                      clampPhotoPercent(((e.clientX - rect.left) / rect.width) * 100),
-                      clampPhotoPercent(((e.clientY - rect.top) / rect.height) * 100)
-                    );
-                  }}
+                  className="relative max-h-full max-w-full touch-none"
+                  onPointerDown={handleEditorCanvasTap}
                 >
                   <img
                     ref={photoEditorImageRef}
@@ -6334,7 +6599,9 @@ if (mode === 'inclination_menu') {
                     className="max-h-[calc(100vh-188px)] max-w-full select-none object-contain"
                     draggable={false}
                   />
-                  {renderPhotoMarkOverlay(editorMarks, true)}
+                  <div className="pointer-events-none absolute inset-0">
+                    {editorMarks.map(renderEditorMark)}
+                  </div>
                 </div>
               </div>
 
@@ -6384,27 +6651,10 @@ if (mode === 'inclination_menu') {
                 </div>
 
                 {selectedMark && (
-                  <div className="grid grid-cols-4 gap-2">
-                    <button type="button" onClick={() => moveSelectedMark(0, -2)} className="rounded bg-white/10 py-2 font-black">上</button>
-                    <button type="button" onClick={() => moveSelectedMark(-2, 0)} className="rounded bg-white/10 py-2 font-black">左</button>
-                    <button type="button" onClick={() => moveSelectedMark(2, 0)} className="rounded bg-white/10 py-2 font-black">右</button>
-                    <button type="button" onClick={() => moveSelectedMark(0, 2)} className="rounded bg-white/10 py-2 font-black">下</button>
-                    {selectedMark.type === 'ellipse' && (
-                      <>
-                        <button type="button" onClick={() => resizeSelectedMark(4, 0)} className="rounded bg-white/10 py-2 font-black">横+</button>
-                        <button type="button" onClick={() => resizeSelectedMark(-4, 0)} className="rounded bg-white/10 py-2 font-black">横-</button>
-                        <button type="button" onClick={() => resizeSelectedMark(0, 4)} className="rounded bg-white/10 py-2 font-black">縦+</button>
-                        <button type="button" onClick={() => resizeSelectedMark(0, -4)} className="rounded bg-white/10 py-2 font-black">縦-</button>
-                      </>
-                    )}
-                    {selectedMark.type === 'line' && (
-                      <>
-                        <button type="button" onClick={() => updatePhotoMark({ ...selectedMark, y2: clampPhotoPercent(selectedMark.y2 - 2) })} className="rounded bg-white/10 py-2 font-black">終点上</button>
-                        <button type="button" onClick={() => updatePhotoMark({ ...selectedMark, x2: clampPhotoPercent(selectedMark.x2 - 2) })} className="rounded bg-white/10 py-2 font-black">終点左</button>
-                        <button type="button" onClick={() => updatePhotoMark({ ...selectedMark, x2: clampPhotoPercent(selectedMark.x2 + 2) })} className="rounded bg-white/10 py-2 font-black">終点右</button>
-                        <button type="button" onClick={() => updatePhotoMark({ ...selectedMark, y2: clampPhotoPercent(selectedMark.y2 + 2) })} className="rounded bg-white/10 py-2 font-black">終点下</button>
-                      </>
-                    )}
+                  <div className="text-center text-xs font-bold text-white/70">
+                    {selectedMark.type === 'ellipse' && '中央をスライドで移動、四隅の■をスライドでサイズ変更できます。'}
+                    {selectedMark.type === 'line' && '線をスライドで移動、両端の■をスライドで長さと向きを変更できます。'}
+                    {selectedMark.type === 'text' && '文字をスライドで移動、文字変更は下のボタンか文字をダブルタップします。'}
                     {selectedMark.type === 'text' && (
                       <button
                         type="button"
@@ -6417,7 +6667,7 @@ if (mode === 'inclination_menu') {
                             updatePhotoMark({ ...selectedMark, text: text.trim() });
                           }
                         }}
-                        className="col-span-4 rounded bg-white/10 py-2 font-black"
+                        className="mt-2 block w-full rounded bg-white/10 py-2 font-black"
                       >
                         文字を変更
                       </button>
