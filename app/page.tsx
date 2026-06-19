@@ -1732,7 +1732,7 @@ const handleCreateNewSheet = async () => {
     marks.forEach(mark => {
       ctx.strokeStyle = mark.color;
       ctx.fillStyle = mark.color;
-      ctx.lineWidth = Math.max(3, Math.round(4 * scale));
+      ctx.lineWidth = Math.max(4, Math.round(5 * scale));
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -1750,7 +1750,7 @@ const handleCreateNewSheet = async () => {
         ctx.lineTo((mark.x2 / 100) * width, (mark.y2 / 100) * height);
         ctx.stroke();
       } else {
-        const fontSize = Math.max(18, Math.round(24 * scale));
+        const fontSize = Math.max(22, Math.round(30 * scale));
         ctx.font = `bold ${fontSize}px "MS Gothic", "ＭＳ ゴシック", sans-serif`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
@@ -1766,7 +1766,7 @@ const handleCreateNewSheet = async () => {
     if (!marks.length) return base;
 
     const img = await loadImageElement(photo);
-    const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 1000000);
+    const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 2500000);
     const canvas = document.createElement('canvas');
     canvas.width = outputSize.width;
     canvas.height = outputSize.height;
@@ -1776,7 +1776,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimit(canvas, 1000000, 0.76);
+    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
   };
 
   const getPhotoMarks = (target: PhotoEditorTarget) =>
@@ -3328,23 +3328,29 @@ const renderPhotoMarkOverlay = (marks: PhotoMark[], interactive = false) => (
     {marks.map(mark => {
       if (mark.type === 'ellipse') {
         return (
-          <div
+          <svg
             key={mark.id}
-            className={`${interactive ? 'pointer-events-auto cursor-pointer' : ''} absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] bg-transparent`}
-            style={{
-              left: `${mark.x}%`,
-              top: `${mark.y}%`,
-              width: `${mark.width}%`,
-              height: `${mark.height}%`,
-              borderColor: mark.color,
-            }}
+            className={`absolute inset-0 h-full w-full ${interactive ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
             onClick={interactive ? (e) => {
               e.stopPropagation();
               setEditingPhotoMark(mark);
               setPhotoMarkTool('ellipse');
               setPhotoMarkColor(mark.color);
             } : undefined}
-          />
+          >
+            <ellipse
+              cx={mark.x}
+              cy={mark.y}
+              rx={Math.max(0.5, mark.width / 2)}
+              ry={Math.max(0.5, mark.height / 2)}
+              fill="none"
+              stroke={mark.color}
+              strokeWidth={4}
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
         );
       }
 
@@ -6411,22 +6417,50 @@ if (mode === 'inclination_menu') {
 
               return (
                 <React.Fragment key={mark.id}>
-                  <div
-                    className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 touch-none rounded-full border-[3px] bg-transparent"
-                    style={{
-                      left: `${mark.x}%`,
-                      top: `${mark.y}%`,
-                      width: `${mark.width}%`,
-                      height: `${mark.height}%`,
-                      borderColor: mark.color,
-                      boxShadow: isSelected ? '0 0 0 2px rgba(255,255,255,0.9)' : undefined,
-                      cursor: 'move',
-                    }}
-                    onPointerDown={selectMark}
-                    onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
-                    onPointerUp={endPhotoMarkDrag}
-                    onPointerCancel={endPhotoMarkDrag}
-                  />
+                  <svg
+                    className="pointer-events-none absolute inset-0 h-full w-full touch-none"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    {isSelected && (
+                      <ellipse
+                        cx={mark.x}
+                        cy={mark.y}
+                        rx={Math.max(0.5, mark.width / 2)}
+                        ry={Math.max(0.5, mark.height / 2)}
+                        fill="none"
+                        stroke="white"
+                        strokeWidth={8}
+                        opacity={0.9}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )}
+                    <ellipse
+                      cx={mark.x}
+                      cy={mark.y}
+                      rx={Math.max(0.5, mark.width / 2)}
+                      ry={Math.max(0.5, mark.height / 2)}
+                      fill="none"
+                      stroke={mark.color}
+                      strokeWidth={4}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <ellipse
+                      className="pointer-events-auto cursor-move"
+                      cx={mark.x}
+                      cy={mark.y}
+                      rx={Math.max(2, mark.width / 2)}
+                      ry={Math.max(2, mark.height / 2)}
+                      fill="transparent"
+                      stroke="transparent"
+                      strokeWidth={18}
+                      vectorEffect="non-scaling-stroke"
+                      onPointerDown={selectMark}
+                      onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                      onPointerUp={endPhotoMarkDrag}
+                      onPointerCancel={endPhotoMarkDrag}
+                    />
+                  </svg>
                   {isSelected && handles.map(handle => (
                     <div
                       key={`${mark.id}-${handle.key}`}
@@ -6588,8 +6622,8 @@ if (mode === 'inclination_menu') {
           };
 
           return (
-            <div className="fixed inset-0 z-[900] flex flex-col bg-slate-950 text-white">
-              <div className="flex shrink-0 items-center gap-2 border-b border-white/15 bg-slate-900 p-2">
+            <div className="fixed inset-0 z-[900] flex flex-col overflow-hidden bg-slate-950 text-white">
+              <div className="relative z-20 flex shrink-0 items-center gap-2 border-b border-white/15 bg-slate-900 p-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -6615,7 +6649,7 @@ if (mode === 'inclination_menu') {
                 </button>
               </div>
 
-              <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-2">
+              <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
                 <div
                   className="relative max-h-full max-w-full touch-none"
                   onPointerDown={handleEditorCanvasTap}
@@ -6632,7 +6666,7 @@ if (mode === 'inclination_menu') {
                 </div>
               </div>
 
-              <div className="h-[204px] shrink-0 space-y-2 overflow-y-auto border-t border-white/15 bg-slate-900 p-3">
+              <div className="relative z-30 h-[204px] shrink-0 space-y-2 overflow-y-auto border-t border-white/15 bg-slate-900 p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
                 <div className="grid grid-cols-3 gap-2">
                   {([
                     { id: 'ellipse', label: '楕円○' },
