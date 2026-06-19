@@ -10,3 +10,4 @@
 ✓ Starting...
 ✓ Ready in 1783ms
  GET / 200 in 1248ms (compile: 1017ms, render: 230ms)
+ GET / 200 in 210ms (compile: 112ms, render: 98ms)

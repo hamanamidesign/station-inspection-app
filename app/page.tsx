@@ -3349,31 +3349,30 @@ const renderPhotoMarkOverlay = (marks: PhotoMark[], interactive = false) => (
       }
 
       if (mark.type === 'line') {
-        const x1 = mark.x1;
-        const y1 = mark.y1;
-        const x2 = mark.x2;
-        const y2 = mark.y2;
-        const length = Math.hypot(x2 - x1, y2 - y1);
-        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-
         return (
-          <div
+          <svg
             key={mark.id}
-            className={`${interactive ? 'pointer-events-auto cursor-pointer' : ''} absolute h-[3px] origin-left rounded-full`}
-            style={{
-              left: `${x1}%`,
-              top: `${y1}%`,
-              width: `${length}%`,
-              backgroundColor: mark.color,
-              transform: `rotate(${angle}deg)`,
-            }}
+            className={`absolute inset-0 h-full w-full ${interactive ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
             onClick={interactive ? (e) => {
               e.stopPropagation();
               setEditingPhotoMark(mark);
               setPhotoMarkTool('line');
               setPhotoMarkColor(mark.color);
             } : undefined}
-          />
+          >
+            <line
+              x1={mark.x1}
+              y1={mark.y1}
+              x2={mark.x2}
+              y2={mark.y2}
+              stroke={mark.color}
+              strokeWidth={0.75}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
         );
       }
 
@@ -6269,7 +6268,7 @@ if (mode === 'inclination_menu') {
 
           if (!editorPhoto) return null;
 
-          const getPhotoEditorPoint = (event: React.PointerEvent<HTMLElement>) => {
+          const getPhotoEditorPoint = (event: React.PointerEvent<Element>) => {
             const rect = photoEditorImageRef.current?.getBoundingClientRect();
             if (!rect) return null;
 
@@ -6280,7 +6279,7 @@ if (mode === 'inclination_menu') {
           };
 
           const beginPhotoMarkDrag = (
-            event: React.PointerEvent<HTMLElement>,
+            event: React.PointerEvent<Element>,
             mark: PhotoMark,
             mode: 'move' | 'resize' | 'line-start' | 'line-end',
             corner?: 'nw' | 'ne' | 'sw' | 'se'
@@ -6304,7 +6303,7 @@ if (mode === 'inclination_menu') {
             if (mark.type === 'text') setPhotoMarkText(mark.text);
           };
 
-          const handlePhotoMarkDragMove = (event: React.PointerEvent<HTMLElement>, mark: PhotoMark) => {
+          const handlePhotoMarkDragMove = (event: React.PointerEvent<Element>, mark: PhotoMark) => {
             const drag = photoMarkDragRef.current;
             if (drag.id !== mark.id || !drag.mode) return;
 
@@ -6367,7 +6366,7 @@ if (mode === 'inclination_menu') {
             }
           };
 
-          const endPhotoMarkDrag = (event: React.PointerEvent<HTMLElement>) => {
+          const endPhotoMarkDrag = (event: React.PointerEvent<Element>) => {
             event.preventDefault();
             event.stopPropagation();
             photoMarkDragRef.current = { id: null, mode: null, lastX: 0, lastY: 0 };
@@ -6398,7 +6397,7 @@ if (mode === 'inclination_menu') {
 
           const renderEditorMark = (mark: PhotoMark) => {
             const isSelected = selectedMark?.id === mark.id;
-            const selectMark = (event: React.PointerEvent<HTMLElement>) => {
+            const selectMark = (event: React.PointerEvent<Element>) => {
               beginPhotoMarkDrag(event, mark, 'move');
             };
 
@@ -6462,27 +6461,55 @@ if (mode === 'inclination_menu') {
             }
 
             if (mark.type === 'line') {
-              const length = Math.hypot(mark.x2 - mark.x1, mark.y2 - mark.y1);
-              const angle = Math.atan2(mark.y2 - mark.y1, mark.x2 - mark.x1) * 180 / Math.PI;
-
               return (
                 <React.Fragment key={mark.id}>
-                  <div
-                    className="pointer-events-auto absolute h-[4px] origin-left touch-none rounded-full"
-                    style={{
-                      left: `${mark.x1}%`,
-                      top: `${mark.y1}%`,
-                      width: `${length}%`,
-                      backgroundColor: mark.color,
-                      transform: `rotate(${angle}deg)`,
-                      boxShadow: isSelected ? '0 0 0 2px rgba(255,255,255,0.9)' : undefined,
-                      cursor: 'move',
-                    }}
-                    onPointerDown={selectMark}
-                    onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
-                    onPointerUp={endPhotoMarkDrag}
-                    onPointerCancel={endPhotoMarkDrag}
-                  />
+                  <svg
+                    className="pointer-events-none absolute inset-0 h-full w-full touch-none"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <line
+                      x1={mark.x1}
+                      y1={mark.y1}
+                      x2={mark.x2}
+                      y2={mark.y2}
+                      stroke="white"
+                      strokeWidth={isSelected ? 8 : 0}
+                      strokeLinecap="round"
+                      opacity={isSelected ? 0.9 : 0}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <line
+                      className="pointer-events-auto cursor-move"
+                      x1={mark.x1}
+                      y1={mark.y1}
+                      x2={mark.x2}
+                      y2={mark.y2}
+                      stroke={mark.color}
+                      strokeWidth={4}
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                      onPointerDown={selectMark}
+                      onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                      onPointerUp={endPhotoMarkDrag}
+                      onPointerCancel={endPhotoMarkDrag}
+                    />
+                    <line
+                      className="pointer-events-auto cursor-move"
+                      x1={mark.x1}
+                      y1={mark.y1}
+                      x2={mark.x2}
+                      y2={mark.y2}
+                      stroke="transparent"
+                      strokeWidth={18}
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                      onPointerDown={selectMark}
+                      onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                      onPointerUp={endPhotoMarkDrag}
+                      onPointerCancel={endPhotoMarkDrag}
+                    />
+                  </svg>
                   {isSelected && ([
                     { mode: 'line-start' as const, x: mark.x1, y: mark.y1 },
                     { mode: 'line-end' as const, x: mark.x2, y: mark.y2 },
