@@ -11,6 +11,45 @@ interface Marker {
 }
 type MapColor = Marker['color'];
 type MapAddMode = 'marker' | 'text' | 'line';
+type PhotoMarkColor = 'red' | 'black' | '#0070c0';
+type PhotoMarkTool = 'ellipse' | 'line' | 'text';
+type PhotoMarkTarget = 'first' | 'current';
+
+interface PhotoEllipseMark {
+  id: number;
+  type: 'ellipse';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: PhotoMarkColor;
+}
+
+interface PhotoLineMark {
+  id: number;
+  type: 'line';
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  color: PhotoMarkColor;
+}
+
+interface PhotoTextMark {
+  id: number;
+  type: 'text';
+  x: number;
+  y: number;
+  text: string;
+  color: PhotoMarkColor;
+}
+
+type PhotoMark = PhotoEllipseMark | PhotoLineMark | PhotoTextMark;
+
+interface PhotoEditorTarget {
+  target: PhotoMarkTarget;
+  index: number;
+}
 
 interface MapTextAnnotation {
   id: number;
@@ -290,6 +329,72 @@ const getCanvasDataUrlUnderLimit = (
   }
 
   return dataUrl;
+};
+
+const createEmptyPhotoMarkSets = (): PhotoMark[][] =>
+  Array.from({ length: 4 }, () => []);
+
+const normalizePhotoMarkColor = (value: unknown): PhotoMarkColor => {
+  const color = String(value || '').trim().toLowerCase();
+  if (color === 'black') return 'black';
+  if (color === '#0070c0' || color === '#5372fc') return '#0070c0';
+  return 'red';
+};
+
+const clampPhotoPercent = (value: unknown, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
+};
+
+const normalizePhotoMarks = (value: unknown): PhotoMark[][] => {
+  const source = Array.isArray(value) ? value : [];
+
+  return Array.from({ length: 4 }, (_, photoIndex) => {
+    const marks = Array.isArray(source[photoIndex]) ? source[photoIndex] : [];
+
+    return marks
+      .map((mark, markIndex): PhotoMark | null => {
+        const record = toRecord(mark);
+        const id = Number(record.id) || Date.now() + photoIndex * 1000 + markIndex;
+        const color = normalizePhotoMarkColor(record.color);
+
+        if (record.type === 'line') {
+          return {
+            id,
+            type: 'line',
+            x1: clampPhotoPercent(record.x1),
+            y1: clampPhotoPercent(record.y1),
+            x2: clampPhotoPercent(record.x2, 20),
+            y2: clampPhotoPercent(record.y2, 20),
+            color,
+          };
+        }
+
+        if (record.type === 'text') {
+          const text = String(record.text || '').trim();
+          if (!text) return null;
+          return {
+            id,
+            type: 'text',
+            x: clampPhotoPercent(record.x),
+            y: clampPhotoPercent(record.y),
+            text,
+            color,
+          };
+        }
+
+        return {
+          id,
+          type: 'ellipse',
+          x: clampPhotoPercent(record.x),
+          y: clampPhotoPercent(record.y),
+          width: Math.max(2, Math.min(100, Number(record.width) || 20)),
+          height: Math.max(2, Math.min(100, Number(record.height) || 14)),
+          color,
+        };
+      })
+      .filter((mark): mark is PhotoMark => Boolean(mark));
+  });
 };
 
 const normalizePhotoArray = (
@@ -650,6 +755,14 @@ useEffect(() => {
   const [formShape, setFormShape] = useState<'circle' | 'square'>('circle');
   const imageRef = useRef<HTMLImageElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
+  const photoEditorImageRef = useRef<HTMLImageElement>(null);
+  const [firstPhotoMarks, setFirstPhotoMarks] = useState<PhotoMark[][]>(() => createEmptyPhotoMarkSets());
+  const [currentPhotoMarks, setCurrentPhotoMarks] = useState<PhotoMark[][]>(() => createEmptyPhotoMarkSets());
+  const [photoEditorTarget, setPhotoEditorTarget] = useState<PhotoEditorTarget | null>(null);
+  const [photoMarkTool, setPhotoMarkTool] = useState<PhotoMarkTool>('ellipse');
+  const [photoMarkColor, setPhotoMarkColor] = useState<PhotoMarkColor>('red');
+  const [editingPhotoMark, setEditingPhotoMark] = useState<PhotoMark | null>(null);
+  const [photoMarkText, setPhotoMarkText] = useState('');
   const textDragRef = useRef<{ id: number | null; lastX: number; lastY: number; isMoved: boolean }>({
     id: null,
     lastX: 0,
@@ -1253,6 +1366,8 @@ const isPhotoKarteComplete = (no: string | number) =>
   setMarkers([]); 
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
+  setCurrentPhotoMarks(createEmptyPhotoMarkSets());
+  setFirstPhotoMarks(createEmptyPhotoMarkSets());
   setSlopeRows(createEmptySlopeRows());
 
   setKarteNo('1');
@@ -1407,6 +1522,7 @@ const handleCreateNewSheet = async () => {
     const newPhotos = [...photos];
     newPhotos[index] = compressed;
     setPhotos(newPhotos);
+    setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
   } catch (error) {
     alert(
       "写真を読み込めませんでした。JPEG、PNG、HEIC/HEIF形式の写真を選択してください。" +
@@ -1426,6 +1542,7 @@ const handleCreateNewSheet = async () => {
     const newPhotos = [...firstPhotos];
     newPhotos[index] = compressed;
     setFirstPhotos(newPhotos);
+    setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
   } catch (error) {
     alert(
       "写真を読み込めませんでした。JPEG、PNG、HEIC/HEIF形式の写真を選択してください。" +
@@ -1590,6 +1707,130 @@ const handleCreateNewSheet = async () => {
 
 };
 
+  const loadImageElement = (src: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("写真を読み込めませんでした"));
+      img.src = src;
+    });
+
+  const drawPhotoMarks = (
+    ctx: CanvasRenderingContext2D,
+    marks: PhotoMark[],
+    width: number,
+    height: number,
+    scale = 1
+  ) => {
+    marks.forEach(mark => {
+      ctx.strokeStyle = mark.color;
+      ctx.fillStyle = mark.color;
+      ctx.lineWidth = Math.max(3, Math.round(4 * scale));
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (mark.type === 'ellipse') {
+        const x = (mark.x / 100) * width;
+        const y = (mark.y / 100) * height;
+        const radiusX = Math.max(4, (mark.width / 100) * width / 2);
+        const radiusY = Math.max(4, (mark.height / 100) * height / 2);
+        ctx.beginPath();
+        ctx.ellipse(x, y, radiusX, radiusY, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (mark.type === 'line') {
+        ctx.beginPath();
+        ctx.moveTo((mark.x1 / 100) * width, (mark.y1 / 100) * height);
+        ctx.lineTo((mark.x2 / 100) * width, (mark.y2 / 100) * height);
+        ctx.stroke();
+      } else {
+        const fontSize = Math.max(18, Math.round(24 * scale));
+        ctx.font = `bold ${fontSize}px "MS Gothic", "ＭＳ ゴシック", sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        mark.text.split(/\r?\n/).forEach((line, index) => {
+          ctx.fillText(line, (mark.x / 100) * width, (mark.y / 100) * height + index * fontSize * 1.25);
+        });
+      }
+    });
+  };
+
+  const renderPhotoForSave = async (photo: string, marks: PhotoMark[]) => {
+    const base = marks.length ? photo : await resizeImage(photo);
+    if (!marks.length) return base;
+
+    const img = await loadImageElement(photo);
+    const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 1000000);
+    const canvas = document.createElement('canvas');
+    canvas.width = outputSize.width;
+    canvas.height = outputSize.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error("写真の注釈処理を開始できません");
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
+
+    return getCanvasDataUrlUnderLimit(canvas, 1000000, 0.76);
+  };
+
+  const getPhotoMarks = (target: PhotoEditorTarget) =>
+    target.target === 'first'
+      ? firstPhotoMarks[target.index] || []
+      : currentPhotoMarks[target.index] || [];
+
+  const setPhotoMarksForTarget = (target: PhotoEditorTarget, updater: (marks: PhotoMark[]) => PhotoMark[]) => {
+    const setMarks = target.target === 'first' ? setFirstPhotoMarks : setCurrentPhotoMarks;
+    setMarks(prev => prev.map((marks, index) => index === target.index ? updater(marks) : marks));
+  };
+
+  const openPhotoMarkEditor = (target: PhotoMarkTarget, index: number) => {
+    setPhotoEditorTarget({ target, index });
+    setEditingPhotoMark(null);
+    setPhotoMarkText('');
+    setPhotoMarkTool('ellipse');
+  };
+
+  const updatePhotoMark = (mark: PhotoMark) => {
+    if (!photoEditorTarget) return;
+    setPhotoMarksForTarget(photoEditorTarget, marks =>
+      marks.map(item => item.id === mark.id ? mark : item)
+    );
+  };
+
+  const deletePhotoMark = (markId: number) => {
+    if (!photoEditorTarget) return;
+    setPhotoMarksForTarget(photoEditorTarget, marks => marks.filter(mark => mark.id !== markId));
+    setEditingPhotoMark(null);
+  };
+
+  const addPhotoMarkAt = (x: number, y: number) => {
+    if (!photoEditorTarget) return;
+    const id = Date.now();
+
+    if (photoMarkTool === 'text') {
+      const text = window.prompt("入れる文字を入力してください", photoMarkText || "");
+      if (!text?.trim()) return;
+      setPhotoMarkText(text);
+      setPhotoMarksForTarget(photoEditorTarget, marks => [
+        ...marks,
+        { id, type: 'text', x, y, text: text.trim(), color: photoMarkColor },
+      ]);
+      return;
+    }
+
+    if (photoMarkTool === 'line') {
+      setPhotoMarksForTarget(photoEditorTarget, marks => [
+        ...marks,
+        { id, type: 'line', x1: x, y1: y, x2: Math.min(100, x + 18), y2: y, color: photoMarkColor },
+      ]);
+      return;
+    }
+
+    setPhotoMarksForTarget(photoEditorTarget, marks => [
+      ...marks,
+      { id, type: 'ellipse', x, y, width: 24, height: 16, color: photoMarkColor },
+    ]);
+  };
+
 let pressTimer: NodeJS.Timeout;
 
 const handlePressStart = (photo: string) => {
@@ -1700,6 +1941,8 @@ const result = await gasApi("getKarteData", {
         ['firstPhotos', 'firstPhotoUrls', 'initialPhotos', 'initialPhotoUrls'],
         ['firstPhoto', 'initialPhoto']
       ));
+      setCurrentPhotoMarks(normalizePhotoMarks(d.photoMarks));
+      setFirstPhotoMarks(normalizePhotoMarks(d.firstPhotoMarks));
 
       setIsEditMode(true);
       setMode('karte_edit');
@@ -1755,14 +1998,19 @@ const result = await gasApi("getKarteData", {
   photos.map(async (p, index) => {
     if (p && p.startsWith("data:image")) {
 
-      const resized = await resizeImage(p);
+      const marks = currentPhotoMarks[index] || [];
+      const resized = await renderPhotoForSave(p, marks);
+      const original = marks.length ? await resizeImage(p) : "";
 
       return {
         no: index + 1,
         fileName: `${index + 1}.jpg`,
         base64: resized.includes(',')
           ? resized.split(',')[1]
-          : resized
+          : resized,
+        originalBase64: original
+          ? original.includes(',') ? original.split(',')[1] : original
+          : ""
       };
 
     }
@@ -1778,14 +2026,19 @@ const firstPhotoDataList = await Promise.all(
 
     if (p && p.startsWith("data:image")) {
 
-      const resized = await resizeImage(p);
+      const marks = firstPhotoMarks[index] || [];
+      const resized = await renderPhotoForSave(p, marks);
+      const original = marks.length ? await resizeImage(p) : "";
 
       return {
         no: index + 1,
         fileName: `初回点検_${index + 1}.jpg`,
         base64: resized.includes(',')
           ? resized.split(',')[1]
-          : resized
+          : resized,
+        originalBase64: original
+          ? original.includes(',') ? original.split(',')[1] : original
+          : ""
       };
 
     }
@@ -1826,6 +2079,8 @@ const firstPhotoDataList = await Promise.all(
   remarks3,
   photoFiles: validPhotos,
   firstPhotoFiles: validFirstPhotos,
+  photoMarks: currentPhotoMarks,
+  firstPhotoMarks,
   evalFontColors: {
     structEval: getEvalFontColor('structEval', structEval),
     totalEval: getEvalFontColor('totalEval', totalEval),
@@ -1865,6 +2120,8 @@ const resetAllState = () => {
   setMarkers([]);
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
+  setCurrentPhotoMarks(createEmptyPhotoMarkSets());
+  setFirstPhotoMarks(createEmptyPhotoMarkSets());
   setSourceImage(null);
   setFinalImage(null);
   setExistingKartes([]);
@@ -3039,6 +3296,8 @@ const resetKarteFields = () => {
   // ★追加
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
+  setCurrentPhotoMarks(createEmptyPhotoMarkSets());
+  setFirstPhotoMarks(createEmptyPhotoMarkSets());
   };
 
 const getFinishOptions = () => {
@@ -3050,6 +3309,85 @@ const getCheckItems = () => {
   const key = String(inspectionPlace || '').trim();
   return key ? checkItemsByPlace[key] || [] : [];
 };
+
+const renderPhotoMarkOverlay = (marks: PhotoMark[], interactive = false) => (
+  <div className="pointer-events-none absolute inset-0">
+    {marks.map(mark => {
+      if (mark.type === 'ellipse') {
+        return (
+          <div
+            key={mark.id}
+            className={`${interactive ? 'pointer-events-auto cursor-pointer' : ''} absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] bg-transparent`}
+            style={{
+              left: `${mark.x}%`,
+              top: `${mark.y}%`,
+              width: `${mark.width}%`,
+              height: `${mark.height}%`,
+              borderColor: mark.color,
+            }}
+            onClick={interactive ? (e) => {
+              e.stopPropagation();
+              setEditingPhotoMark(mark);
+              setPhotoMarkTool('ellipse');
+              setPhotoMarkColor(mark.color);
+            } : undefined}
+          />
+        );
+      }
+
+      if (mark.type === 'line') {
+        const x1 = mark.x1;
+        const y1 = mark.y1;
+        const x2 = mark.x2;
+        const y2 = mark.y2;
+        const length = Math.hypot(x2 - x1, y2 - y1);
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+        return (
+          <div
+            key={mark.id}
+            className={`${interactive ? 'pointer-events-auto cursor-pointer' : ''} absolute h-[3px] origin-left rounded-full`}
+            style={{
+              left: `${x1}%`,
+              top: `${y1}%`,
+              width: `${length}%`,
+              backgroundColor: mark.color,
+              transform: `rotate(${angle}deg)`,
+            }}
+            onClick={interactive ? (e) => {
+              e.stopPropagation();
+              setEditingPhotoMark(mark);
+              setPhotoMarkTool('line');
+              setPhotoMarkColor(mark.color);
+            } : undefined}
+          />
+        );
+      }
+
+      return (
+        <div
+          key={mark.id}
+          className={`${interactive ? 'pointer-events-auto cursor-pointer' : ''} absolute whitespace-pre rounded bg-white/60 px-0.5 text-[13px] font-black leading-tight`}
+          style={{
+            left: `${mark.x}%`,
+            top: `${mark.y}%`,
+            color: mark.color,
+            fontFamily: '"MS Gothic", "ＭＳ ゴシック", sans-serif',
+          }}
+          onClick={interactive ? (e) => {
+            e.stopPropagation();
+            setEditingPhotoMark(mark);
+            setPhotoMarkTool('text');
+            setPhotoMarkColor(mark.color);
+            setPhotoMarkText(mark.text);
+          } : undefined}
+        >
+          {mark.text}
+        </div>
+      );
+    })}
+  </div>
+);
 
 const addFinishText = (
   value: string,
@@ -4290,12 +4628,14 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
           next[drivePickerTarget.index] = displayImageDataUrl;
           return next;
         });
+        setFirstPhotoMarks(prev => prev.map((marks, index) => index === drivePickerTarget.index ? [] : marks));
       } else if (drivePickerTarget.type === 'karteCurrent') {
         setPhotos(current => {
           const next = [...current];
           next[drivePickerTarget.index] = displayImageDataUrl;
           return next;
         });
+        setCurrentPhotoMarks(prev => prev.map((marks, index) => index === drivePickerTarget.index ? [] : marks));
       } else {
         updateSlopePhoto(drivePickerTarget.rowId, drivePickerTarget.photoField, displayImageDataUrl);
       }
@@ -5354,6 +5694,7 @@ if (mode === 'inclination_menu') {
 
       {firstPhotos.slice(0,2).map((p, i) => {
         const index = i;
+        const marks = firstPhotoMarks[index] || [];
 
         return (
           <div key={index} className="relative aspect-[4/3]">
@@ -5374,6 +5715,7 @@ if (mode === 'inclination_menu') {
                 </div>
               )}
             </div>
+            {renderPhotoMarkOverlay(marks)}
 
             <input
               id={`karte-first-photo-${index}`}
@@ -5399,12 +5741,27 @@ if (mode === 'inclination_menu') {
             {!!p && (
               <button
                 type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openPhotoMarkEditor('first', index);
+                }}
+                className="absolute bottom-1 right-1 z-20 rounded bg-indigo-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+              >
+                編集
+              </button>
+            )}
+
+            {!!p && (
+              <button
+                type="button"
                 onPointerDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
+                  setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 onClick={(e) => {
                   e.preventDefault();
@@ -5412,6 +5769,7 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
+                  setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
               >
@@ -5431,6 +5789,7 @@ if (mode === 'inclination_menu') {
 
       {firstPhotos.slice(2,4).map((p, i) => {
         const index = i + 2;
+        const marks = firstPhotoMarks[index] || [];
 
         return (
           <div key={index} className="relative aspect-[4/3]">
@@ -5451,6 +5810,7 @@ if (mode === 'inclination_menu') {
                 </div>
               )}
             </div>
+            {renderPhotoMarkOverlay(marks)}
 
             <input
               id={`karte-first-photo-${index}`}
@@ -5476,12 +5836,27 @@ if (mode === 'inclination_menu') {
             {!!p && (
               <button
                 type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openPhotoMarkEditor('first', index);
+                }}
+                className="absolute bottom-1 right-1 z-20 rounded bg-indigo-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+              >
+                編集
+              </button>
+            )}
+
+            {!!p && (
+              <button
+                type="button"
                 onPointerDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
+                  setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 onClick={(e) => {
                   e.preventDefault();
@@ -5489,6 +5864,7 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
+                  setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
               >
@@ -5624,6 +6000,7 @@ if (mode === 'inclination_menu') {
 
       {photos.slice(0,2).map((p, i) => {
         const index = i;
+        const marks = currentPhotoMarks[index] || [];
 
         return (
           <div key={index} className="relative aspect-[4/3]">
@@ -5647,6 +6024,7 @@ if (mode === 'inclination_menu') {
               )}
 
             </div>
+            {renderPhotoMarkOverlay(marks)}
 
             <input
               id={`karte-photo-${index}`}
@@ -5669,6 +6047,20 @@ if (mode === 'inclination_menu') {
               Drive
             </button>
 
+            {!!p && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openPhotoMarkEditor('current', index);
+                }}
+                className="absolute bottom-1 right-1 z-20 rounded bg-indigo-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+              >
+                編集
+              </button>
+            )}
+
  {!!p && (
   <button
     type="button"
@@ -5678,6 +6070,7 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
+      setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     onClick={(e) => {
       e.preventDefault();
@@ -5685,6 +6078,7 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
+      setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
   >
@@ -5705,6 +6099,7 @@ if (mode === 'inclination_menu') {
 
       {photos.slice(2,4).map((p, i) => {
         const index = i + 2;
+        const marks = currentPhotoMarks[index] || [];
 
         return (
           <div key={index} className="relative aspect-[4/3]">
@@ -5728,6 +6123,7 @@ if (mode === 'inclination_menu') {
               )}
 
             </div>
+            {renderPhotoMarkOverlay(marks)}
 
             <input
               id={`karte-photo-${index}`}
@@ -5750,6 +6146,20 @@ if (mode === 'inclination_menu') {
               Drive
             </button>
 
+            {!!p && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openPhotoMarkEditor('current', index);
+                }}
+                className="absolute bottom-1 right-1 z-20 rounded bg-indigo-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+              >
+                編集
+              </button>
+            )}
+
  {!!p && (
   <button
     type="button"
@@ -5759,6 +6169,7 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
+      setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     onClick={(e) => {
       e.preventDefault();
@@ -5766,6 +6177,7 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
+      setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
   >
@@ -5834,6 +6246,188 @@ if (mode === 'inclination_menu') {
             </div>
           </div>
         )}
+
+        {photoEditorTarget && (() => {
+          const editorPhoto = photoEditorTarget.target === 'first'
+            ? firstPhotos[photoEditorTarget.index]
+            : photos[photoEditorTarget.index];
+          const editorMarks = getPhotoMarks(photoEditorTarget);
+          const selectedMark = editingPhotoMark && editorMarks.find(mark => mark.id === editingPhotoMark.id);
+
+          if (!editorPhoto) return null;
+
+          const moveSelectedMark = (dx: number, dy: number) => {
+            if (!selectedMark) return;
+            if (selectedMark.type === 'ellipse') {
+              updatePhotoMark({ ...selectedMark, x: clampPhotoPercent(selectedMark.x + dx), y: clampPhotoPercent(selectedMark.y + dy) });
+            } else if (selectedMark.type === 'line') {
+              updatePhotoMark({
+                ...selectedMark,
+                x1: clampPhotoPercent(selectedMark.x1 + dx),
+                y1: clampPhotoPercent(selectedMark.y1 + dy),
+                x2: clampPhotoPercent(selectedMark.x2 + dx),
+                y2: clampPhotoPercent(selectedMark.y2 + dy),
+              });
+            } else {
+              updatePhotoMark({ ...selectedMark, x: clampPhotoPercent(selectedMark.x + dx), y: clampPhotoPercent(selectedMark.y + dy) });
+            }
+          };
+
+          const resizeSelectedMark = (dw: number, dh: number) => {
+            if (!selectedMark || selectedMark.type !== 'ellipse') return;
+            updatePhotoMark({
+              ...selectedMark,
+              width: Math.max(4, Math.min(100, selectedMark.width + dw)),
+              height: Math.max(4, Math.min(100, selectedMark.height + dh)),
+            });
+          };
+
+          const changeSelectedColor = (color: PhotoMarkColor) => {
+            setPhotoMarkColor(color);
+            if (selectedMark) updatePhotoMark({ ...selectedMark, color } as PhotoMark);
+          };
+
+          return (
+            <div className="fixed inset-0 z-[900] flex flex-col bg-slate-950 text-white">
+              <div className="flex shrink-0 items-center gap-2 border-b border-white/15 bg-slate-900 p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhotoEditorTarget(null);
+                    setEditingPhotoMark(null);
+                  }}
+                  className="rounded bg-white/10 px-3 py-2 text-sm font-bold"
+                >
+                  閉じる
+                </button>
+                <div className="min-w-0 flex-1 text-center text-sm font-black">
+                  {photoEditorTarget.target === 'first' ? '初回写真' : '今回写真'}{photoEditorTarget.index + 1}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhotoMarksForTarget(photoEditorTarget, () => []);
+                    setEditingPhotoMark(null);
+                  }}
+                  className="rounded bg-rose-600 px-3 py-2 text-sm font-bold"
+                >
+                  全削除
+                </button>
+              </div>
+
+              <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-2">
+                <div
+                  className="relative max-h-full max-w-full"
+                  onClick={(e) => {
+                    if (e.target !== e.currentTarget && e.target !== photoEditorImageRef.current) return;
+                    const rect = photoEditorImageRef.current?.getBoundingClientRect();
+                    if (!rect) return;
+                    addPhotoMarkAt(
+                      clampPhotoPercent(((e.clientX - rect.left) / rect.width) * 100),
+                      clampPhotoPercent(((e.clientY - rect.top) / rect.height) * 100)
+                    );
+                  }}
+                >
+                  <img
+                    ref={photoEditorImageRef}
+                    src={editorPhoto}
+                    className="max-h-[calc(100vh-188px)] max-w-full select-none object-contain"
+                    draggable={false}
+                  />
+                  {renderPhotoMarkOverlay(editorMarks, true)}
+                </div>
+              </div>
+
+              <div className="shrink-0 space-y-2 border-t border-white/15 bg-slate-900 p-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: 'ellipse', label: '楕円○' },
+                    { id: 'line', label: '線' },
+                    { id: 'text', label: '文字' },
+                  ] as const).map(tool => (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      onClick={() => {
+                        setPhotoMarkTool(tool.id);
+                        setEditingPhotoMark(null);
+                      }}
+                      className={`rounded px-3 py-2 text-sm font-black ${photoMarkTool === tool.id && !selectedMark ? 'bg-white text-slate-900' : 'bg-white/10 text-white'}`}
+                    >
+                      {tool.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex gap-3">
+                    {(['red', 'black', '#0070c0'] as const).map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        aria-label={color}
+                        onClick={() => changeSelectedColor(color)}
+                        className={`h-10 w-10 rounded-full border-4 ${photoMarkColor === color ? 'border-white' : 'border-transparent'}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  {selectedMark && (
+                    <button
+                      type="button"
+                      onClick={() => deletePhotoMark(selectedMark.id)}
+                      className="rounded bg-rose-600 px-4 py-2 text-sm font-black"
+                    >
+                      選択を削除
+                    </button>
+                  )}
+                </div>
+
+                {selectedMark && (
+                  <div className="grid grid-cols-4 gap-2">
+                    <button type="button" onClick={() => moveSelectedMark(0, -2)} className="rounded bg-white/10 py-2 font-black">上</button>
+                    <button type="button" onClick={() => moveSelectedMark(-2, 0)} className="rounded bg-white/10 py-2 font-black">左</button>
+                    <button type="button" onClick={() => moveSelectedMark(2, 0)} className="rounded bg-white/10 py-2 font-black">右</button>
+                    <button type="button" onClick={() => moveSelectedMark(0, 2)} className="rounded bg-white/10 py-2 font-black">下</button>
+                    {selectedMark.type === 'ellipse' && (
+                      <>
+                        <button type="button" onClick={() => resizeSelectedMark(4, 0)} className="rounded bg-white/10 py-2 font-black">横+</button>
+                        <button type="button" onClick={() => resizeSelectedMark(-4, 0)} className="rounded bg-white/10 py-2 font-black">横-</button>
+                        <button type="button" onClick={() => resizeSelectedMark(0, 4)} className="rounded bg-white/10 py-2 font-black">縦+</button>
+                        <button type="button" onClick={() => resizeSelectedMark(0, -4)} className="rounded bg-white/10 py-2 font-black">縦-</button>
+                      </>
+                    )}
+                    {selectedMark.type === 'line' && (
+                      <>
+                        <button type="button" onClick={() => updatePhotoMark({ ...selectedMark, y2: clampPhotoPercent(selectedMark.y2 - 2) })} className="rounded bg-white/10 py-2 font-black">終点上</button>
+                        <button type="button" onClick={() => updatePhotoMark({ ...selectedMark, x2: clampPhotoPercent(selectedMark.x2 - 2) })} className="rounded bg-white/10 py-2 font-black">終点左</button>
+                        <button type="button" onClick={() => updatePhotoMark({ ...selectedMark, x2: clampPhotoPercent(selectedMark.x2 + 2) })} className="rounded bg-white/10 py-2 font-black">終点右</button>
+                        <button type="button" onClick={() => updatePhotoMark({ ...selectedMark, y2: clampPhotoPercent(selectedMark.y2 + 2) })} className="rounded bg-white/10 py-2 font-black">終点下</button>
+                      </>
+                    )}
+                    {selectedMark.type === 'text' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const text = window.prompt("文字を編集してください", selectedMark.text);
+                          if (text === null) return;
+                          if (!text.trim()) {
+                            deletePhotoMark(selectedMark.id);
+                          } else {
+                            updatePhotoMark({ ...selectedMark, text: text.trim() });
+                          }
+                        }}
+                        className="col-span-4 rounded bg-white/10 py-2 font-black"
+                      >
+                        文字を変更
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {previewPhoto && (
         <div

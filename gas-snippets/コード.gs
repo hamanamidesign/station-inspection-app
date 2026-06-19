@@ -285,7 +285,7 @@ case "startInspectionPdfMerge":
   return createJsonResponse(startInspectionPdfMerge(body));
 
 case "getInspectionPdfMergeStatus":
-//   return createJsonResponse(getInspectionPdfMergeStatus(body));
+  return createJsonResponse(getInspectionPdfMergeStatus(body));
 
       // --- 既存データ取得 ---
       case "getExistingData":
@@ -338,6 +338,8 @@ case "createInspectionPdf":
   return createJsonResponse(createInspectionPdf(body));
 case "findCompletedInspectionPdf":
   return createJsonResponse(findCompletedInspectionPdf(body));
+case "findCompletedInspectionPdfFile":
+  return createJsonResponse(findCompletedInspectionPdfFile(body));
 
       // --- ドライブ内のマップ一覧取得 ---
       case "getMaps":
@@ -607,14 +609,34 @@ try {
         const f = files.next();
         const name = f.getName();
 
-        if (name.startsWith("初回点検_")) {
+        if (name.startsWith("_編集元_初回点検_")) {
+          const baseName = name.replace(".jpg", "");
+          const parts = baseName.split("_");
+          const idx = parseInt(parts[4], 10) - 1;
+
+          if (idx >= 0 && idx < 4) {
+            firstPhotos[idx] =
+              "data:image/jpeg;base64," +
+              Utilities.base64Encode(f.getBlob().getBytes());
+          }
+        } else if (name.startsWith("_編集元_")) {
+          const baseName = name.replace(".jpg", "");
+          const parts = baseName.split("_");
+          const idx = parseInt(parts[3], 10) - 1;
+
+          if (idx >= 0 && idx < 4) {
+            photos[idx] =
+              "data:image/jpeg;base64," +
+              Utilities.base64Encode(f.getBlob().getBytes());
+          }
+        } else if (name.startsWith("初回点検_")) {
           const baseName = name.replace(".jpg", "");
           const parts = baseName.split("_");
           // 初回点検_2026_12_1.jpg
           // [初回点検, 2026, 12, 1]
           const idx = parseInt(parts[3]) - 1;
 
-          if (idx >= 0 && idx < 4) {
+          if (idx >= 0 && idx < 4 && !firstPhotos[idx]) {
             firstPhotos[idx] =
               "data:image/jpeg;base64," +
               Utilities.base64Encode(f.getBlob().getBytes());
@@ -626,7 +648,7 @@ try {
           // [2026, 12, 1]
           const idx = parseInt(parts[2]) - 1;
 
-          if (idx >= 0 && idx < 4) {
+          if (idx >= 0 && idx < 4 && !photos[idx]) {
             photos[idx] =
               "data:image/jpeg;base64," +
               Utilities.base64Encode(f.getBlob().getBytes());
@@ -639,6 +661,7 @@ try {
   Logger.log(e);
 }
 
+    const photoKarteEditorData = getPhotoKarteEditorData_(ss, sheetName);
 
     // =========================
     // データ取得
@@ -675,7 +698,9 @@ try {
       remarks3: sheet.getRange("V16").getValue(),
 
       photos: photos,
-      firstPhotos: firstPhotos
+      firstPhotos: firstPhotos,
+      photoMarks: photoKarteEditorData.photoMarks || [[], [], [], []],
+      firstPhotoMarks: photoKarteEditorData.firstPhotoMarks || [[], [], [], []]
     };
 
     return createJsonResponse({
@@ -692,6 +717,77 @@ try {
 
   }
 
+}
+
+function getPhotoKarteEditorData_(ss, karteNo) {
+  const sheet = ss.getSheetByName("_写真カルテ編集データ");
+  if (!sheet) return {};
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 3).getDisplayValues();
+  const chunks = values
+    .filter(function(row) {
+      return String(row[0]) === String(karteNo);
+    })
+    .sort(function(a, b) {
+      return Number(a[1]) - Number(b[1]);
+    })
+    .map(function(row) {
+      return row[2] || "";
+    });
+
+  if (chunks.length === 0) return {};
+
+  try {
+    return JSON.parse(chunks.join(""));
+  } catch (e) {
+    Logger.log(e);
+    return {};
+  }
+}
+
+function savePhotoKarteEditorData_(ss, karteNo, editorData) {
+  const sheet = getOrCreatePhotoKarteEditorDataSheet_(ss);
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow >= 2) {
+    const values = sheet.getRange(2, 1, lastRow - 1, 1).getDisplayValues();
+    for (let i = values.length - 1; i >= 0; i--) {
+      if (String(values[i][0]) === String(karteNo)) {
+        sheet.deleteRow(i + 2);
+      }
+    }
+  }
+
+  const json = JSON.stringify(editorData || {});
+  const chunkSize = 40000;
+  const rows = [];
+
+  for (let i = 0; i < json.length; i += chunkSize) {
+    rows.push([String(karteNo), rows.length + 1, json.slice(i, i + chunkSize)]);
+  }
+
+  if (rows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
+  }
+
+  try {
+    sheet.hideSheet();
+  } catch (e) {
+    Logger.log(e);
+  }
+}
+
+function getOrCreatePhotoKarteEditorDataSheet_(ss) {
+  const name = "_写真カルテ編集データ";
+  const existing = ss.getSheetByName(name);
+  if (existing) return existing;
+
+  const sheet = ss.insertSheet(name);
+  sheet.getRange(1, 1, 1, 3).setValues([["karteNo", "chunkIndex", "json"]]);
+  return sheet;
 }
 
 // ==========================================
@@ -978,6 +1074,12 @@ const PHOTO_LAYOUT = {
 
 };
 
+function setImageDisplaySize_(img, width, height) {
+  img
+    .setWidth(Math.max(1, Math.round(width)))
+    .setHeight(Math.max(1, Math.round(height)));
+}
+
 function getPhotoLayout(leftIsPortrait, rightIsPortrait) {
 
   // 横＋横
@@ -1096,6 +1198,13 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
   sheet.getRange("V10").setValue(data.remarks1);
   sheet.getRange("V13").setValue(data.remarks2);
   sheet.getRange("V16").setValue(data.remarks3);
+  if (templateName === "写真カルテ_マスタ") {
+    savePhotoKarteEditorData_(ss, newSheetName, {
+      photoMarks: data.photoMarks || [[], [], [], []],
+      firstPhotoMarks: data.firstPhotoMarks || [[], [], [], []],
+      updatedAt: new Date().toISOString(),
+    });
+  }
 
   // 2. 写真保存エリア内の写真カルテ番号フォルダを準備
   const hasPhotoFiles =
@@ -1103,7 +1212,7 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
     (data.firstPhotoFiles && data.firstPhotoFiles.length > 0);
   let karteSubFolder = null;
 
-  if (templateName === "写真カルテ_マスタ" || hasPhotoFiles) {
+  if (hasPhotoFiles) {
 
     const photoFolderId = getPhotoFolderId(
     data.station,
@@ -1111,9 +1220,7 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
     data.routeFolderId
     );
 
-    if (!photoFolderId) throw new Error("写真フォルダIDが台帳に見つかりません");
-    
-    const parentPhotoFolder = DriveApp.getFolderById(photoFolderId);
+    const parentPhotoFolder = getAccessiblePhotoFolder_(data, photoFolderId);
     const subFolders = parentPhotoFolder.getFoldersByName(newSheetName);
     
     if (subFolders.hasNext()) {
@@ -1130,7 +1237,13 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
     }
 
     const files = karteSubFolder.getFiles();
-    while (files.hasNext()) files.next().setTrashed(true);
+    while (files.hasNext()) {
+      try {
+        files.next().setTrashed(true);
+      } catch (e) {
+        Logger.log("既存写真の削除をスキップしました: " + e);
+      }
+    }
 
 const savedBlobs = {};
 
@@ -1160,6 +1273,18 @@ const savedBlobs = {};
 
   // Drive保存
   karteSubFolder.createFile(blob);
+
+  if (fileObj.originalBase64) {
+    const originalBase64 = fileObj.originalBase64.includes(",")
+      ? fileObj.originalBase64.split(",")[1]
+      : fileObj.originalBase64;
+    const originalBlob = Utilities.newBlob(
+      Utilities.base64Decode(originalBase64),
+      "image/jpeg",
+      `_編集元_${data.year}_${newSheetName}_${index}.jpg`
+    );
+    karteSubFolder.createFile(originalBlob);
+  }
 
   // 後で貼り付けに使う
   savedBlobs[index] = blob;
@@ -1191,6 +1316,18 @@ const savedFirstBlobs = {};
 
   karteSubFolder.createFile(blob);
 
+  if (fileObj.originalBase64) {
+    const originalBase64 = fileObj.originalBase64.includes(",")
+      ? fileObj.originalBase64.split(",")[1]
+      : fileObj.originalBase64;
+    const originalBlob = Utilities.newBlob(
+      Utilities.base64Decode(originalBase64),
+      "image/jpeg",
+      `_編集元_初回点検_${data.year}_${newSheetName}_${index}.jpg`
+    );
+    karteSubFolder.createFile(originalBlob);
+  }
+
   savedFirstBlobs[index] = blob;
 
 });
@@ -1214,7 +1351,7 @@ if (firstUpperPhotos.length === 1) {
 
 } else if (firstUpperPhotos.length === 2) {
 
-  insertImageToRangeFixedWidth(
+  const firstUpperLeftImage = insertImageToRangeFixedWidth(
     sheet,
     firstUpperPhotos[0],
     "B8:F25",
@@ -1223,7 +1360,7 @@ if (firstUpperPhotos.length === 1) {
     8
   );
 
-  insertImageToRangeFixedWidth(
+  const firstUpperRightImage = insertImageToRangeFixedWidth(
     sheet,
     firstUpperPhotos[1],
     "F8:I25",
@@ -1231,6 +1368,9 @@ if (firstUpperPhotos.length === 1) {
     0.95,
     8
   );
+
+  adjustLeftPortraitWhenRightLandscape_(firstUpperLeftImage, firstUpperRightImage);
+  adjustDoublePortraitPair_(firstUpperLeftImage, firstUpperRightImage);
 }
 
 
@@ -1253,7 +1393,7 @@ if (firstLowerPhotos.length === 1) {
 
 } else if (firstLowerPhotos.length === 2) {
 
-  insertImageToRangeFixedWidth(
+  const firstLowerLeftImage = insertImageToRangeFixedWidth(
     sheet,
     firstLowerPhotos[0],
     "B26:F43",
@@ -1262,7 +1402,7 @@ if (firstLowerPhotos.length === 1) {
     8
   );
 
-  insertImageToRangeFixedWidth(
+  const firstLowerRightImage = insertImageToRangeFixedWidth(
     sheet,
     firstLowerPhotos[1],
     "G26:K43",
@@ -1270,6 +1410,9 @@ if (firstLowerPhotos.length === 1) {
     0.95,
     8
   );
+
+  adjustLeftPortraitWhenRightLandscape_(firstLowerLeftImage, firstLowerRightImage);
+  adjustDoublePortraitPair_(firstLowerLeftImage, firstLowerRightImage);
 }
 
 // ========================================
@@ -1291,7 +1434,7 @@ if (upperPhotos.length === 1) {
 
 } else if (upperPhotos.length === 2) {
 
-  insertImageToRangeFixedWidth(
+  const upperLeftImage = insertImageToRangeFixedWidth(
     sheet,
     upperPhotos[0],
     "N8:R25",
@@ -1300,7 +1443,7 @@ if (upperPhotos.length === 1) {
     8
   );
 
-  insertImageToRangeFixedWidth(
+  const upperRightImage = insertImageToRangeFixedWidth(
     sheet,
     upperPhotos[1],
     "R8:U25",
@@ -1308,6 +1451,10 @@ if (upperPhotos.length === 1) {
     0.95,
     8
   );
+
+  adjustLeftPortraitWhenRightLandscape_(upperLeftImage, upperRightImage);
+  adjustDoublePortraitPair_(upperLeftImage, upperRightImage, 1, 0.94, 0.5, 1);
+  adjustCurrentUpperRightDoublePortrait_(sheet, upperLeftImage, upperRightImage);
 }
 
 
@@ -1330,7 +1477,7 @@ if (lowerPhotos.length === 1) {
 
 } else if (lowerPhotos.length === 2) {
 
-  insertImageToRangeFixedWidth(
+  const lowerLeftImage = insertImageToRangeFixedWidth(
     sheet,
     lowerPhotos[0],
     "N26:R43",
@@ -1339,7 +1486,7 @@ if (lowerPhotos.length === 1) {
     8
   );
 
-  insertImageToRangeFixedWidth(
+  const lowerRightImage = insertImageToRangeFixedWidth(
     sheet,
     lowerPhotos[1],
     "S26:W43",
@@ -1347,6 +1494,10 @@ if (lowerPhotos.length === 1) {
     0.95,
     8
   );
+
+  adjustLeftPortraitWhenRightLandscape_(lowerLeftImage, lowerRightImage);
+  adjustDoublePortraitPair_(lowerLeftImage, lowerRightImage, 1, 0.94);
+  adjustCurrentLowerLeftDoublePortrait_(lowerLeftImage, lowerRightImage);
 }
 
   }
@@ -1382,6 +1533,73 @@ function getRangePixelWidth(sheet, rangeA1) {
   return width;
 }
 
+function getColumnPixelWidthFrom_(sheet, startCol, columnCount) {
+  let width = 0;
+
+  for (let i = 0; i < columnCount; i++) {
+    width += sheet.getColumnWidth(startCol + i);
+  }
+
+  return width;
+}
+
+function getPortraitPhotoXShift_(sheet, startCol) {
+  return getColumnPixelWidthFrom_(sheet, startCol, 2) +
+    (sheet.getColumnWidth(startCol + 2) * 0.65);
+}
+
+function adjustLeftPortraitWhenRightLandscape_(leftResult, rightResult) {
+  if (!leftResult || !rightResult) return;
+  if (!leftResult.isPortrait || rightResult.isPortrait) return;
+
+  leftResult.image.setAnchorCellXOffset(
+    Math.max(0, leftResult.anchorXOffset - leftResult.leftPortraitRightLandscapeShift)
+  );
+}
+
+function adjustDoublePortraitPair_(leftResult, rightResult, extraRightShiftCells, rightScale, extraLeftMoveRightCells, extraRightMoveLeftCells) {
+  if (!leftResult || !rightResult) return;
+  if (!leftResult.isPortrait || !rightResult.isPortrait) return;
+
+  const rightShiftCells = 3 + (Number(extraRightShiftCells) || 0);
+  const rightSizeScale = Number(rightScale) || 1;
+  const leftExtraRight = (Number(extraLeftMoveRightCells) || 0) * leftResult.cellWidth;
+  const rightExtraLeft = (Number(extraRightMoveLeftCells) || 0) * leftResult.cellWidth;
+  const targetWidth = leftResult.width + (leftResult.cellWidth * 1.5);
+  const targetHeight = leftResult.height * (targetWidth / leftResult.width);
+
+  setImageDisplaySize_(leftResult.image, targetWidth, targetHeight);
+  setImageDisplaySize_(rightResult.image, targetWidth * rightSizeScale, targetHeight * rightSizeScale);
+  leftResult.image.setAnchorCellYOffset(leftResult.anchorYOffset);
+  rightResult.image.setAnchorCellYOffset(leftResult.anchorYOffset);
+  leftResult.image.setAnchorCellXOffset(
+    Math.max(0, leftResult.anchorXOffset - (leftResult.cellWidth * 3) + leftExtraRight)
+  );
+  rightResult.image.setAnchorCellXOffset(
+    Math.max(0, rightResult.anchorXOffset - (leftResult.cellWidth * rightShiftCells) - rightExtraLeft)
+  );
+}
+
+function adjustCurrentUpperRightDoublePortrait_(sheet, leftResult, rightResult) {
+  if (!leftResult || !rightResult) return;
+  if (!leftResult.isPortrait || !rightResult.isPortrait) return;
+
+  const anchor = sheet.getRange("Q8");
+  rightResult.image
+    .setAnchorCell(anchor)
+    .setAnchorCellXOffset(sheet.getColumnWidth(anchor.getColumn()) * 0.75)
+    .setAnchorCellYOffset(leftResult.anchorYOffset);
+}
+
+function adjustCurrentLowerLeftDoublePortrait_(leftResult, rightResult) {
+  if (!leftResult || !rightResult) return;
+  if (!leftResult.isPortrait || !rightResult.isPortrait) return;
+
+  leftResult.image.setAnchorCellXOffset(
+    leftResult.image.getAnchorCellXOffset() + (leftResult.cellWidth * 0.5)
+  );
+}
+
 function insertImageToRangeFixedWidth(sheet, blob, rangeA1, fixedWidth, widthFactor, xOffset) {
   const range = sheet.getRange(rangeA1);
   const startCol = range.getColumn();
@@ -1396,28 +1614,43 @@ function insertImageToRangeFixedWidth(sheet, blob, rangeA1, fixedWidth, widthFac
 
 // 縦写真判定
 const isPortrait = img.getHeight() > img.getWidth();
+const originalWidth = img.getWidth();
+const originalHeight = img.getHeight();
 
-let newW;
+const maxWidth = fixedWidth * (
+  isPortrait
+    ? PHOTO_LAYOUT.doublePortrait.widthFactor
+    : widthFactor
+);
+const maxHeight = targetHeight * widthFactor;
+const ratio = Math.min(
+  maxWidth / originalWidth,
+  maxHeight / originalHeight
+);
+const newW = originalWidth * ratio;
+const newH = originalHeight * ratio;
 
-// 横写真
-if (!isPortrait) {
+setImageDisplaySize_(img, newW, newH);
 
-  newW = fixedWidth * widthFactor;
+  const portraitXOffset = isPortrait
+    ? Math.max(0, (fixedWidth - newW) / 2) + (fixedWidth * 0.05)
+    : 0;
+  const finalXOffset = xOffset + portraitXOffset;
+  const finalYOffset = (targetHeight - newH) / 2;
 
-} else {
+  img.setAnchorCellXOffset(finalXOffset);
+  img.setAnchorCellYOffset(finalYOffset);
 
-newW =
-  fixedWidth *
-  PHOTO_LAYOUT.doublePortrait.widthFactor;
-
-}
-
-const newH = img.getHeight() * (newW / img.getWidth());
-
-img.setWidth(newW).setHeight(newH);
-
-  img.setAnchorCellXOffset(xOffset);
-  img.setAnchorCellYOffset((targetHeight - newH) / 2);
+  return {
+    image: img,
+    isPortrait: isPortrait,
+    anchorXOffset: finalXOffset,
+    anchorYOffset: finalYOffset,
+    cellWidth: sheet.getColumnWidth(startCol),
+    width: newW,
+    height: newH,
+    leftPortraitRightLandscapeShift: sheet.getColumnWidth(startCol) * 1.15,
+  };
 }
 
 /**
@@ -1462,11 +1695,11 @@ function insertImageToRange(sheet, blob, rangeA1) {
   const newW = img.getWidth() * ratio;
   const newH = img.getHeight() * ratio;
 
-  img.setWidth(newW).setHeight(newH);
+  setImageDisplaySize_(img, newW, newH);
 
   // オフセット
   const xOffset = isPortrait
-    ? PHOTO_LAYOUT.singlePortrait.offset
+    ? PHOTO_LAYOUT.singlePortrait.offset + getPortraitPhotoXShift_(sheet, startCol)
     : PHOTO_LAYOUT.singleLandscape.offset;
 
   // 左寄せ
@@ -1500,6 +1733,64 @@ function getPhotoFolderId(stationName, year, routeFolderId) {
   }
 
   return null;
+}
+
+function getAccessiblePhotoFolder_(data, photoFolderId) {
+  const accessErrors = [];
+
+  try {
+    const folder = DriveApp.getFolderById(photoFolderId);
+    folder.getName();
+    return folder;
+  } catch (e) {
+    accessErrors.push("台帳F列の写真フォルダIDを開けません: " + String(e));
+  }
+
+  try {
+    const spreadsheetFile = DriveApp.getFileById(data.spreadsheetId);
+    const parents = spreadsheetFile.getParents();
+
+    if (!parents.hasNext()) {
+      throw new Error("スプレッドシートの親フォルダが見つかりません");
+    }
+
+    const stationYearFolder = parents.next();
+    const folders = stationYearFolder.getFoldersByName("写真保存エリア");
+    const photoFolder = folders.hasNext()
+      ? folders.next()
+      : stationYearFolder.createFolder("写真保存エリア");
+
+    updatePhotoFolderId_(data.station, data.year, data.routeFolderId, photoFolder.getId());
+    return photoFolder;
+  } catch (e) {
+    accessErrors.push("点検資料フォルダ直下の写真保存エリアも準備できません: " + String(e));
+  }
+
+  throw new Error(
+    "写真保存エリアにアクセスできません。Googleドライブで写真保存エリアの閲覧・編集権限を確認してください。" +
+    accessErrors.join(" / ")
+  );
+}
+
+function updatePhotoFolderId_(stationName, year, routeFolderId, photoFolderId) {
+  const sheet = SpreadsheetApp
+    .openById(CONFIG.TEMPLATE_SS_ID)
+    .getSheetByName("現場管理台帳");
+
+  if (!sheet) return;
+
+  const rows = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    const sameStation = rows[i][1].toString() === String(stationName);
+    const sameYear = rows[i][2].toString() === String(year);
+    const sameRoute = !routeFolderId || rows[i][9].toString() === String(routeFolderId);
+
+    if (sameStation && sameYear && sameRoute) {
+      sheet.getRange(i + 1, 6).setValue(photoFolderId);
+      return;
+    }
+  }
 }
 
 function getSpreadsheetId(station, year) {
@@ -1687,7 +1978,7 @@ function createInspectionPdf(data) {
         data.year,
         data.fileSuffix || (multipleFiles ? group.fileSuffix : "")
       );
-      const url = buildSpreadsheetPdfExportUrl_(spreadsheetId, group.portrait);
+      const url = buildSpreadsheetPdfExportUrl_(spreadsheetId, group.portrait, group);
       const response = UrlFetchApp.fetch(url, {
         headers: {
           Authorization: "Bearer " + ScriptApp.getOAuthToken(),
@@ -1821,7 +2112,19 @@ function buildInspectionPdfName_(stationName, year, suffix) {
     : `施設点検報告書_${station}_${targetYear}.pdf`;
 }
 
-function buildSpreadsheetPdfExportUrl_(spreadsheetId, portrait) {
+function buildSpreadsheetPdfExportUrl_(spreadsheetId, portrait, group) {
+  const standardMarginSuffixes = [
+    "写真カルテ",
+    "写真カルテ番号位置図",
+    "傾斜表",
+    "傾斜測定カルテ",
+  ];
+  const usesStandardMargins =
+    group && standardMarginSuffixes.indexOf(String(group.fileSuffix || "")) !== -1;
+  const topMargin = usesStandardMargins ? 2.2 / 2.54 : 2.5 / 2.54;
+  const bottomMargin = 2.0 / 2.54;
+  const leftMargin = 1.7 / 2.54;
+  const rightMargin = 1.7 / 2.54;
   const params = [
     "format=pdf",
     "size=A4",
@@ -1832,10 +2135,10 @@ function buildSpreadsheetPdfExportUrl_(spreadsheetId, portrait) {
     "printtitle=false",
     "pagenumbers=false",
     "gridlines=false",
-    `top_margin=${2.5 / 2.54}`,
-    `bottom_margin=${2.0 / 2.54}`,
-    `left_margin=${1.7 / 2.54}`,
-    `right_margin=${1.7 / 2.54}`,
+    `top_margin=${topMargin}`,
+    `bottom_margin=${bottomMargin}`,
+    `left_margin=${leftMargin}`,
+    `right_margin=${rightMargin}`,
     "fzr=false",
   ];
 

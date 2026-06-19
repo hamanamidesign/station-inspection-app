@@ -10,6 +10,8 @@
 //   return createJsonResponse(getInspectionPdfMergeStatus(body));
 // case "findCompletedInspectionPdf":
 //   return createJsonResponse(findCompletedInspectionPdf(body));
+// case "findCompletedInspectionPdfFile":
+//   return createJsonResponse(findCompletedInspectionPdfFile(body));
 //
 // PDF結合には、GASプロジェクトへPDFAppライブラリを追加してください。
 // Script ID: 1Xmtr5XXEakVql7N6FqwdCNdpdijsJOxgqH173JSB0UOwdb0GJYJbnJLk
@@ -130,30 +132,20 @@ function startInspectionPdfMerge(data) {
   const folder = getInspectionPdfFolder_(spreadsheetId);
   const pdfFiles = [];
   const missing = [];
+  const mergeOrder = getInspectionPdfMergeOrder_(data);
 
-  INSPECTION_PDF_MERGE_ORDER_.forEach(suffix => {
-    const fileName = buildInspectionPdfFileName_({
+  mergeOrder.forEach(suffix => {
+    const foundFiles = getInspectionPdfFilesForMerge_(folder, {
       stationName: stationName,
       year: year,
-    }, suffix) + ".pdf";
-    const files = folder.getFilesByName(fileName);
+    }, suffix);
 
-    if (!files.hasNext()) {
+    if (foundFiles.length === 0) {
       missing.push(suffix);
       return;
     }
 
-    const file = files.next();
-    if (file.getMimeType() !== MimeType.PDF) {
-      missing.push(suffix);
-      return;
-    }
-
-    pdfFiles.push({
-      suffix: suffix,
-      fileName: fileName,
-      fileId: file.getId(),
-    });
+    foundFiles.forEach(item => pdfFiles.push(item));
   });
 
   if (missing.length > 0) {
@@ -194,6 +186,91 @@ function startInspectionPdfMerge(data) {
     previousOutputFileIds: job.previousOutputFileIds,
     message: "PDF結合を開始しました",
   };
+}
+
+function getInspectionPdfMergeOrder_(data) {
+  const allowed = {};
+  INSPECTION_PDF_MERGE_ORDER_.forEach(suffix => {
+    allowed[suffix] = true;
+  });
+
+  const requested = Array.isArray(data.mergeOrder)
+    ? data.mergeOrder.map(suffix => String(suffix || "").trim()).filter(suffix => allowed[suffix])
+    : [];
+
+  if (requested.length === 0) {
+    return INSPECTION_PDF_MERGE_ORDER_.slice();
+  }
+
+  return requested.filter((suffix, index) => requested.indexOf(suffix) === index);
+}
+
+function getInspectionPdfFilesForMerge_(folder, data, suffix) {
+  if (suffix === "写真カルテ") {
+    return getInspectionPhotoPdfFilesForMerge_(folder, data);
+  }
+
+  const fileName = buildInspectionPdfFileName_(data, suffix) + ".pdf";
+  const files = folder.getFilesByName(fileName);
+
+  if (!files.hasNext()) return [];
+
+  const file = files.next();
+  if (file.getMimeType() !== MimeType.PDF) return [];
+
+  return [{
+    suffix: suffix,
+    fileName: fileName,
+    fileId: file.getId(),
+  }];
+}
+
+function getInspectionPhotoPdfFilesForMerge_(folder, data) {
+  const baseFileName = buildInspectionPdfFileName_(data, "写真カルテ") + ".pdf";
+  const baseFiles = folder.getFilesByName(baseFileName);
+  const result = [];
+
+  if (baseFiles.hasNext()) {
+    const file = baseFiles.next();
+    if (file.getMimeType() === MimeType.PDF) {
+      result.push({
+        suffix: "写真カルテ",
+        fileName: file.getName(),
+        fileId: file.getId(),
+        sortKey: 0,
+      });
+    }
+  }
+
+  const prefix = buildInspectionPdfFileName_(data, "写真カルテ_");
+  const allFiles = folder.getFiles();
+
+  while (allFiles.hasNext()) {
+    const file = allFiles.next();
+    const name = file.getName();
+    if (file.getMimeType() !== MimeType.PDF) continue;
+    if (name.indexOf(prefix) !== 0 || !/\.pdf$/i.test(name)) continue;
+
+    result.push({
+      suffix: "写真カルテ",
+      fileName: name,
+      fileId: file.getId(),
+      sortKey: getInspectionPhotoPdfSortKey_(name),
+    });
+  }
+
+  return result
+    .sort((a, b) => a.sortKey - b.sortKey || String(a.fileName).localeCompare(String(b.fileName), "ja", { numeric: true }))
+    .map(item => ({
+      suffix: item.suffix,
+      fileName: item.fileName,
+      fileId: item.fileId,
+    }));
+}
+
+function getInspectionPhotoPdfSortKey_(fileName) {
+  const match = String(fileName || "").match(/写真カルテ_(\d+)(?:-\d+)?\.pdf$/);
+  return match ? Number(match[1]) : 999999;
 }
 
 function getInspectionPdfMergeStatus(data) {
@@ -252,6 +329,51 @@ function findCompletedInspectionPdf(data) {
   return {
     success: true,
     completed: false,
+  };
+}
+
+function findCompletedInspectionPdfFile(data) {
+  const spreadsheetId = String(data.spreadsheetId || "").trim();
+  const stationName = String(data.stationName || "").trim();
+  const year = String(data.year || "").trim();
+  const fileSuffix = String(data.fileSuffix || "").trim();
+  const startedAt = String(data.startedAt || "").trim();
+
+  if (!spreadsheetId || !stationName || !year || !fileSuffix) {
+    throw new Error("完成PDFの確認条件が不足しています");
+  }
+
+  const folder = getInspectionPdfFolder_(spreadsheetId);
+  const fileName = buildInspectionPdfFileName_({
+    stationName: stationName,
+    year: year,
+  }, fileSuffix) + ".pdf";
+  const files = folder.getFilesByName(fileName);
+  const startedTime = startedAt ? new Date(startedAt).getTime() : 0;
+  let latestFile = null;
+
+  while (files.hasNext()) {
+    const file = files.next();
+    if (file.getMimeType() !== MimeType.PDF) continue;
+    if (startedTime && file.getLastUpdated().getTime() < startedTime - 5000) continue;
+    if (!latestFile || file.getLastUpdated().getTime() > latestFile.getLastUpdated().getTime()) {
+      latestFile = file;
+    }
+  }
+
+  if (!latestFile) {
+    return {
+      success: true,
+      completed: false,
+      fileName: fileName,
+    };
+  }
+
+  return {
+    success: true,
+    completed: true,
+    fileName: latestFile.getName(),
+    url: latestFile.getUrl(),
   };
 }
 
@@ -588,6 +710,9 @@ function createGenericInspectionPdf_(data, sheetNames) {
     };
 
     Object.assign(exportOptions, getInspectionPdfMarginOptions_());
+    if (settings.scale) {
+      exportOptions.scale = settings.scale;
+    }
 
     ["top_margin", "bottom_margin", "left_margin", "right_margin"].forEach(key => {
       if (settings[key] !== undefined) {
@@ -687,15 +812,52 @@ function getGenericPdfSettings_(data, sheetNames) {
     suffix === "写真カルテ番号位置図" ||
     normalizedSheetNames.some(isPhotoPositionMapPdfSheetName_)
   ) {
-    return { fileSuffix: "写真カルテ番号位置図", portrait: false };
+    return {
+      fileSuffix: "写真カルテ番号位置図",
+      portrait: false,
+      scale: 4,
+      top_margin: 2.2 / 2.54,
+      bottom_margin: 2.0 / 2.54,
+      left_margin: 1.7 / 2.54,
+      right_margin: 1.7 / 2.54,
+    };
   }
 
   if (kind === "slope" || suffix === "傾斜表" || normalizedSheetNames.some(isSlopeTablePdfSheetName_)) {
-    return { fileSuffix: "傾斜表", portrait: false, horizontalAlignment: "CENTER" };
+    return {
+      fileSuffix: "傾斜表",
+      portrait: false,
+      horizontalAlignment: "CENTER",
+      scale: 4,
+      top_margin: 2.2 / 2.54,
+      bottom_margin: 2.0 / 2.54,
+      left_margin: 1.7 / 2.54,
+      right_margin: 1.7 / 2.54,
+    };
   }
 
   if (kind === "inclination" || suffix === "傾斜測定カルテ") {
-    return { fileSuffix: "傾斜測定カルテ", portrait: false };
+    return {
+      fileSuffix: "傾斜測定カルテ",
+      portrait: false,
+      scale: 4,
+      top_margin: 2.2 / 2.54,
+      bottom_margin: 2.0 / 2.54,
+      left_margin: 1.7 / 2.54,
+      right_margin: 1.7 / 2.54,
+    };
+  }
+
+  if (kind === "photo" || suffix === "写真カルテ" || normalizedSheetNames.every(name => /^\d+$/.test(name))) {
+    return {
+      fileSuffix: suffix || "写真カルテ",
+      portrait: false,
+      scale: 4,
+      top_margin: 2.2 / 2.54,
+      bottom_margin: 2.0 / 2.54,
+      left_margin: 1.7 / 2.54,
+      right_margin: 1.7 / 2.54,
+    };
   }
 
   return { fileSuffix: suffix || "写真カルテ", portrait: false };

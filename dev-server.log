@@ -8,38 +8,5 @@
 - Environments: .env.local
 
 ✓ Starting...
-✓ Ready in 1730ms
- GET / 200 in 1112ms (compile: 917ms, render: 195ms)
- POST /api/gas 200 in 2.7s (compile: 110ms, render: 2.6s)
- POST /api/gas 200 in 3.2s (compile: 5ms, render: 3.2s)
- POST /api/gas 200 in 3.8s (compile: 3ms, render: 3.8s)
- POST /api/gas 200 in 3.8s (compile: 12ms, render: 3.8s)
- POST /api/gas 200 in 2.6s (compile: 10ms, render: 2.5s)
- POST /api/gas 200 in 4.7s (compile: 3ms, render: 4.7s)
-✓ Compiled in 187ms
- POST /api/gas 200 in 3.4s (compile: 5ms, render: 3.4s)
- GET / 200 in 132ms (compile: 55ms, render: 77ms)
- POST /api/gas 200 in 1897ms (compile: 3ms, render: 1894ms)
- POST /api/gas 200 in 2.5s (compile: 4ms, render: 2.5s)
- POST /api/gas 200 in 2.9s (compile: 8ms, render: 2.9s)
- POST /api/gas 200 in 3.1s (compile: 3ms, render: 3.0s)
- POST /api/gas 200 in 2.6s (compile: 7ms, render: 2.6s)
- POST /api/gas 200 in 6.6s (compile: 3ms, render: 6.6s)
- POST /api/gas 200 in 2.9s (compile: 5ms, render: 2.9s)
- POST /api/gas 200 in 7.2s (compile: 3ms, render: 7.2s)
- POST /api/gas 200 in 3.3s (compile: 4ms, render: 3.3s)
-✓ Compiled in 178ms
- POST /api/gas 200 in 2.8s (compile: 3ms, render: 2.8s)
-✓ Compiled in 153ms
- POST /api/gas 200 in 2.1s (compile: 2ms, render: 2.1s)
- POST /api/gas 200 in 3.5s (compile: 3ms, render: 3.5s)
- POST /api/gas 200 in 5.7s (compile: 2ms, render: 5.7s)
- POST /api/gas 200 in 2.8s (compile: 6ms, render: 2.8s)
- POST /api/gas 200 in 9.6s (compile: 2ms, render: 9.6s)
-✓ Compiled in 39ms
-✓ Compiled in 178ms
- POST /api/gas 200 in 1767ms (compile: 2ms, render: 1764ms)
- POST /api/gas 200 in 3.6s (compile: 41ms, render: 3.6s)
- GET / 200 in 179ms (compile: 84ms, render: 95ms)
- POST /api/gas 200 in 2.8s (compile: 2ms, render: 2.8s)
-[?25h
+✓ Ready in 1783ms
+ GET / 200 in 1248ms (compile: 1017ms, render: 230ms)
