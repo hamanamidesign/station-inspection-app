@@ -184,11 +184,6 @@ const UNSAVED_PHOTO_KARTE_LIMIT = 10;
 const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
 const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
 
-const waitForNextPaint = () =>
-  new Promise<void>(resolve => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-
 const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     if (typeof window === 'undefined' || !window.indexedDB) {
@@ -407,41 +402,6 @@ const getCanvasDataUrlUnderLimit = (
   while (dataUrl.length > maxBase64Length && quality > 0.42) {
     quality -= 0.08;
     dataUrl = canvas.toDataURL('image/jpeg', quality);
-  }
-
-  return dataUrl;
-};
-
-const canvasToJpegDataUrl = (
-  canvas: HTMLCanvasElement,
-  quality: number
-): Promise<string> =>
-  new Promise((resolve, reject) => {
-    canvas.toBlob(blob => {
-      if (!blob) {
-        reject(new Error("写真データを作成できませんでした"));
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("写真データの読み込みに失敗しました"));
-      reader.readAsDataURL(blob);
-    }, "image/jpeg", quality);
-  });
-
-const getCanvasDataUrlUnderLimitAsync = async (
-  canvas: HTMLCanvasElement,
-  maxBase64Length: number,
-  initialQuality = 0.82
-) => {
-  let quality = initialQuality;
-  let dataUrl = await canvasToJpegDataUrl(canvas, quality);
-
-  while (dataUrl.length > maxBase64Length && quality > 0.42) {
-    quality -= 0.08;
-    await waitForNextPaint();
-    dataUrl = await canvasToJpegDataUrl(canvas, quality);
   }
 
   return dataUrl;
@@ -2053,7 +2013,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
   };
 
   const renderPhotoForEditorPreview = async (photo: string, marks: PhotoMark[]) => {
