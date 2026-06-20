@@ -7095,7 +7095,7 @@ if (mode === 'inclination_menu') {
 
               <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
                 <div
-                  className="relative max-h-full max-w-full touch-none leading-none"
+                  className="relative inline-block max-h-full max-w-full touch-none leading-none"
                   onPointerDown={handleEditorCanvasTap}
                 >
                   <img
