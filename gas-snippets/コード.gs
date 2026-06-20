@@ -695,6 +695,8 @@ function handleGetKarteData(params) {
 
 const photos = Array(4).fill(null);
 const firstPhotos = Array(4).fill(null);
+const photoSources = Array(4).fill("");
+const firstPhotoSources = Array(4).fill("");
 
 try {
   const photoFolderId = getPhotoFolderId(
@@ -721,6 +723,7 @@ try {
             firstPhotos[idx] =
               "data:image/jpeg;base64," +
               Utilities.base64Encode(f.getBlob().getBytes());
+            firstPhotoSources[idx] = "original";
           }
         } else if (name.startsWith("_編集元_")) {
           const idx = getPhotoIndexFromFileName_(name);
@@ -729,6 +732,7 @@ try {
             photos[idx] =
               "data:image/jpeg;base64," +
               Utilities.base64Encode(f.getBlob().getBytes());
+            photoSources[idx] = "original";
           }
         } else if (name.startsWith("初回点検_")) {
           const idx = getPhotoIndexFromFileName_(name);
@@ -737,6 +741,7 @@ try {
             firstPhotos[idx] =
               "data:image/jpeg;base64," +
               Utilities.base64Encode(f.getBlob().getBytes());
+            firstPhotoSources[idx] = "marked";
           }
         } else {
           const idx = getPhotoIndexFromFileName_(name);
@@ -745,6 +750,7 @@ try {
             photos[idx] =
               "data:image/jpeg;base64," +
               Utilities.base64Encode(f.getBlob().getBytes());
+            photoSources[idx] = "marked";
           }
         }
       }
@@ -792,6 +798,8 @@ try {
 
       photos: photos,
       firstPhotos: firstPhotos,
+      photoSources: photoSources,
+      firstPhotoSources: firstPhotoSources,
       photoMarks: photoKarteEditorData.photoMarks || [[], [], [], []],
       firstPhotoMarks: photoKarteEditorData.firstPhotoMarks || [[], [], [], []]
     };

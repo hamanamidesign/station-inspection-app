@@ -410,6 +410,69 @@ const getCanvasDataUrlUnderLimit = (
 const createEmptyPhotoMarkSets = (): PhotoMark[][] =>
   Array.from({ length: 4 }, () => []);
 
+interface PhotoPreviewWithMarksProps {
+  photo: string | null;
+  marks: PhotoMark[];
+  placeholder: string;
+  borderClassName: string;
+  placeholderClassName: string;
+  renderMarks: (marks: PhotoMark[]) => React.ReactNode;
+  onPressStart: (photo: string) => void;
+  onPressEnd: () => void;
+}
+
+function PhotoPreviewWithMarks({
+  photo,
+  marks,
+  placeholder,
+  borderClassName,
+  placeholderClassName,
+  renderMarks,
+  onPressStart,
+  onPressEnd,
+}: PhotoPreviewWithMarksProps) {
+  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
+  const imageAspect = imageSize ? imageSize.width / Math.max(1, imageSize.height) : 4 / 3;
+  const outerAspect = 4 / 3;
+  const isWider = imageAspect >= outerAspect;
+
+  return (
+    <div className={`flex h-full w-full items-center justify-center overflow-hidden rounded ${borderClassName}`}>
+      {photo ? (
+        <div
+          className="relative max-h-full max-w-full leading-none"
+          style={{
+            aspectRatio: imageSize ? `${imageSize.width} / ${imageSize.height}` : '4 / 3',
+            width: isWider ? '100%' : 'auto',
+            height: isWider ? 'auto' : '100%',
+          }}
+        >
+          <img
+            src={photo}
+            className="block h-full w-full select-none object-fill"
+            onLoad={event => {
+              const image = event.currentTarget;
+              if (image.naturalWidth && image.naturalHeight) {
+                setImageSize({ width: image.naturalWidth, height: image.naturalHeight });
+              }
+            }}
+            onMouseDown={() => onPressStart(photo)}
+            onMouseUp={onPressEnd}
+            onMouseLeave={onPressEnd}
+            onTouchStart={() => onPressStart(photo)}
+            onTouchEnd={onPressEnd}
+          />
+          {renderMarks(marks)}
+        </div>
+      ) : (
+        <div className={`flex h-full items-center justify-center text-[10px] font-bold ${placeholderClassName}`}>
+          {placeholder}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const normalizePhotoMarkColor = (value: unknown): PhotoMarkColor => {
   const color = String(value || '').trim().toLowerCase();
   if (color === 'black') return 'black';
@@ -2048,8 +2111,21 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
     ['firstPhotos', 'firstPhotoUrls', 'initialPhotos', 'initialPhotoUrls', 'firstPhotoFiles'],
     ['firstPhoto', 'initialPhoto']
   ));
-  setCurrentPhotoMarks(normalizePhotoMarks(d.photoMarks));
-  setFirstPhotoMarks(normalizePhotoMarks(d.firstPhotoMarks));
+  const photoSources = Array.isArray(d.photoSources) ? d.photoSources.map(value => String(value || '')) : null;
+  const firstPhotoSources = Array.isArray(d.firstPhotoSources) ? d.firstPhotoSources.map(value => String(value || '')) : null;
+  const loadedPhotoMarks = normalizePhotoMarks(d.photoMarks);
+  const loadedFirstPhotoMarks = normalizePhotoMarks(d.firstPhotoMarks);
+
+  setCurrentPhotoMarks(
+    photoSources
+      ? loadedPhotoMarks.map((marks, index) => photoSources[index] === 'original' ? marks : [])
+      : loadedPhotoMarks
+  );
+  setFirstPhotoMarks(
+    firstPhotoSources
+      ? loadedFirstPhotoMarks.map((marks, index) => firstPhotoSources[index] === 'original' ? marks : [])
+      : loadedFirstPhotoMarks
+  );
 
   setIsEditMode(editMode);
   setMode('karte_edit');
@@ -6017,24 +6093,16 @@ if (mode === 'inclination_menu') {
 
         return (
           <div key={index} className="relative aspect-[4/3]">
-            <div className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden">
-              {p ? (
-                <img
-                  src={p}
-                  className="w-full h-full object-cover"
-                  onMouseDown={() => handlePressStart(p)}
-                  onMouseUp={handlePressEnd}
-                  onMouseLeave={handlePressEnd}
-                  onTouchStart={() => handlePressStart(p)}
-                  onTouchEnd={handlePressEnd}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-[10px] text-slate-400 font-bold">
-                  初回写真{index + 1}
-                </div>
-              )}
-            </div>
-            {renderPhotoMarkOverlay(marks)}
+            <PhotoPreviewWithMarks
+              photo={p}
+              marks={marks}
+              placeholder={`初回写真${index + 1}`}
+              borderClassName="border border-slate-300 bg-white"
+              placeholderClassName="text-slate-400"
+              renderMarks={renderPhotoMarkOverlay}
+              onPressStart={handlePressStart}
+              onPressEnd={handlePressEnd}
+            />
 
             <input
               id={`karte-first-photo-${index}`}
@@ -6112,24 +6180,16 @@ if (mode === 'inclination_menu') {
 
         return (
           <div key={index} className="relative aspect-[4/3]">
-            <div className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden">
-              {p ? (
-                <img
-                  src={p}
-                  className="w-full h-full object-cover"
-                  onMouseDown={() => handlePressStart(p)}
-                  onMouseUp={handlePressEnd}
-                  onMouseLeave={handlePressEnd}
-                  onTouchStart={() => handlePressStart(p)}
-                  onTouchEnd={handlePressEnd}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-[10px] text-slate-400 font-bold">
-                  初回写真{index + 1}
-                </div>
-              )}
-            </div>
-            {renderPhotoMarkOverlay(marks)}
+            <PhotoPreviewWithMarks
+              photo={p}
+              marks={marks}
+              placeholder={`初回写真${index + 1}`}
+              borderClassName="border border-slate-300 bg-white"
+              placeholderClassName="text-slate-400"
+              renderMarks={renderPhotoMarkOverlay}
+              onPressStart={handlePressStart}
+              onPressEnd={handlePressEnd}
+            />
 
             <input
               id={`karte-first-photo-${index}`}
@@ -6324,26 +6384,16 @@ if (mode === 'inclination_menu') {
         return (
           <div key={index} className="relative aspect-[4/3]">
 
-            <div className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden">
-
-              {p ? (
-                <img
-                  src={p}
-                  className="w-full h-full object-cover"
-                  onMouseDown={() => handlePressStart(p)}
-                  onMouseUp={handlePressEnd}
-                  onMouseLeave={handlePressEnd}
-                  onTouchStart={() => handlePressStart(p)}
-                  onTouchEnd={handlePressEnd}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-[10px] text-blue-300 font-bold">
-                  写真{index + 1}
-                </div>
-              )}
-
-            </div>
-            {renderPhotoMarkOverlay(marks)}
+            <PhotoPreviewWithMarks
+              photo={p}
+              marks={marks}
+              placeholder={`写真${index + 1}`}
+              borderClassName="border border-blue-200 bg-white"
+              placeholderClassName="text-blue-300"
+              renderMarks={renderPhotoMarkOverlay}
+              onPressStart={handlePressStart}
+              onPressEnd={handlePressEnd}
+            />
 
             <input
               id={`karte-photo-${index}`}
@@ -6423,26 +6473,16 @@ if (mode === 'inclination_menu') {
         return (
           <div key={index} className="relative aspect-[4/3]">
 
-            <div className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden">
-
-              {p ? (
-                <img
-                  src={p}
-                  className="w-full h-full object-cover"
-                  onMouseDown={() => handlePressStart(p)}
-                  onMouseUp={handlePressEnd}
-                  onMouseLeave={handlePressEnd}
-                  onTouchStart={() => handlePressStart(p)}
-                  onTouchEnd={handlePressEnd}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-[10px] text-blue-300 font-bold">
-                  写真{index + 1}
-                </div>
-              )}
-
-            </div>
-            {renderPhotoMarkOverlay(marks)}
+            <PhotoPreviewWithMarks
+              photo={p}
+              marks={marks}
+              placeholder={`写真${index + 1}`}
+              borderClassName="border border-blue-200 bg-white"
+              placeholderClassName="text-blue-300"
+              renderMarks={renderPhotoMarkOverlay}
+              onPressStart={handlePressStart}
+              onPressEnd={handlePressEnd}
+            />
 
             <input
               id={`karte-photo-${index}`}
