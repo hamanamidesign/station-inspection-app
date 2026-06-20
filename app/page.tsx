@@ -167,9 +167,85 @@ type InspectionReportSourceRow = Partial<InspectionReportRow> & {
   firstYearEval?: unknown;
 };
 
+interface UnsavedPhotoKarte {
+  id: string;
+  spreadsheetId: string;
+  karteNo: string;
+  stationName: string;
+  year: string;
+  payload: Record<string, unknown>;
+  savedAt: string;
+}
+
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 const INSPECTION_DRIVE_ROOT_FOLDER_ID = "1L_a6as-Wxc-BOOojkLo7BDtbx2wSZT30";
 const PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY = "station-check:photo-drive-last-folder-id";
+const UNSAVED_PHOTO_KARTE_LIMIT = 10;
+const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
+const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
+
+const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
+  new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      reject(new Error("このブラウザでは一時保存を利用できません"));
+      return;
+    }
+
+    const request = window.indexedDB.open(PHOTO_KARTE_DRAFT_DB_NAME, 1);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PHOTO_KARTE_DRAFT_STORE)) {
+        const store = db.createObjectStore(PHOTO_KARTE_DRAFT_STORE, { keyPath: 'id' });
+        store.createIndex('spreadsheetId', 'spreadsheetId', { unique: false });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("一時保存データベースを開けません"));
+  });
+
+const runPhotoKarteDraftTransaction = async <T,>(
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>
+): Promise<T> => {
+  const db = await openPhotoKarteDraftDb();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(PHOTO_KARTE_DRAFT_STORE, mode);
+    const request = run(transaction.objectStore(PHOTO_KARTE_DRAFT_STORE));
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("一時保存の処理に失敗しました"));
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error || new Error("一時保存の処理に失敗しました"));
+    };
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error || new Error("一時保存の処理が中断されました"));
+    };
+  });
+};
+
+const getUnsavedPhotoKartesFromDb = async (spreadsheetId: string): Promise<UnsavedPhotoKarte[]> => {
+  if (!spreadsheetId) return [];
+
+  const rows = await runPhotoKarteDraftTransaction<UnsavedPhotoKarte[]>(
+    'readonly',
+    store => store.index('spreadsheetId').getAll(spreadsheetId) as IDBRequest<UnsavedPhotoKarte[]>
+  );
+
+  return rows.sort((a, b) => Number(a.karteNo) - Number(b.karteNo));
+};
+
+const saveUnsavedPhotoKarteToDb = (item: UnsavedPhotoKarte) =>
+  runPhotoKarteDraftTransaction<IDBValidKey>('readwrite', store => store.put(item));
+
+const deleteUnsavedPhotoKarteFromDb = (id: string) =>
+  runPhotoKarteDraftTransaction<undefined>('readwrite', store => store.delete(id) as IDBRequest<undefined>);
+
 const DEFAULT_ROUTE_LIST: RouteItem[] = [
   {
     name: "南海高野線",
@@ -260,6 +336,7 @@ const normalizePhotoSrc = (value: unknown): string | null => {
       record.url ??
       record.src ??
       record.dataUrl ??
+      record.originalBase64 ??
       record.base64 ??
       record.fileId ??
       record.id
@@ -718,6 +795,7 @@ useEffect(() => {
   // --- 修正・編集用ステート ---
   const [existingKartes, setExistingKartes] = useState<string[]>([]);
   const [completedPhotoKartes, setCompletedPhotoKartes] = useState<Set<string>>(() => new Set());
+  const [unsavedPhotoKartes, setUnsavedPhotoKartes] = useState<UnsavedPhotoKarte[]>([]);
   const [availableKarteNumbers, setAvailableKarteNumbers] = useState<string[]>([]);
   const [unavailableKarteNumbers, setUnavailableKarteNumbers] = useState<string[]>([]);
   const [registerKarteNo, setRegisterKarteNo] = useState('');
@@ -1336,6 +1414,31 @@ useEffect(() => {
   }
 }, [spreadsheetId]);
 
+useEffect(() => {
+  if (!spreadsheetId) {
+    setUnsavedPhotoKartes([]);
+    return;
+  }
+
+  getUnsavedPhotoKartesFromDb(spreadsheetId)
+    .then(setUnsavedPhotoKartes)
+    .catch(e => {
+      console.error(e);
+      setUnsavedPhotoKartes([]);
+    });
+}, [spreadsheetId]);
+
+const refreshUnsavedPhotoKartes = async () => {
+  if (!spreadsheetId) {
+    setUnsavedPhotoKartes([]);
+    return [];
+  }
+
+  const rows = await getUnsavedPhotoKartesFromDb(spreadsheetId);
+  setUnsavedPhotoKartes(rows);
+  return rows;
+};
+
 const saveCompletedPhotoKartes = (next: Set<string>) => {
   if (!spreadsheetId || typeof window === 'undefined') return;
   window.localStorage.setItem(
@@ -1364,6 +1467,10 @@ const toggleCurrentPhotoKarteComplete = () => {
 
 const isPhotoKarteComplete = (no: string | number) =>
   completedPhotoKartes.has(String(no).trim());
+
+const unsavedPhotoKarteNumbers = new Set(unsavedPhotoKartes.map(item => String(item.karteNo)));
+const unsavedPhotoKarteCount = unsavedPhotoKartes.length;
+const remainingUnsavedPhotoKarteCount = Math.max(0, UNSAVED_PHOTO_KARTE_LIMIT - unsavedPhotoKarteCount);
 
   // 駅や年度が変わったら入力をクリア
   useEffect(() => {
@@ -1898,9 +2005,66 @@ const handlePressEnd = () => {
 
 };
 
+const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) => {
+  const d = data;
+
+  setKarteNo(String(d.karteNo || ''));
+  setStructEval(getRecordText(d, ['structEval', 'structureEval', 'structuralEval']));
+  setImpactEval(getRecordText(d, ['impactEval']));
+  setTotalEval(getRecordText(d, ['totalEval', 'evaluation']));
+  setPrevYearEval(getRecordText(d, ['prevYearEval', 'previousYearEval']));
+  setFirstKarteNo(getRecordText(d, ['firstKarteNo', 'initialKarteNo']));
+  const loadedFirstDate = formatSheetDateText(d.firstDate);
+  setFirstDate(loadedFirstDate);
+  setPhotoKarteStoredFirstDate(loadedFirstDate);
+  const loadedFirstInspector = getRecordText(d, ['firstInspector', 'initialInspector']);
+  const loadedInspector = getRecordText(d, ['inspector']);
+  setFirstInspector(loadedFirstInspector);
+  setPhotoKarteStoredFirstInspector(loadedFirstInspector);
+  setPhotoKarteSelectedInspector(loadedInspector);
+  setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
+  setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
+  setFirstDetail(getRecordText(d, ['firstDetail', 'initialDetail', 'firstRemarks3']));
+  setInspectDate(normalizeDateForDateInput(d.inspectDate));
+  setContractor(
+    String(d.contractor || '').trim()
+      ? String(d.contractor)
+      : contractor
+  );
+  setBuildingCategory(getRecordText(d, ['buildingCategory', 'buildingName']));
+  setInspectionPlace(getRecordText(d, ['inspectionPlace', 'place']));
+  setLocationDetail(getRecordText(d, ['locationDetail', 'detailPlace']));
+  setInspector(loadedInspector);
+  setRemarks1(getRecordText(d, ['remarks1', 'currentFinish', 'latestFinish']));
+  setRemarks2(getRecordText(d, ['remarks2', 'currentSituation', 'latestSituation', 'situation']));
+  setRemarks3(getRecordText(d, ['remarks3', 'currentDetail', 'latestDetail', 'detail']));
+
+  setPhotos(normalizePhotoArray(
+    d,
+    ['photos', 'photoUrls', 'currentPhotos', 'currentPhotoUrls', 'latestPhotos', 'latestPhotoUrls', 'photoFiles'],
+    ['photo', 'currentPhoto', 'latestPhoto']
+  ));
+  setFirstPhotos(normalizePhotoArray(
+    d,
+    ['firstPhotos', 'firstPhotoUrls', 'initialPhotos', 'initialPhotoUrls', 'firstPhotoFiles'],
+    ['firstPhoto', 'initialPhoto']
+  ));
+  setCurrentPhotoMarks(normalizePhotoMarks(d.photoMarks));
+  setFirstPhotoMarks(normalizePhotoMarks(d.firstPhotoMarks));
+
+  setIsEditMode(editMode);
+  setMode('karte_edit');
+};
+
 // --- 指定したNoのカルテデータを読み込む関数 ---
   const loadKarteData = async (no: string) => {
   if (!spreadsheetId) return;
+  const unsaved = unsavedPhotoKartes.find(item => String(item.karteNo) === String(no));
+  if (unsaved) {
+    applyPhotoKarteData(unsaved.payload, false);
+    return;
+  }
+
   setIsLoading(true);
   try {
 const result = await gasApi("getKarteData", {
@@ -1912,54 +2076,7 @@ const result = await gasApi("getKarteData", {
 });
     
     if (result.success) {
-      const d = toRecord(result.data);
-      // 取得データをステートに反映
-      setKarteNo(String(d.karteNo));
-      setStructEval(getRecordText(d, ['structEval', 'structureEval', 'structuralEval']));
-      setImpactEval(getRecordText(d, ['impactEval']));
-      setTotalEval(getRecordText(d, ['totalEval', 'evaluation']));
-      setPrevYearEval(getRecordText(d, ['prevYearEval', 'previousYearEval']));
-      setFirstKarteNo(getRecordText(d, ['firstKarteNo', 'initialKarteNo']));
-      const loadedFirstDate = formatSheetDateText(d.firstDate);
-      setFirstDate(loadedFirstDate);
-      setPhotoKarteStoredFirstDate(loadedFirstDate);
-      const loadedFirstInspector = getRecordText(d, ['firstInspector', 'initialInspector']);
-      const loadedInspector = getRecordText(d, ['inspector']);
-      setFirstInspector(loadedFirstInspector);
-      setPhotoKarteStoredFirstInspector(loadedFirstInspector);
-      setPhotoKarteSelectedInspector(loadedInspector);
-      setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
-      setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
-      setFirstDetail(getRecordText(d, ['firstDetail', 'initialDetail', 'firstRemarks3']));
-      setInspectDate(normalizeDateForDateInput(d.inspectDate));
-      setContractor(
-      String(d.contractor || '').trim()
-       ? String(d.contractor)
-       : contractor
-        );
-      setBuildingCategory(getRecordText(d, ['buildingCategory', 'buildingName']));
-      setInspectionPlace(getRecordText(d, ['inspectionPlace', 'place']));
-      setLocationDetail(getRecordText(d, ['locationDetail', 'detailPlace']));
-      setInspector(loadedInspector);
-      setRemarks1(getRecordText(d, ['remarks1', 'currentFinish', 'latestFinish']));
-      setRemarks2(getRecordText(d, ['remarks2', 'currentSituation', 'latestSituation', 'situation']));
-      setRemarks3(getRecordText(d, ['remarks3', 'currentDetail', 'latestDetail', 'detail']));
-
-      setPhotos(normalizePhotoArray(
-        d,
-        ['photos', 'photoUrls', 'currentPhotos', 'currentPhotoUrls', 'latestPhotos', 'latestPhotoUrls'],
-        ['photo', 'currentPhoto', 'latestPhoto']
-      ));
-      setFirstPhotos(normalizePhotoArray(
-        d,
-        ['firstPhotos', 'firstPhotoUrls', 'initialPhotos', 'initialPhotoUrls'],
-        ['firstPhoto', 'initialPhoto']
-      ));
-      setCurrentPhotoMarks(normalizePhotoMarks(d.photoMarks));
-      setFirstPhotoMarks(normalizePhotoMarks(d.firstPhotoMarks));
-
-      setIsEditMode(true);
-      setMode('karte_edit');
+      applyPhotoKarteData(toRecord(result.data), true);
     }
   } catch (e) {
     alert("読み込みエラーが発生しました");
@@ -1968,12 +2085,7 @@ const result = await gasApi("getKarteData", {
   }
 };
 
-  // --- 2. 送信ロジック（独立した関数として定義） ---
-  const sendGenericKarte = async (actionType: "uploadKarte" | "uploadInclination") => {
-    if (!karteNo || isSending) return;
-    setIsSending(true);
-
-    try {
+  const buildKartePayload = async (actionType: "uploadKarte" | "uploadInclination") => {
       let payloadFirstDate = firstDate;
       let payloadInspectDate = inspectDate;
       let payloadFirstInspector = firstInspector;
@@ -2101,16 +2213,132 @@ const firstPhotoDataList = await Promise.all(
   },
 };
 
-const result = await gasApi(actionType, payload);
+      return payload;
+  };
+
+  // --- 2. 送信ロジック（独立した関数として定義） ---
+  const sendGenericKarte = async (actionType: "uploadKarte" | "uploadInclination") => {
+    if (!karteNo || isSending) return;
+    setIsSending(true);
+
+    try {
+      const payload = await buildKartePayload(actionType);
+      const result = await gasApi(actionType, payload);
       
       if (result.success) {
         alert(`スプレッドシートの更新が完了しました！ (No.${karteNo})`);
+        if (actionType === "uploadKarte") {
+          const draftId = `${spreadsheetId}:${karteNo}`;
+          const existingDraft = unsavedPhotoKartes.find(item => item.id === draftId);
+          if (existingDraft) {
+            await deleteUnsavedPhotoKarteFromDb(draftId);
+            await refreshUnsavedPhotoKartes();
+          }
+          setMode('karte_menu');
+        }
       } else {
         alert("保存に失敗しました: " + (result.error || "不明なエラー"));
       }
     } catch (e) {
       console.error(e);
       alert(`保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const savePhotoKarteDraft = async () => {
+    if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+    if (!karteNo || isSending) return;
+
+    const draftId = `${spreadsheetId}:${karteNo}`;
+    const isReplacing = unsavedPhotoKartes.some(item => item.id === draftId);
+
+    if (!isReplacing && unsavedPhotoKarteCount >= UNSAVED_PHOTO_KARTE_LIMIT) {
+      alert(`未保存カルテが${UNSAVED_PHOTO_KARTE_LIMIT}件あります。先にスプレッドシートへ保存してください。`);
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      const payload = await buildKartePayload("uploadKarte");
+      await saveUnsavedPhotoKarteToDb({
+        id: draftId,
+        spreadsheetId,
+        karteNo: String(karteNo),
+        stationName,
+        year: selectedYear,
+        payload,
+        savedAt: new Date().toISOString(),
+      });
+
+      const rows = await refreshUnsavedPhotoKartes();
+      setExistingKartes(current => Array.from(new Set([...current, String(karteNo)])));
+
+      if (rows.length >= UNSAVED_PHOTO_KARTE_LIMIT) {
+        const shouldSync = confirm(
+          `スプレッドシートへの未保存カルテが${rows.length}件になりました。\n今すぐスプレッドシートへ保存しますか？`
+        );
+        if (shouldSync) {
+          await syncUnsavedPhotoKartes(rows);
+          return;
+        }
+
+        setMode('karte_menu');
+      } else {
+        alert(`No.${karteNo} を一時保存しました。未保存 ${rows.length}件 / あと${UNSAVED_PHOTO_KARTE_LIMIT - rows.length}件作成できます。`);
+        setMode('karte_menu');
+      }
+    } catch (e) {
+      console.error(e);
+      alert(`一時保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const syncUnsavedPhotoKartes = async (targetRows = unsavedPhotoKartes) => {
+    if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+    if (targetRows.length === 0) return alert("スプレッドシートへ保存する未保存カルテはありません");
+    if (isSending) return;
+
+    setIsSending(true);
+
+    const failed: string[] = [];
+
+    try {
+      for (const item of targetRows) {
+        try {
+          const result = await gasApi("uploadKarte", item.payload);
+          if (result.success) {
+            await deleteUnsavedPhotoKarteFromDb(item.id);
+          } else {
+            failed.push(`${item.karteNo}: ${result.error || "不明なエラー"}`);
+          }
+        } catch (error) {
+          failed.push(`${item.karteNo}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      const rows = await refreshUnsavedPhotoKartes();
+
+      if (failed.length > 0) {
+        alert(`一部のカルテを保存できませんでした。\n${failed.join('\n')}`);
+        return;
+      }
+
+      alert(`未保存カルテ ${targetRows.length}件をスプレッドシートへ保存しました。`);
+      setMode('karte_menu');
+      setExistingKartes(current =>
+        Array.from(new Set([
+          ...current,
+          ...targetRows.map(item => String(item.karteNo)),
+        ])).sort((a, b) => Number(a) - Number(b))
+      );
+      if (rows.length === 0) {
+        await loadKarteNumberOptions();
+      }
     } finally {
       setIsSending(false);
     }
@@ -2706,7 +2934,13 @@ if (mode === 'route_select') return (
 
   // 2. 作成済みカルテの一覧選択画面
   // --- 画面表示 (edit_list部分) ---
-if (mode === 'edit_list') return (
+if (mode === 'edit_list') {
+  const displayedKartes = Array.from(new Set([
+    ...existingKartes.map(no => String(no)),
+    ...unsavedPhotoKartes.map(item => String(item.karteNo)),
+  ])).sort((a, b) => Number(a) - Number(b));
+
+  return (
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black" style={routePageStyle}>
 
     <LoadingSpinner />
@@ -2715,10 +2949,14 @@ if (mode === 'edit_list') return (
 
     <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl">
       <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">修正するカルテを選択</h2>
+      <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-sm font-black text-amber-900">
+        未保存 {unsavedPhotoKarteCount}件 / あと{remainingUnsavedPhotoKarteCount}件作成できます
+      </div>
       
       <div className="grid grid-cols-3 gap-4">
-        {existingKartes.map(no => {
+        {displayedKartes.map(no => {
           const isComplete = isPhotoKarteComplete(no);
+          const isUnsaved = unsavedPhotoKarteNumbers.has(String(no));
 
           return (
             <button
@@ -2726,12 +2964,17 @@ if (mode === 'edit_list') return (
               // ★ ここを loadKarteData に書き換え！
               onClick={() => loadKarteData(String(no))} 
               className={`p-4 border-2 rounded-xl font-bold shadow-sm active:scale-95 transition-all text-center ${
-                isComplete
+                isUnsaved
+                  ? "bg-amber-400 border-amber-600 text-slate-950"
+                  : isComplete
                   ? "bg-emerald-500 border-emerald-700 text-white"
                   : "bg-white border-blue-500 text-blue-700 active:bg-blue-500 active:text-white"
               }`}
             >
               <span className="block">No.{no}</span>
+              {isUnsaved && (
+                <span className="mt-1 block text-[11px] font-black">未保存</span>
+              )}
               {isComplete && (
                 <span className="mt-1 block text-[11px] font-black">完了済み</span>
               )}
@@ -2744,6 +2987,7 @@ if (mode === 'edit_list') return (
     </div>
   </div>
 );
+}
 
   // ① 新規駅登録画面
 if (mode === 'new_entry') return (
@@ -5312,9 +5556,31 @@ if (mode === 'inclination_menu') {
         <Nav />
         <h2 className="text-2xl font-black mb-8">{isPhoto ? '写真カルテ' : '傾斜測定カルテ'}</h2>
         <div className="flex flex-col gap-6 w-full max-w-sm">
+          {isPhoto && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center font-black text-amber-900">
+              <div>スプレッドシート未保存 {unsavedPhotoKarteCount}件</div>
+              <div className="mt-1 text-sm">あと{remainingUnsavedPhotoKarteCount}件作成できます</div>
+              {unsavedPhotoKarteCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => syncUnsavedPhotoKartes()}
+                  disabled={isSending}
+                  className="mt-3 w-full rounded-xl bg-emerald-600 py-3 text-white shadow-sm active:scale-95 disabled:bg-slate-300"
+                >
+                  {isSending ? "保存中..." : "未保存分をスプレッドシートへ保存"}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* ① 新規作成ボタン */}
           <button 
             onClick={async () => {
+              if (isPhoto && unsavedPhotoKarteCount >= UNSAVED_PHOTO_KARTE_LIMIT) {
+                alert(`未保存カルテが${UNSAVED_PHOTO_KARTE_LIMIT}件あります。先にスプレッドシートへ保存してください。`);
+                return;
+              }
+
               resetKarteFields();
               setIsEditMode(false);
 
@@ -6783,25 +7049,52 @@ if (mode === 'inclination_menu') {
         {/* --- 保存ボタン --- */}
         <div className="sticky bottom-0 z-40 flex w-full flex-col items-center gap-3 border-t border-slate-600 bg-slate-800 p-3">
           {isPhoto && (
-            <button
-              type="button"
-              onClick={toggleCurrentPhotoKarteComplete}
-              className={`w-full max-w-xl py-3 rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all ${
-                isPhotoKarteComplete(karteNo)
-                  ? "bg-emerald-500 text-white"
-                  : "bg-amber-400 text-slate-950"
-              }`}
-            >
-              {isPhotoKarteComplete(karteNo) ? "完了マーク解除" : "完了マーク"}
-            </button>
+            <div className="w-full max-w-5xl rounded-xl bg-white/10 px-4 py-2 text-center text-sm font-black text-amber-100">
+              スプレッドシート未保存 {unsavedPhotoKarteCount}件 / あと{remainingUnsavedPhotoKarteCount}件
+            </div>
           )}
-          <button 
-            onClick={() => sendGenericKarte(isPhoto ? "uploadKarte" : "uploadInclination")} 
-            disabled={isSending}
-            className="w-full max-w-xl py-3 bg-blue-600 text-white rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            {isSending ? "データを送信中..." : "この内容でスプレッドシートを更新"}
-          </button>
+          <div className="flex w-full max-w-5xl flex-row gap-2">
+            {isPhoto && (
+              <button
+                type="button"
+                onClick={toggleCurrentPhotoKarteComplete}
+                className={`min-h-[52px] flex-1 rounded-xl px-2 py-3 text-sm font-black shadow-xl transition-all active:scale-95 ${
+                  isPhotoKarteComplete(karteNo)
+                    ? "bg-emerald-500 text-white"
+                    : "bg-amber-400 text-slate-950"
+                }`}
+              >
+                {isPhotoKarteComplete(karteNo) ? "完了マーク解除" : "完了マーク"}
+              </button>
+            )}
+            {isPhoto && (
+              <button
+                type="button"
+                onClick={savePhotoKarteDraft}
+                disabled={isSending}
+                className="min-h-[52px] flex-1 rounded-xl border-2 border-emerald-600 bg-white px-2 py-3 text-sm font-black text-black shadow-xl transition-all active:scale-95 disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                {isSending ? "保存中..." : "この内容を一時保存"}
+              </button>
+            )}
+            {isPhoto && (
+              <button
+                type="button"
+                onClick={() => syncUnsavedPhotoKartes()}
+                disabled={isSending || unsavedPhotoKarteCount === 0}
+                className="min-h-[52px] flex-1 rounded-xl bg-emerald-600 px-2 py-3 text-sm font-black text-white shadow-xl transition-all active:scale-95 disabled:bg-slate-400"
+              >
+                {isSending ? "保存中..." : "未保存分をスプレッドシートへ保存"}
+              </button>
+            )}
+            <button
+              onClick={() => sendGenericKarte(isPhoto ? "uploadKarte" : "uploadInclination")}
+              disabled={isSending}
+              className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-2 py-3 text-sm font-black text-white shadow-xl transition-all active:scale-95 disabled:bg-slate-400"
+            >
+              {isSending ? "データを送信中..." : "この内容でスプレッドシートを更新"}
+            </button>
+          </div>
         </div>
       </div>
     );
