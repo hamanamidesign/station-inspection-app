@@ -184,6 +184,11 @@ const UNSAVED_PHOTO_KARTE_LIMIT = 10;
 const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
 const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
 
+const waitForNextPaint = () =>
+  new Promise<void>(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+
 const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     if (typeof window === 'undefined' || !window.indexedDB) {
@@ -2128,6 +2133,7 @@ const handleCreateNewSheet = async () => {
     setIsLoading(true);
 
     try {
+      await waitForNextPaint();
       const marks = getPhotoMarks(photoEditorTarget);
       const previewPhoto = marks.length
         ? await renderPhotoForEditorPreview(sourcePhoto, marks)
@@ -2465,6 +2471,7 @@ const firstPhotoDataList = await Promise.all(
     setIsSending(true);
 
     try {
+      await waitForNextPaint();
       const payload = await buildKartePayload(actionType);
       const result = await gasApi(actionType, payload);
       
@@ -2505,6 +2512,7 @@ const firstPhotoDataList = await Promise.all(
     setIsSending(true);
 
     try {
+      await waitForNextPaint();
       const payload = await buildKartePayload("uploadKarte");
       await saveUnsavedPhotoKarteToDb({
         id: draftId,
@@ -2556,6 +2564,7 @@ const firstPhotoDataList = await Promise.all(
     const failed: string[] = [];
 
     try {
+      await waitForNextPaint();
       for (const item of targetRows) {
         try {
           const {
