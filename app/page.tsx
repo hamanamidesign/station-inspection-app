@@ -2948,6 +2948,7 @@ if (mode === 'edit_list') {
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black" style={routePageStyle}>
 
     <LoadingSpinner />
+    <LoadingOverlay />
 
     <Nav />
 
@@ -5558,6 +5559,7 @@ if (mode === 'inclination_menu') {
     return (
       <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black" style={routePageStyle}>
         <Nav />
+        <LoadingOverlay />
         <h2 className="text-2xl font-black mb-8">{isPhoto ? '写真カルテ' : '傾斜測定カルテ'}</h2>
         <div className="flex flex-col gap-6 w-full max-w-sm">
           {isPhoto && (
