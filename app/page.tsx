@@ -2631,6 +2631,7 @@ const goTo = (next: AppMode) => {
 };
 
 const goBack = () => {
+  setIsLoading(false);
   setHistory(prev => {
     if (prev.length === 0) {
       setMode('menu');
@@ -3025,11 +3026,18 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   }
 };
 
+const goHome = () => {
+  setIsLoading(false);
+  resetAllState();
+  setHistory([]);
+  setMode('menu');
+};
+
   const Nav = () => (
-    <div className="w-full mb-4 px-2 shrink-0">
+    <div className="relative z-[95000] w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
         <button onClick={goBack} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm">← 戻る</button>
-        <button onClick={() => { resetAllState(); setHistory([]); setMode('menu'); }} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
+        <button onClick={goHome} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
       </div>
       
       {/* 駅名と年度を表示するヘッダー */}
@@ -3050,11 +3058,13 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   );
 
   // --- 送信中のくるくるアニメーション（全画面共通） ---
-  const LoadingOverlay = () =>
-  (isSending || isLoading || isMergingPdfs || isSyncingUnsavedPhotoKartes) ? (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
+  const LoadingOverlay = () => {
+    const isBlocking = isSending || isMergingPdfs || isSyncingUnsavedPhotoKartes;
+
+    return (isBlocking || isLoading) ? (
+    <div className={`fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center ${isBlocking ? 'z-[99999]' : 'z-[90000] pointer-events-none'}`}>
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
-        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <div className="app-loading-spinner w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
 
         <p className="text-slate-900 font-bold text-lg">
           {isSyncingUnsavedPhotoKartes
@@ -3072,12 +3082,13 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 
       </div>
     </div>
-  ) : null;
+    ) : null;
+  };
 
 const LoadingSpinner = () => isLoading ? (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[90000] pointer-events-none">
     <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
-      <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <div className="app-loading-spinner w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
       <p className="text-slate-900 font-bold text-lg">作成中...</p>
       <p className="text-slate-500 text-sm">そのままお待ちください</p>
     </div>
