@@ -2630,8 +2630,15 @@ const goTo = (next: AppMode) => {
   setMode(next);
 };
 
-const goBack = () => {
+const clearNavigationLoading = () => {
   setIsLoading(false);
+  setIsSending(false);
+  setIsMergingPdfs(false);
+  setIsSyncingUnsavedPhotoKartes(false);
+};
+
+const goBack = () => {
+  clearNavigationLoading();
   setHistory(prev => {
     if (prev.length === 0) {
       setMode('menu');
@@ -3027,14 +3034,14 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 };
 
 const goHome = () => {
-  setIsLoading(false);
+  clearNavigationLoading();
   resetAllState();
   setHistory([]);
   setMode('menu');
 };
 
   const Nav = () => (
-    <div className="relative z-[95000] w-full mb-4 px-2 shrink-0">
+    <div className="relative z-[100000] w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
         <button onClick={goBack} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm">← 戻る</button>
         <button onClick={goHome} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
@@ -3058,13 +3065,18 @@ const goHome = () => {
   );
 
   // --- 送信中のくるくるアニメーション（全画面共通） ---
-  const LoadingOverlay = () => {
-    const isBlocking = isSending || isMergingPdfs || isSyncingUnsavedPhotoKartes;
+  const spinnerStyle: React.CSSProperties = {
+    animation: 'app-loading-spin 0.8s linear infinite',
+  };
 
-    return (isBlocking || isLoading) ? (
-    <div className={`fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center ${isBlocking ? 'z-[99999]' : 'z-[90000] pointer-events-none'}`}>
+  const LoadingOverlay = () =>
+  (isSending || isLoading || isMergingPdfs || isSyncingUnsavedPhotoKartes) ? (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[90000]">
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
-        <div className="app-loading-spinner w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
+        <div
+          className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"
+          style={spinnerStyle}
+        ></div>
 
         <p className="text-slate-900 font-bold text-lg">
           {isSyncingUnsavedPhotoKartes
@@ -3082,13 +3094,15 @@ const goHome = () => {
 
       </div>
     </div>
-    ) : null;
-  };
+  ) : null;
 
 const LoadingSpinner = () => isLoading ? (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[90000] pointer-events-none">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[90000]">
     <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
-      <div className="app-loading-spinner w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
+      <div
+        className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"
+        style={spinnerStyle}
+      ></div>
       <p className="text-slate-900 font-bold text-lg">作成中...</p>
       <p className="text-slate-500 text-sm">そのままお待ちください</p>
     </div>
