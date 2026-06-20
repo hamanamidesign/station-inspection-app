@@ -1098,18 +1098,9 @@ useEffect(() => {
 
   updatePhotoEditorDisplaySize();
 
-  const stage = photoEditorStageRef.current;
-  if (!stage || typeof ResizeObserver === 'undefined') {
-    window.addEventListener('resize', updatePhotoEditorDisplaySize);
-    return () => window.removeEventListener('resize', updatePhotoEditorDisplaySize);
-  }
-
-  const observer = new ResizeObserver(updatePhotoEditorDisplaySize);
-  observer.observe(stage);
   window.addEventListener('resize', updatePhotoEditorDisplaySize);
 
   return () => {
-    observer.disconnect();
     window.removeEventListener('resize', updatePhotoEditorDisplaySize);
   };
 }, [photoEditorTarget, updatePhotoEditorDisplaySize]);
@@ -7286,6 +7277,7 @@ if (mode === 'inclination_menu') {
                           width: image.naturalWidth,
                           height: image.naturalHeight,
                         });
+                        requestAnimationFrame(updatePhotoEditorDisplaySize);
                       }
                     }}
                     draggable={false}
