@@ -167,86 +167,9 @@ type InspectionReportSourceRow = Partial<InspectionReportRow> & {
   firstYearEval?: unknown;
 };
 
-interface UnsavedPhotoKarte {
-  id: string;
-  spreadsheetId: string;
-  karteNo: string;
-  stationName: string;
-  year: string;
-  payload: Record<string, unknown>;
-  savedAt: string;
-}
-
 const INSPECTION_LIST_MASTER_ID = "14FBV3XuMWhv4DcjfjmIWSY5zY5NbxD5gp2E1rqTQPHs";
 const INSPECTION_DRIVE_ROOT_FOLDER_ID = "1L_a6as-Wxc-BOOojkLo7BDtbx2wSZT30";
 const PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY = "station-check:photo-drive-last-folder-id";
-const UNSAVED_PHOTO_KARTE_LIMIT = 10;
-const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
-const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
-const APP_VERSION_LABEL = "front-check-20260620-4";
-
-const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
-  new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || !window.indexedDB) {
-      reject(new Error("このブラウザでは一時保存を利用できません"));
-      return;
-    }
-
-    const request = window.indexedDB.open(PHOTO_KARTE_DRAFT_DB_NAME, 1);
-
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(PHOTO_KARTE_DRAFT_STORE)) {
-        const store = db.createObjectStore(PHOTO_KARTE_DRAFT_STORE, { keyPath: 'id' });
-        store.createIndex('spreadsheetId', 'spreadsheetId', { unique: false });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error("一時保存データベースを開けません"));
-  });
-
-const runPhotoKarteDraftTransaction = async <T,>(
-  mode: IDBTransactionMode,
-  run: (store: IDBObjectStore) => IDBRequest<T>
-): Promise<T> => {
-  const db = await openPhotoKarteDraftDb();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(PHOTO_KARTE_DRAFT_STORE, mode);
-    const request = run(transaction.objectStore(PHOTO_KARTE_DRAFT_STORE));
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error("一時保存の処理に失敗しました"));
-    transaction.oncomplete = () => db.close();
-    transaction.onerror = () => {
-      db.close();
-      reject(transaction.error || new Error("一時保存の処理に失敗しました"));
-    };
-    transaction.onabort = () => {
-      db.close();
-      reject(transaction.error || new Error("一時保存の処理が中断されました"));
-    };
-  });
-};
-
-const getUnsavedPhotoKartesFromDb = async (spreadsheetId: string): Promise<UnsavedPhotoKarte[]> => {
-  if (!spreadsheetId) return [];
-
-  const rows = await runPhotoKarteDraftTransaction<UnsavedPhotoKarte[]>(
-    'readonly',
-    store => store.index('spreadsheetId').getAll(spreadsheetId) as IDBRequest<UnsavedPhotoKarte[]>
-  );
-
-  return rows.sort((a, b) => Number(a.karteNo) - Number(b.karteNo));
-};
-
-const saveUnsavedPhotoKarteToDb = (item: UnsavedPhotoKarte) =>
-  runPhotoKarteDraftTransaction<IDBValidKey>('readwrite', store => store.put(item));
-
-const deleteUnsavedPhotoKarteFromDb = (id: string) =>
-  runPhotoKarteDraftTransaction<undefined>('readwrite', store => store.delete(id) as IDBRequest<undefined>);
-
 const DEFAULT_ROUTE_LIST: RouteItem[] = [
   {
     name: "南海高野線",
@@ -392,26 +315,6 @@ const getScaledImageSize = (width: number, height: number, maxPixels: number) =>
   };
 };
 
-const waitForNextPaint = () =>
-  new Promise<void>(resolve => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-
-const canvasToJpegDataUrl = (canvas: HTMLCanvasElement, quality: number) =>
-  new Promise<string>((resolve, reject) => {
-    canvas.toBlob(blob => {
-      if (!blob) {
-        reject(new Error("写真データを作成できませんでした"));
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("写真データの読み込みに失敗しました"));
-      reader.readAsDataURL(blob);
-    }, "image/jpeg", quality);
-  });
-
 const getCanvasDataUrlUnderLimit = (
   canvas: HTMLCanvasElement,
   maxBase64Length: number,
@@ -428,89 +331,8 @@ const getCanvasDataUrlUnderLimit = (
   return dataUrl;
 };
 
-const getCanvasDataUrlUnderLimitAsync = async (
-  canvas: HTMLCanvasElement,
-  maxBase64Length: number,
-  initialQuality = 0.82
-) => {
-  let quality = initialQuality;
-  await waitForNextPaint();
-  let dataUrl = await canvasToJpegDataUrl(canvas, quality);
-
-  while (dataUrl.length > maxBase64Length && quality > 0.42) {
-    quality -= 0.08;
-    await waitForNextPaint();
-    dataUrl = await canvasToJpegDataUrl(canvas, quality);
-  }
-
-  return dataUrl;
-};
-
 const createEmptyPhotoMarkSets = (): PhotoMark[][] =>
   Array.from({ length: 4 }, () => []);
-
-interface PhotoPreviewWithMarksProps {
-  photo: string | null;
-  marks: PhotoMark[];
-  placeholder: string;
-  borderClassName: string;
-  placeholderClassName: string;
-  renderMarks: (marks: PhotoMark[]) => React.ReactNode;
-  onPressStart: (photo: string) => void;
-  onPressEnd: () => void;
-}
-
-function PhotoPreviewWithMarks({
-  photo,
-  marks,
-  placeholder,
-  borderClassName,
-  placeholderClassName,
-  renderMarks,
-  onPressStart,
-  onPressEnd,
-}: PhotoPreviewWithMarksProps) {
-  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
-  const imageAspect = imageSize ? imageSize.width / Math.max(1, imageSize.height) : 4 / 3;
-  const outerAspect = 4 / 3;
-  const isWider = imageAspect >= outerAspect;
-
-  return (
-    <div className={`flex h-full w-full items-center justify-center overflow-hidden rounded ${borderClassName}`}>
-      {photo ? (
-        <div
-          className="relative max-h-full max-w-full leading-none"
-          style={{
-            aspectRatio: imageSize ? `${imageSize.width} / ${imageSize.height}` : '4 / 3',
-            width: isWider ? '100%' : 'auto',
-            height: isWider ? 'auto' : '100%',
-          }}
-        >
-          <img
-            src={photo}
-            className="block h-full w-full select-none object-fill"
-            onLoad={event => {
-              const image = event.currentTarget;
-              if (image.naturalWidth && image.naturalHeight) {
-                setImageSize({ width: image.naturalWidth, height: image.naturalHeight });
-              }
-            }}
-            onMouseDown={() => onPressStart(photo)}
-            onMouseUp={onPressEnd}
-            onMouseLeave={onPressEnd}
-            onTouchStart={() => onPressStart(photo)}
-            onTouchEnd={onPressEnd}
-          />
-          {renderMarks(marks)}
-        </div>
-      ) : (
-        <div className={`flex h-full items-center justify-center text-[10px] font-bold ${placeholderClassName}`}>
-          {placeholder}
-        </div>
-      )}
-    </div>
-  );
-}
 
 const normalizePhotoMarkColor = (value: unknown): PhotoMarkColor => {
   const color = String(value || '').trim().toLowerCase();
@@ -863,7 +685,6 @@ export default function InspectorApp() {
   const [stationFolderId, setStationFolderId] = useState('');
   const [existingData, setExistingData] = useState<ExistingStation[]>([]);
   const [isSending, setIsSending] = useState(false);
-  const [isSyncingUnsavedPhotoKartes, setIsSyncingUnsavedPhotoKartes] = useState(false);
   const [isMergingPdfs, setIsMergingPdfs] = useState(false);
   const [activePlaceRowId, setActivePlaceRowId] = useState<number | null>(null);
   // 長押し判定や移動状態を保持するRef
@@ -897,7 +718,6 @@ useEffect(() => {
   // --- 修正・編集用ステート ---
   const [existingKartes, setExistingKartes] = useState<string[]>([]);
   const [completedPhotoKartes, setCompletedPhotoKartes] = useState<Set<string>>(() => new Set());
-  const [unsavedPhotoKartes, setUnsavedPhotoKartes] = useState<UnsavedPhotoKarte[]>([]);
   const [availableKarteNumbers, setAvailableKarteNumbers] = useState<string[]>([]);
   const [unavailableKarteNumbers, setUnavailableKarteNumbers] = useState<string[]>([]);
   const [registerKarteNo, setRegisterKarteNo] = useState('');
@@ -937,9 +757,6 @@ useEffect(() => {
   const imageRef = useRef<HTMLImageElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
   const photoEditorImageRef = useRef<HTMLImageElement>(null);
-  const photoEditorStageRef = useRef<HTMLDivElement>(null);
-  const [photoEditorNaturalSize, setPhotoEditorNaturalSize] = useState({ width: 0, height: 0 });
-  const [photoEditorDisplaySize, setPhotoEditorDisplaySize] = useState({ width: 0, height: 0 });
   const [firstPhotoMarks, setFirstPhotoMarks] = useState<PhotoMark[][]>(() => createEmptyPhotoMarkSets());
   const [currentPhotoMarks, setCurrentPhotoMarks] = useState<PhotoMark[][]>(() => createEmptyPhotoMarkSets());
   const [photoEditorTarget, setPhotoEditorTarget] = useState<PhotoEditorTarget | null>(null);
@@ -982,8 +799,6 @@ useEffect(() => {
   const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
-  const [originalPhotos, setOriginalPhotos] = useState<(string | null)[]>(Array(4).fill(null));
-  const [firstOriginalPhotos, setFirstOriginalPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ cover: [], photo: [], photoPositionMap: [], slope: [], inclination: [], inspectionReport: [] });
   const [selectedPdfSheets, setSelectedPdfSheets] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
@@ -1049,55 +864,6 @@ useEffect(() => {
     window.removeEventListener('resize', updateMapDisplaySize);
   };
 }, [finalImage, updateMapDisplaySize]);
-
-const updatePhotoEditorDisplaySize = useCallback(() => {
-  const stage = photoEditorStageRef.current;
-  const naturalWidth = photoEditorNaturalSize.width;
-  const naturalHeight = photoEditorNaturalSize.height;
-
-  if (!stage || !naturalWidth || !naturalHeight) {
-    setPhotoEditorDisplaySize({ width: 0, height: 0 });
-    return;
-  }
-
-  const rect = stage.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-
-  const style = window.getComputedStyle(stage);
-  const horizontalPadding =
-    (Number.parseFloat(style.paddingLeft) || 0) +
-    (Number.parseFloat(style.paddingRight) || 0);
-  const verticalPadding =
-    (Number.parseFloat(style.paddingTop) || 0) +
-    (Number.parseFloat(style.paddingBottom) || 0);
-  const availableWidth = Math.max(1, rect.width - horizontalPadding);
-  const availableHeight = Math.max(1, rect.height - verticalPadding);
-  const scale = Math.min(availableWidth / naturalWidth, availableHeight / naturalHeight);
-  const nextWidth = Math.max(1, Math.round(naturalWidth * scale));
-  const nextHeight = Math.max(1, Math.round(naturalHeight * scale));
-
-  setPhotoEditorDisplaySize(prev =>
-    prev.width === nextWidth && prev.height === nextHeight
-      ? prev
-      : { width: nextWidth, height: nextHeight }
-  );
-}, [photoEditorNaturalSize]);
-
-useEffect(() => {
-  if (!photoEditorTarget) {
-    setPhotoEditorNaturalSize({ width: 0, height: 0 });
-    setPhotoEditorDisplaySize({ width: 0, height: 0 });
-    return;
-  }
-
-  updatePhotoEditorDisplaySize();
-
-  window.addEventListener('resize', updatePhotoEditorDisplaySize);
-
-  return () => {
-    window.removeEventListener('resize', updatePhotoEditorDisplaySize);
-  };
-}, [photoEditorTarget, updatePhotoEditorDisplaySize]);
 
 const getInspectionReportEvalClass = (
   field: keyof Omit<InspectionReportRow, 'id'>,
@@ -1256,6 +1022,10 @@ const loadRoutes = useCallback(async () => {
     } catch {
       // キャッシュが壊れていてもGASから再取得する
     }
+  }
+
+  if (cachedList.length === 0) {
+    setIsLoading(true);
   }
 
   try {
@@ -1566,35 +1336,6 @@ useEffect(() => {
   }
 }, [spreadsheetId]);
 
-useEffect(() => {
-  if (!spreadsheetId) {
-    setUnsavedPhotoKartes([]);
-    return;
-  }
-
-  getUnsavedPhotoKartesFromDb(spreadsheetId)
-    .then(setUnsavedPhotoKartes)
-    .catch(e => {
-      console.error(e);
-      setUnsavedPhotoKartes([]);
-    });
-}, [spreadsheetId]);
-
-const refreshUnsavedPhotoKartes = async () => {
-  if (!spreadsheetId) {
-    setUnsavedPhotoKartes([]);
-    return [];
-  }
-
-  const rows = await getUnsavedPhotoKartesFromDb(spreadsheetId);
-  setUnsavedPhotoKartes(rows);
-  return rows;
-};
-
-const unsavedPhotoKarteNumbers = new Set(unsavedPhotoKartes.map(item => String(item.karteNo).trim()));
-const unsavedPhotoKarteCount = unsavedPhotoKartes.length;
-const remainingUnsavedPhotoKarteCount = Math.max(0, UNSAVED_PHOTO_KARTE_LIMIT - unsavedPhotoKarteCount);
-
 const saveCompletedPhotoKartes = (next: Set<string>) => {
   if (!spreadsheetId || typeof window === 'undefined') return;
   window.localStorage.setItem(
@@ -1633,8 +1374,6 @@ const isPhotoKarteComplete = (no: string | number) =>
   setMarkers([]); 
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
-  setOriginalPhotos(Array(4).fill(null));
-  setFirstOriginalPhotos(Array(4).fill(null));
   setCurrentPhotoMarks(createEmptyPhotoMarkSets());
   setFirstPhotoMarks(createEmptyPhotoMarkSets());
   setSlopeRows(createEmptySlopeRows());
@@ -1791,11 +1530,6 @@ const handleCreateNewSheet = async () => {
     const newPhotos = [...photos];
     newPhotos[index] = compressed;
     setPhotos(newPhotos);
-    setOriginalPhotos(current => {
-      const next = [...current];
-      next[index] = compressed;
-      return next;
-    });
     setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
   } catch (error) {
     alert(
@@ -1816,11 +1550,6 @@ const handleCreateNewSheet = async () => {
     const newPhotos = [...firstPhotos];
     newPhotos[index] = compressed;
     setFirstPhotos(newPhotos);
-    setFirstOriginalPhotos(current => {
-      const next = [...current];
-      next[index] = compressed;
-      return next;
-    });
     setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
   } catch (error) {
     alert(
@@ -1938,8 +1667,7 @@ const handleCreateNewSheet = async () => {
 
     const img = new Image();
 
-    img.onload = async () => {
-      try {
+    img.onload = () => {
 
       let width = img.width;
       let height = img.height;
@@ -1967,19 +1695,14 @@ const handleCreateNewSheet = async () => {
       ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       let quality = 0.6;
-      await waitForNextPaint();
-      let result = await canvasToJpegDataUrl(canvas, quality);
+      let result = canvas.toDataURL("image/jpeg", quality);
 
       while (result.length > maxBytes && quality > minQuality) {
         quality -= 0.05;
-        await waitForNextPaint();
-        result = await canvasToJpegDataUrl(canvas, quality);
+        result = canvas.toDataURL("image/jpeg", quality);
       }
 
       resolve(result);
-      } catch (error) {
-        reject(error);
-      }
     };
 
     img.onerror = () => {
@@ -2044,7 +1767,7 @@ const handleCreateNewSheet = async () => {
     if (!marks.length) return base;
 
     const img = await loadImageElement(photo);
-    const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 1400000);
+    const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 2500000);
     const canvas = document.createElement('canvas');
     canvas.width = outputSize.width;
     canvas.height = outputSize.height;
@@ -2054,27 +1777,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimitAsync(canvas, 1800000, 0.86);
-  };
-
-  const renderPhotoForEditorPreview = async (photo: string, marks: PhotoMark[]) => {
-    if (!marks.length) return photo;
-
-    const img = await loadImageElement(photo);
-    const displayWidth = Math.max(1, Math.round(photoEditorDisplaySize.width || img.naturalWidth));
-    const displayHeight = Math.max(1, Math.round(photoEditorDisplaySize.height || img.naturalHeight));
-    const outputSize = getScaledImageSize(displayWidth, displayHeight, 1400000);
-
-    const canvas = document.createElement('canvas');
-    canvas.width = outputSize.width;
-    canvas.height = outputSize.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error("写真の注釈処理を開始できません");
-
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
-
-    return getCanvasDataUrlUnderLimitAsync(canvas, 1800000, 0.86);
+    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
   };
 
   const getPhotoMarks = (target: PhotoEditorTarget) =>
@@ -2142,48 +1845,6 @@ const handleCreateNewSheet = async () => {
     setEditingPhotoMark(nextMark);
   };
 
-  const savePhotoMarksAndClose = async () => {
-    if (!photoEditorTarget) return;
-
-    const index = photoEditorTarget.index;
-    const isFirst = photoEditorTarget.target === 'first';
-    const displayPhoto = isFirst ? firstPhotos[index] : photos[index];
-    const originalPhoto = isFirst ? firstOriginalPhotos[index] : originalPhotos[index];
-    const sourcePhoto = originalPhoto || displayPhoto;
-
-    if (!sourcePhoto) {
-      setPhotoEditorTarget(null);
-      setEditingPhotoMark(null);
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      await waitForNextPaint();
-      const marks = getPhotoMarks(photoEditorTarget);
-      const previewPhoto = marks.length
-        ? await renderPhotoForEditorPreview(sourcePhoto, marks)
-        : sourcePhoto;
-
-      if (isFirst) {
-        setFirstPhotos(current => current.map((photo, photoIndex) => photoIndex === index ? previewPhoto : photo));
-        setFirstOriginalPhotos(current => current.map((photo, photoIndex) => photoIndex === index ? (photo || sourcePhoto) : photo));
-      } else {
-        setPhotos(current => current.map((photo, photoIndex) => photoIndex === index ? previewPhoto : photo));
-        setOriginalPhotos(current => current.map((photo, photoIndex) => photoIndex === index ? (photo || sourcePhoto) : photo));
-      }
-
-      setPhotoEditorTarget(null);
-      setEditingPhotoMark(null);
-    } catch (error) {
-      console.error(error);
-      alert(`マーカー保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
 let pressTimer: NodeJS.Timeout;
 
 const handlePressStart = (photo: string) => {
@@ -2237,102 +1898,9 @@ const handlePressEnd = () => {
 
 };
 
-const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) => {
-  const d = data;
-
-  setKarteNo(String(d.karteNo || ''));
-  setStructEval(getRecordText(d, ['structEval', 'structureEval', 'structuralEval']));
-  setImpactEval(getRecordText(d, ['impactEval']));
-  setTotalEval(getRecordText(d, ['totalEval', 'evaluation']));
-  setPrevYearEval(getRecordText(d, ['prevYearEval', 'previousYearEval']));
-  setFirstKarteNo(getRecordText(d, ['firstKarteNo', 'initialKarteNo']));
-  const loadedFirstDate = formatSheetDateText(d.firstDate);
-  setFirstDate(loadedFirstDate);
-  setPhotoKarteStoredFirstDate(loadedFirstDate);
-  const loadedFirstInspector = getRecordText(d, ['firstInspector', 'initialInspector']);
-  const loadedInspector = getRecordText(d, ['inspector']);
-  setFirstInspector(loadedFirstInspector);
-  setPhotoKarteStoredFirstInspector(loadedFirstInspector);
-  setPhotoKarteSelectedInspector(loadedInspector);
-  setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
-  setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
-  setFirstDetail(getRecordText(d, ['firstDetail', 'initialDetail', 'firstRemarks3']));
-  setInspectDate(normalizeDateForDateInput(d.inspectDate));
-  setContractor(
-    String(d.contractor || '').trim()
-      ? String(d.contractor)
-      : contractor
-  );
-  setBuildingCategory(getRecordText(d, ['buildingCategory', 'buildingName']));
-  setInspectionPlace(getRecordText(d, ['inspectionPlace', 'place']));
-  setLocationDetail(getRecordText(d, ['locationDetail', 'detailPlace']));
-  setInspector(loadedInspector);
-  setRemarks1(getRecordText(d, ['remarks1', 'currentFinish', 'latestFinish']));
-  setRemarks2(getRecordText(d, ['remarks2', 'currentSituation', 'latestSituation', 'situation']));
-  setRemarks3(getRecordText(d, ['remarks3', 'currentDetail', 'latestDetail', 'detail']));
-
-  const loadedPhotos = normalizePhotoArray(
-    d,
-    ['photos', 'photoUrls', 'currentPhotos', 'currentPhotoUrls', 'latestPhotos', 'latestPhotoUrls', 'photoFiles'],
-    ['photo', 'currentPhoto', 'latestPhoto']
-  );
-  const loadedFirstPhotos = normalizePhotoArray(
-    d,
-    ['firstPhotos', 'firstPhotoUrls', 'initialPhotos', 'initialPhotoUrls', 'firstPhotoFiles'],
-    ['firstPhoto', 'initialPhoto']
-  );
-  const loadedOriginalPhotos = normalizePhotoArray(
-    d,
-    ['originalPhotos', 'currentOriginalPhotos'],
-    ['originalPhoto', 'currentOriginalPhoto']
-  );
-  const loadedFirstOriginalPhotos = normalizePhotoArray(
-    d,
-    ['firstOriginalPhotos', 'initialOriginalPhotos'],
-    ['firstOriginalPhoto', 'initialOriginalPhoto']
-  );
-  const photoSources = Array.isArray(d.photoSources) ? d.photoSources.map(value => String(value || '')) : null;
-  const firstPhotoSources = Array.isArray(d.firstPhotoSources) ? d.firstPhotoSources.map(value => String(value || '')) : null;
-  const loadedPhotoMarks = normalizePhotoMarks(d.photoMarks);
-  const loadedFirstPhotoMarks = normalizePhotoMarks(d.firstPhotoMarks);
-
-  setPhotos(loadedPhotos);
-  setFirstPhotos(loadedFirstPhotos);
-  setOriginalPhotos(
-    loadedOriginalPhotos.some(Boolean)
-      ? loadedOriginalPhotos
-      : loadedPhotos.map((photo, index) => !photoSources || photoSources[index] === 'original' ? photo : null)
-  );
-  setFirstOriginalPhotos(
-    loadedFirstOriginalPhotos.some(Boolean)
-      ? loadedFirstOriginalPhotos
-      : loadedFirstPhotos.map((photo, index) => !firstPhotoSources || firstPhotoSources[index] === 'original' ? photo : null)
-  );
-
-  setCurrentPhotoMarks(
-    photoSources
-      ? loadedPhotoMarks.map((marks, index) => photoSources[index] === 'original' ? marks : [])
-      : loadedPhotoMarks
-  );
-  setFirstPhotoMarks(
-    firstPhotoSources
-      ? loadedFirstPhotoMarks.map((marks, index) => firstPhotoSources[index] === 'original' ? marks : [])
-      : loadedFirstPhotoMarks
-  );
-
-  setIsEditMode(editMode);
-  setMode('karte_edit');
-};
-
 // --- 指定したNoのカルテデータを読み込む関数 ---
   const loadKarteData = async (no: string) => {
   if (!spreadsheetId) return;
-  const unsaved = unsavedPhotoKartes.find(item => String(item.karteNo) === String(no));
-  if (unsaved) {
-    applyPhotoKarteData(unsaved.payload, false);
-    return;
-  }
-
   setIsLoading(true);
   try {
 const result = await gasApi("getKarteData", {
@@ -2344,7 +1912,54 @@ const result = await gasApi("getKarteData", {
 });
     
     if (result.success) {
-      applyPhotoKarteData(toRecord(result.data), true);
+      const d = toRecord(result.data);
+      // 取得データをステートに反映
+      setKarteNo(String(d.karteNo));
+      setStructEval(getRecordText(d, ['structEval', 'structureEval', 'structuralEval']));
+      setImpactEval(getRecordText(d, ['impactEval']));
+      setTotalEval(getRecordText(d, ['totalEval', 'evaluation']));
+      setPrevYearEval(getRecordText(d, ['prevYearEval', 'previousYearEval']));
+      setFirstKarteNo(getRecordText(d, ['firstKarteNo', 'initialKarteNo']));
+      const loadedFirstDate = formatSheetDateText(d.firstDate);
+      setFirstDate(loadedFirstDate);
+      setPhotoKarteStoredFirstDate(loadedFirstDate);
+      const loadedFirstInspector = getRecordText(d, ['firstInspector', 'initialInspector']);
+      const loadedInspector = getRecordText(d, ['inspector']);
+      setFirstInspector(loadedFirstInspector);
+      setPhotoKarteStoredFirstInspector(loadedFirstInspector);
+      setPhotoKarteSelectedInspector(loadedInspector);
+      setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
+      setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
+      setFirstDetail(getRecordText(d, ['firstDetail', 'initialDetail', 'firstRemarks3']));
+      setInspectDate(normalizeDateForDateInput(d.inspectDate));
+      setContractor(
+      String(d.contractor || '').trim()
+       ? String(d.contractor)
+       : contractor
+        );
+      setBuildingCategory(getRecordText(d, ['buildingCategory', 'buildingName']));
+      setInspectionPlace(getRecordText(d, ['inspectionPlace', 'place']));
+      setLocationDetail(getRecordText(d, ['locationDetail', 'detailPlace']));
+      setInspector(loadedInspector);
+      setRemarks1(getRecordText(d, ['remarks1', 'currentFinish', 'latestFinish']));
+      setRemarks2(getRecordText(d, ['remarks2', 'currentSituation', 'latestSituation', 'situation']));
+      setRemarks3(getRecordText(d, ['remarks3', 'currentDetail', 'latestDetail', 'detail']));
+
+      setPhotos(normalizePhotoArray(
+        d,
+        ['photos', 'photoUrls', 'currentPhotos', 'currentPhotoUrls', 'latestPhotos', 'latestPhotoUrls'],
+        ['photo', 'currentPhoto', 'latestPhoto']
+      ));
+      setFirstPhotos(normalizePhotoArray(
+        d,
+        ['firstPhotos', 'firstPhotoUrls', 'initialPhotos', 'initialPhotoUrls'],
+        ['firstPhoto', 'initialPhoto']
+      ));
+      setCurrentPhotoMarks(normalizePhotoMarks(d.photoMarks));
+      setFirstPhotoMarks(normalizePhotoMarks(d.firstPhotoMarks));
+
+      setIsEditMode(true);
+      setMode('karte_edit');
     }
   } catch (e) {
     alert("読み込みエラーが発生しました");
@@ -2353,7 +1968,12 @@ const result = await gasApi("getKarteData", {
   }
 };
 
-  const buildKartePayload = async (actionType: "uploadKarte" | "uploadInclination") => {
+  // --- 2. 送信ロジック（独立した関数として定義） ---
+  const sendGenericKarte = async (actionType: "uploadKarte" | "uploadInclination") => {
+    if (!karteNo || isSending) return;
+    setIsSending(true);
+
+    try {
       let payloadFirstDate = firstDate;
       let payloadInspectDate = inspectDate;
       let payloadFirstInspector = firstInspector;
@@ -2387,51 +2007,44 @@ const result = await gasApi("getKarteData", {
         setInspector(payloadInspector);
       }
 
-      // iPad Safariで固まらないよう、写真は同時処理せず1枚ずつ変換する。
-      const photoDataList = [];
-      for (const [index, p] of photos.entries()) {
-        await waitForNextPaint();
-        if (p && p.startsWith("data:image")) {
+      // 画像のリサイズ処理
+      const photoDataList = await Promise.all(
+  photos.map(async (p, index) => {
+    if (p && p.startsWith("data:image")) {
 
-          const marks = currentPhotoMarks[index] || [];
-          const sourceOriginal = originalPhotos[index] || p;
-          const hasSavedMarkerPreview = marks.length > 0 && originalPhotos[index] && p !== originalPhotos[index];
-          const resized = hasSavedMarkerPreview
-            ? await resizeImage(p)
-            : await renderPhotoForSave(sourceOriginal, marks);
-          const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
+      const marks = currentPhotoMarks[index] || [];
+      const resized = await renderPhotoForSave(p, marks);
+      const original = marks.length ? await resizeImage(p) : "";
 
-          photoDataList.push({
-            no: index + 1,
-            fileName: `${index + 1}.jpg`,
-            base64: resized.includes(',')
-              ? resized.split(',')[1]
-              : resized,
-            originalBase64: original
-              ? original.includes(',') ? original.split(',')[1] : original
-              : ""
-          });
+      return {
+        no: index + 1,
+        fileName: `${index + 1}.jpg`,
+        base64: resized.includes(',')
+          ? resized.split(',')[1]
+          : resized,
+        originalBase64: original
+          ? original.includes(',') ? original.split(',')[1] : original
+          : ""
+      };
 
-        }
-      }
+    }
+
+    return null;
+  })
+);
 
       const validPhotos = photoDataList.filter(Boolean);
 
-const firstPhotoDataList = [];
-for (const [index, p] of firstPhotos.entries()) {
-  await waitForNextPaint();
+const firstPhotoDataList = await Promise.all(
+  firstPhotos.map(async (p, index) => {
 
     if (p && p.startsWith("data:image")) {
 
       const marks = firstPhotoMarks[index] || [];
-      const sourceOriginal = firstOriginalPhotos[index] || p;
-      const hasSavedMarkerPreview = marks.length > 0 && firstOriginalPhotos[index] && p !== firstOriginalPhotos[index];
-      const resized = hasSavedMarkerPreview
-        ? await resizeImage(p)
-        : await renderPhotoForSave(sourceOriginal, marks);
-      const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
+      const resized = await renderPhotoForSave(p, marks);
+      const original = marks.length ? await resizeImage(p) : "";
 
-      firstPhotoDataList.push({
+      return {
         no: index + 1,
         fileName: `初回点検_${index + 1}.jpg`,
         base64: resized.includes(',')
@@ -2440,10 +2053,14 @@ for (const [index, p] of firstPhotos.entries()) {
         originalBase64: original
           ? original.includes(',') ? original.split(',')[1] : original
           : ""
-      });
+      };
 
     }
-}
+
+    return null;
+
+  })
+);
 
       const validFirstPhotos = firstPhotoDataList.filter(Boolean);
 
@@ -2484,30 +2101,10 @@ for (const [index, p] of firstPhotos.entries()) {
   },
 };
 
-      return payload;
-  };
-
-  // --- 2. 送信ロジック（独立した関数として定義） ---
-  const sendGenericKarte = async (actionType: "uploadKarte" | "uploadInclination") => {
-    if (!karteNo || isSending) return;
-    setIsSending(true);
-
-    try {
-      await waitForNextPaint();
-      const payload = await buildKartePayload(actionType);
-      const result = await gasApi(actionType, payload);
+const result = await gasApi(actionType, payload);
       
       if (result.success) {
         alert(`スプレッドシートの更新が完了しました！ (No.${karteNo})`);
-        if (actionType === "uploadKarte") {
-          const draftId = `${spreadsheetId}:${karteNo}`;
-          const existingDraft = unsavedPhotoKartes.find(item => item.id === draftId);
-          if (existingDraft) {
-            await deleteUnsavedPhotoKarteFromDb(draftId);
-            await refreshUnsavedPhotoKartes();
-          }
-          setMode('karte_menu');
-        }
       } else {
         alert("保存に失敗しました: " + (result.error || "不明なエラー"));
       }
@@ -2515,116 +2112,6 @@ for (const [index, p] of firstPhotos.entries()) {
       console.error(e);
       alert(`保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setIsSending(false);
-    }
-  };
-
-  const savePhotoKarteDraft = async () => {
-    if (!spreadsheetId) return alert("スプレッドシートIDがありません");
-    if (!karteNo || isSending) return;
-
-    const draftId = `${spreadsheetId}:${karteNo}`;
-    const isReplacing = unsavedPhotoKartes.some(item => item.id === draftId);
-
-    if (!isReplacing && unsavedPhotoKarteCount >= UNSAVED_PHOTO_KARTE_LIMIT) {
-      alert(`未保存カルテが${UNSAVED_PHOTO_KARTE_LIMIT}件あります。先にスプレッドシートへ保存してください。`);
-      return;
-    }
-
-    setIsSending(true);
-
-    try {
-      await waitForNextPaint();
-      const payload = await buildKartePayload("uploadKarte");
-      await saveUnsavedPhotoKarteToDb({
-        id: draftId,
-        spreadsheetId,
-        karteNo: String(karteNo),
-        stationName,
-        year: selectedYear,
-        payload: {
-          ...payload,
-          originalPhotos,
-          firstOriginalPhotos,
-        },
-        savedAt: new Date().toISOString(),
-      });
-
-      const rows = await refreshUnsavedPhotoKartes();
-      setExistingKartes(current => Array.from(new Set([...current, String(karteNo)])));
-
-      if (rows.length >= UNSAVED_PHOTO_KARTE_LIMIT) {
-        const shouldSync = confirm(
-          `スプレッドシートへの未保存カルテが${rows.length}件になりました。\n今すぐスプレッドシートへ保存しますか？`
-        );
-        if (shouldSync) {
-          await syncUnsavedPhotoKartes(rows);
-          return;
-        }
-
-        setMode('karte_menu');
-      } else {
-        alert(`No.${karteNo} を一時保存しました。未保存 ${rows.length}件 / あと${UNSAVED_PHOTO_KARTE_LIMIT - rows.length}件作成できます。`);
-        setMode('karte_menu');
-      }
-    } catch (e) {
-      console.error(e);
-      alert(`一時保存に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const syncUnsavedPhotoKartes = async (targetRows = unsavedPhotoKartes) => {
-    if (!spreadsheetId) return alert("スプレッドシートIDがありません");
-    if (targetRows.length === 0) return alert("スプレッドシートへ保存する未保存カルテはありません");
-    if (isSending || isSyncingUnsavedPhotoKartes) return;
-
-    setIsSending(true);
-    setIsSyncingUnsavedPhotoKartes(true);
-
-    const failed: string[] = [];
-
-    try {
-      await waitForNextPaint();
-      for (const item of targetRows) {
-        try {
-          const {
-            originalPhotos: _originalPhotos,
-            firstOriginalPhotos: _firstOriginalPhotos,
-            ...uploadPayload
-          } = item.payload;
-          const result = await gasApi("uploadKarte", uploadPayload);
-          if (result.success) {
-            await deleteUnsavedPhotoKarteFromDb(item.id);
-          } else {
-            failed.push(`${item.karteNo}: ${result.error || "不明なエラー"}`);
-          }
-        } catch (error) {
-          failed.push(`${item.karteNo}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-
-      const rows = await refreshUnsavedPhotoKartes();
-
-      if (failed.length > 0) {
-        alert(`一部のカルテを保存できませんでした。\n${failed.join('\n')}`);
-        return;
-      }
-
-      alert(`未保存カルテ ${targetRows.length}件をスプレッドシートへ保存しました。`);
-      setMode('karte_menu');
-      setExistingKartes(current =>
-        Array.from(new Set([
-          ...current,
-          ...targetRows.map(item => String(item.karteNo)),
-        ])).sort((a, b) => Number(a) - Number(b))
-      );
-      if (rows.length === 0) {
-        await loadKarteNumberOptions();
-      }
-    } finally {
-      setIsSyncingUnsavedPhotoKartes(false);
       setIsSending(false);
     }
   };
@@ -2647,8 +2134,6 @@ const resetAllState = () => {
   setMarkers([]);
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
-  setOriginalPhotos(Array(4).fill(null));
-  setFirstOriginalPhotos(Array(4).fill(null));
   setCurrentPhotoMarks(createEmptyPhotoMarkSets());
   setFirstPhotoMarks(createEmptyPhotoMarkSets());
   setSourceImage(null);
@@ -2720,8 +2205,7 @@ const loadKarteNumberOptions = async () => {
       ? existingResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
       : [];
 
-    const unsaved = unsavedPhotoKartes.map(item => String(item.karteNo).trim()).filter(Boolean);
-    const blocked = Array.from(new Set([...unavailable, ...existing, ...unsaved]));
+    const blocked = Array.from(new Set([...unavailable, ...existing]));
 
     const available = buildAvailableNumbers(blocked);
 
@@ -3063,10 +2547,10 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 };
 
   const Nav = () => (
-    <div className="relative z-[100000] w-full mb-4 px-2 shrink-0">
+    <div className="w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
         <button onClick={goBack} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm">← 戻る</button>
-        <button onClick={() => { resetAllState(); setHistory([]); setMode('menu'); }} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
+        <button onClick={() => { resetAllState(); setHistory([]); setMode('menu'); }}className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
       </div>
       
       {/* 駅名と年度を表示するヘッダー */}
@@ -3089,7 +2573,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   // --- 送信中のくるくるアニメーション（全画面共通） ---
   const LoadingOverlay = () =>
   (isSending || isLoading || isMergingPdfs) ? (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[90000]">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
 
@@ -3110,7 +2594,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   ) : null;
 
 const LoadingSpinner = () => isLoading ? (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[90000]">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
     <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
       <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
       <p className="text-slate-900 font-bold text-lg">作成中...</p>
@@ -3187,11 +2671,6 @@ if (mode === 'route_select') return (
   // 1. メインメニュー画面
   if (mode === 'menu') return (
     <div className="flex flex-col items-center justify-start h-screen gap-6 bg-slate-50 text-black p-6" style={routePageStyle}>
-      <div className="fixed bottom-2 right-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
-        <span className="h-3 w-3 rounded-full border-2 border-slate-300 border-t-indigo-600 animate-spin"></span>
-        {APP_VERSION_LABEL}
-      </div>
-
       <div className="w-full max-w-md bg-white border border-indigo-100 rounded-2xl shadow-sm p-5 text-center">
         <div className="text-xs font-bold text-indigo-500 mb-1">選択中の路線</div>
         <div className="text-2xl font-black text-slate-900 text-center">
@@ -3227,13 +2706,7 @@ if (mode === 'route_select') return (
 
   // 2. 作成済みカルテの一覧選択画面
   // --- 画面表示 (edit_list部分) ---
-if (mode === 'edit_list') {
-  const displayedKartes = Array.from(new Set([
-    ...existingKartes.map(no => String(no)),
-    ...unsavedPhotoKartes.map(item => String(item.karteNo)),
-  ])).sort((a, b) => Number(a) - Number(b));
-
-  return (
+if (mode === 'edit_list') return (
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black" style={routePageStyle}>
 
     <LoadingSpinner />
@@ -3242,24 +2715,10 @@ if (mode === 'edit_list') {
 
     <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl">
       <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">修正するカルテを選択</h2>
-      <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-sm font-black text-amber-900">
-        未保存 {unsavedPhotoKarteCount}件 / あと{remainingUnsavedPhotoKarteCount}件作成できます
-        {unsavedPhotoKarteCount > 0 && (
-          <button
-            type="button"
-            onClick={() => syncUnsavedPhotoKartes()}
-            disabled={isSending}
-            className="mt-3 block w-full rounded-lg bg-amber-500 py-2 text-white disabled:bg-slate-300"
-          >
-            {isSending ? "保存中..." : "未保存分をスプレッドシートへ保存"}
-          </button>
-        )}
-      </div>
       
       <div className="grid grid-cols-3 gap-4">
-        {displayedKartes.map(no => {
+        {existingKartes.map(no => {
           const isComplete = isPhotoKarteComplete(no);
-          const isUnsaved = unsavedPhotoKarteNumbers.has(String(no));
 
           return (
             <button
@@ -3267,17 +2726,12 @@ if (mode === 'edit_list') {
               // ★ ここを loadKarteData に書き換え！
               onClick={() => loadKarteData(String(no))} 
               className={`p-4 border-2 rounded-xl font-bold shadow-sm active:scale-95 transition-all text-center ${
-                isUnsaved
-                  ? "bg-amber-400 border-amber-600 text-slate-950"
-                  : isComplete
+                isComplete
                   ? "bg-emerald-500 border-emerald-700 text-white"
                   : "bg-white border-blue-500 text-blue-700 active:bg-blue-500 active:text-white"
               }`}
             >
               <span className="block">No.{no}</span>
-              {isUnsaved && (
-                <span className="mt-1 block text-[11px] font-black">未保存</span>
-              )}
               {isComplete && (
                 <span className="mt-1 block text-[11px] font-black">完了済み</span>
               )}
@@ -3290,7 +2744,6 @@ if (mode === 'edit_list') {
     </div>
   </div>
 );
-}
 
   // ① 新規駅登録画面
 if (mode === 'new_entry') return (
@@ -3355,14 +2808,19 @@ if (mode === 'exist_select') return (
         既存駅を編集
       </h2>
 
-        <>
-          {isLoading && existingData.length === 0 && (
-            <div className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">
-              <span className="h-5 w-5 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin"></span>
-              駅データ読込中...
-            </div>
-          )}
+      {/* ★読み込み中 */}
+      {isLoading ? (
 
+        <div className="flex flex-col items-center py-12">
+          <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+          <div className="mt-4 text-sm text-slate-500">
+            駅データ読込中...
+          </div>
+        </div>
+
+      ) : (
+
+        <>
           {/* 駅名 */}
           <select
             value={stationName}
@@ -3424,6 +2882,8 @@ if (mode === 'exist_select') return (
             この駅を編集
           </button>
         </>
+
+      )}
 
     </div>
   </div>
@@ -3850,8 +3310,6 @@ const resetKarteFields = () => {
   // ★追加
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
-  setOriginalPhotos(Array(4).fill(null));
-  setFirstOriginalPhotos(Array(4).fill(null));
   setCurrentPhotoMarks(createEmptyPhotoMarkSets());
   setFirstPhotoMarks(createEmptyPhotoMarkSets());
   };
@@ -4608,7 +4066,6 @@ const sendSlopeTable = async () => {
   setIsSending(true);
 
   try {
-    await waitForNextPaint();
     const result = await gasApi("uploadSlopeTable", {
       spreadsheetId,
       stationNo,
@@ -4679,7 +4136,6 @@ const sendInclinationKarte = async () => {
   setIsSending(true);
 
   try {
-    await waitForNextPaint();
     const inclinationGroups = chunkSlopeRows(slopeRows);
     const rows = filledRows.map(row => {
       const { photo1, photo2, ...rowWithoutPhotos } = row;
@@ -4723,7 +4179,6 @@ const sendInclinationKarte = async () => {
       let uploadedPhotoCount = 0;
 
       for (const row of group) {
-        await waitForNextPaint();
         const firstPhotoFile = await toPhotoPayload(row.photo1, row.point, 'first');
         if (firstPhotoFile) {
           try {
@@ -5212,19 +4667,9 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
           next[drivePickerTarget.index] = displayImageDataUrl;
           return next;
         });
-        setFirstOriginalPhotos(current => {
-          const next = [...current];
-          next[drivePickerTarget.index] = displayImageDataUrl;
-          return next;
-        });
         setFirstPhotoMarks(prev => prev.map((marks, index) => index === drivePickerTarget.index ? [] : marks));
       } else if (drivePickerTarget.type === 'karteCurrent') {
         setPhotos(current => {
-          const next = [...current];
-          next[drivePickerTarget.index] = displayImageDataUrl;
-          return next;
-        });
-        setOriginalPhotos(current => {
           const next = [...current];
           next[drivePickerTarget.index] = displayImageDataUrl;
           return next;
@@ -5867,31 +5312,9 @@ if (mode === 'inclination_menu') {
         <Nav />
         <h2 className="text-2xl font-black mb-8">{isPhoto ? '写真カルテ' : '傾斜測定カルテ'}</h2>
         <div className="flex flex-col gap-6 w-full max-w-sm">
-          {isPhoto && (
-            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center font-black text-amber-900">
-              <div>スプレッドシート未保存 {unsavedPhotoKarteCount}件</div>
-              <div className="mt-1 text-sm">あと{remainingUnsavedPhotoKarteCount}件作成できます</div>
-              {unsavedPhotoKarteCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => syncUnsavedPhotoKartes()}
-                  disabled={isSending}
-                  className="mt-3 w-full rounded-xl bg-amber-500 py-3 text-white shadow-sm active:scale-95 disabled:bg-slate-300"
-                >
-                  {isSending ? "保存中..." : "未保存分をスプレッドシートへ保存"}
-                </button>
-              )}
-            </div>
-          )}
-
           {/* ① 新規作成ボタン */}
           <button 
             onClick={async () => {
-              if (unsavedPhotoKarteCount >= UNSAVED_PHOTO_KARTE_LIMIT) {
-                alert(`未保存カルテが${UNSAVED_PHOTO_KARTE_LIMIT}件あります。先にスプレッドシートへ保存してください。`);
-                return;
-              }
-
               resetKarteFields();
               setIsEditMode(false);
 
@@ -5994,9 +5417,6 @@ if (mode === 'inclination_menu') {
                   disabled={isEditMode}
                 >
                   {isEditMode && <option value={karteNo}>{karteNo}</option>}
-                  {!isEditMode && karteNo && !availableKarteNumbers.includes(karteNo) && (
-                    <option value={karteNo}>{karteNo}</option>
-                  )}
                   {!isEditMode && availableKarteNumbers.map(no => (
                     <option key={no} value={no}>{no}</option>
                   ))}
@@ -6315,20 +5735,27 @@ if (mode === 'inclination_menu') {
       {firstPhotos.slice(0,2).map((p, i) => {
         const index = i;
         const marks = firstPhotoMarks[index] || [];
-        const previewMarks = p && firstOriginalPhotos[index] && p !== firstOriginalPhotos[index] ? [] : marks;
 
         return (
           <div key={index} className="relative aspect-[4/3]">
-            <PhotoPreviewWithMarks
-              photo={p}
-              marks={previewMarks}
-              placeholder={`初回写真${index + 1}`}
-              borderClassName="border border-slate-300 bg-white"
-              placeholderClassName="text-slate-400"
-              renderMarks={renderPhotoMarkOverlay}
-              onPressStart={handlePressStart}
-              onPressEnd={handlePressEnd}
-            />
+            <div className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden">
+              {p ? (
+                <img
+                  src={p}
+                  className="w-full h-full object-cover"
+                  onMouseDown={() => handlePressStart(p)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                  onTouchStart={() => handlePressStart(p)}
+                  onTouchEnd={handlePressEnd}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-[10px] text-slate-400 font-bold">
+                  初回写真{index + 1}
+                </div>
+              )}
+            </div>
+            {renderPhotoMarkOverlay(marks)}
 
             <input
               id={`karte-first-photo-${index}`}
@@ -6374,7 +5801,6 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
-                  setFirstOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
                   setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 onClick={(e) => {
@@ -6383,7 +5809,6 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
-                  setFirstOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
                   setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
@@ -6405,20 +5830,27 @@ if (mode === 'inclination_menu') {
       {firstPhotos.slice(2,4).map((p, i) => {
         const index = i + 2;
         const marks = firstPhotoMarks[index] || [];
-        const previewMarks = p && firstOriginalPhotos[index] && p !== firstOriginalPhotos[index] ? [] : marks;
 
         return (
           <div key={index} className="relative aspect-[4/3]">
-            <PhotoPreviewWithMarks
-              photo={p}
-              marks={previewMarks}
-              placeholder={`初回写真${index + 1}`}
-              borderClassName="border border-slate-300 bg-white"
-              placeholderClassName="text-slate-400"
-              renderMarks={renderPhotoMarkOverlay}
-              onPressStart={handlePressStart}
-              onPressEnd={handlePressEnd}
-            />
+            <div className="w-full h-full bg-white rounded border border-slate-300 overflow-hidden">
+              {p ? (
+                <img
+                  src={p}
+                  className="w-full h-full object-cover"
+                  onMouseDown={() => handlePressStart(p)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                  onTouchStart={() => handlePressStart(p)}
+                  onTouchEnd={handlePressEnd}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-[10px] text-slate-400 font-bold">
+                  初回写真{index + 1}
+                </div>
+              )}
+            </div>
+            {renderPhotoMarkOverlay(marks)}
 
             <input
               id={`karte-first-photo-${index}`}
@@ -6464,7 +5896,6 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
-                  setFirstOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
                   setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 onClick={(e) => {
@@ -6473,7 +5904,6 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
-                  setFirstOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
                   setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
@@ -6611,21 +6041,30 @@ if (mode === 'inclination_menu') {
       {photos.slice(0,2).map((p, i) => {
         const index = i;
         const marks = currentPhotoMarks[index] || [];
-        const previewMarks = p && originalPhotos[index] && p !== originalPhotos[index] ? [] : marks;
 
         return (
           <div key={index} className="relative aspect-[4/3]">
 
-            <PhotoPreviewWithMarks
-              photo={p}
-              marks={previewMarks}
-              placeholder={`写真${index + 1}`}
-              borderClassName="border border-blue-200 bg-white"
-              placeholderClassName="text-blue-300"
-              renderMarks={renderPhotoMarkOverlay}
-              onPressStart={handlePressStart}
-              onPressEnd={handlePressEnd}
-            />
+            <div className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden">
+
+              {p ? (
+                <img
+                  src={p}
+                  className="w-full h-full object-cover"
+                  onMouseDown={() => handlePressStart(p)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                  onTouchStart={() => handlePressStart(p)}
+                  onTouchEnd={handlePressEnd}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-[10px] text-blue-300 font-bold">
+                  写真{index + 1}
+                </div>
+              )}
+
+            </div>
+            {renderPhotoMarkOverlay(marks)}
 
             <input
               id={`karte-photo-${index}`}
@@ -6671,7 +6110,6 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
-      setOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
       setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     onClick={(e) => {
@@ -6680,7 +6118,6 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
-      setOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
       setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
@@ -6703,21 +6140,30 @@ if (mode === 'inclination_menu') {
       {photos.slice(2,4).map((p, i) => {
         const index = i + 2;
         const marks = currentPhotoMarks[index] || [];
-        const previewMarks = p && originalPhotos[index] && p !== originalPhotos[index] ? [] : marks;
 
         return (
           <div key={index} className="relative aspect-[4/3]">
 
-            <PhotoPreviewWithMarks
-              photo={p}
-              marks={previewMarks}
-              placeholder={`写真${index + 1}`}
-              borderClassName="border border-blue-200 bg-white"
-              placeholderClassName="text-blue-300"
-              renderMarks={renderPhotoMarkOverlay}
-              onPressStart={handlePressStart}
-              onPressEnd={handlePressEnd}
-            />
+            <div className="w-full h-full bg-white rounded border border-blue-200 overflow-hidden">
+
+              {p ? (
+                <img
+                  src={p}
+                  className="w-full h-full object-cover"
+                  onMouseDown={() => handlePressStart(p)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                  onTouchStart={() => handlePressStart(p)}
+                  onTouchEnd={handlePressEnd}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-[10px] text-blue-300 font-bold">
+                  写真{index + 1}
+                </div>
+              )}
+
+            </div>
+            {renderPhotoMarkOverlay(marks)}
 
             <input
               id={`karte-photo-${index}`}
@@ -6763,7 +6209,6 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
-      setOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
       setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     onClick={(e) => {
@@ -6772,7 +6217,6 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
-      setOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
       setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
@@ -6845,22 +6289,15 @@ if (mode === 'inclination_menu') {
 
         {photoEditorTarget && (() => {
           const editorPhoto = photoEditorTarget.target === 'first'
-            ? firstOriginalPhotos[photoEditorTarget.index] || firstPhotos[photoEditorTarget.index]
-            : originalPhotos[photoEditorTarget.index] || photos[photoEditorTarget.index];
+            ? firstPhotos[photoEditorTarget.index]
+            : photos[photoEditorTarget.index];
           const editorMarks = getPhotoMarks(photoEditorTarget);
           const selectedMark = editingPhotoMark && editorMarks.find(mark => mark.id === editingPhotoMark.id);
 
           if (!editorPhoto) return null;
 
-          const getPhotoEditorImageRect = () => {
-            const rect = photoEditorImageRef.current?.parentElement?.getBoundingClientRect();
-            if (!rect) return null;
-
-            return rect;
-          };
-
           const getPhotoEditorPoint = (event: React.PointerEvent<Element>) => {
-            const rect = getPhotoEditorImageRect();
+            const rect = photoEditorImageRef.current?.getBoundingClientRect();
             if (!rect) return null;
 
             return {
@@ -7211,11 +6648,13 @@ if (mode === 'inclination_menu') {
               <div className="relative z-20 flex shrink-0 items-center gap-2 border-b border-white/15 bg-slate-900 p-2">
                 <button
                   type="button"
-                  onClick={savePhotoMarksAndClose}
-                  disabled={isLoading}
-                  className="rounded bg-emerald-600 px-3 py-2 text-sm font-bold disabled:bg-slate-500"
+                  onClick={() => {
+                    setPhotoEditorTarget(null);
+                    setEditingPhotoMark(null);
+                  }}
+                  className="rounded bg-white/10 px-3 py-2 text-sm font-bold"
                 >
-                  {isLoading ? "保存中..." : "マーカー保存"}
+                  閉じる
                 </button>
                 <div className="min-w-0 flex-1 text-center text-sm font-black">
                   {photoEditorTarget.target === 'first' ? '初回写真' : '今回写真'}{photoEditorTarget.index + 1}
@@ -7232,29 +6671,15 @@ if (mode === 'inclination_menu') {
                 </button>
               </div>
 
-              <div ref={photoEditorStageRef} className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
+              <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
                 <div
-                  className="relative touch-none leading-none"
-                  style={{
-                    width: photoEditorDisplaySize.width || undefined,
-                    height: photoEditorDisplaySize.height || undefined,
-                  }}
+                  className="relative max-h-full max-w-full touch-none"
                   onPointerDown={handleEditorCanvasTap}
                 >
                   <img
                     ref={photoEditorImageRef}
                     src={editorPhoto}
-                    className="block h-full w-full select-none object-fill"
-                    onLoad={event => {
-                      const image = event.currentTarget;
-                      if (image.naturalWidth && image.naturalHeight) {
-                        setPhotoEditorNaturalSize({
-                          width: image.naturalWidth,
-                          height: image.naturalHeight,
-                        });
-                        requestAnimationFrame(updatePhotoEditorDisplaySize);
-                      }
-                    }}
+                    className="max-h-full max-w-full select-none object-contain"
                     draggable={false}
                   />
                   <div className="pointer-events-none absolute inset-0">
@@ -7358,54 +6783,25 @@ if (mode === 'inclination_menu') {
         {/* --- 保存ボタン --- */}
         <div className="sticky bottom-0 z-40 flex w-full flex-col items-center gap-3 border-t border-slate-600 bg-slate-800 p-3">
           {isPhoto && (
-            <div className="w-full max-w-xl rounded-xl bg-white/10 px-4 py-2 text-center text-sm font-black text-amber-100">
-              スプレッドシート未保存 {unsavedPhotoKarteCount}件 / あと{remainingUnsavedPhotoKarteCount}件
-            </div>
-          )}
-          {isPhoto && (
-            <div className="grid w-full max-w-6xl grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={toggleCurrentPhotoKarteComplete}
-                className="min-h-14 rounded-xl bg-amber-400 px-2 py-3 text-sm font-black leading-tight text-slate-950 shadow-xl transition-all active:scale-95 sm:text-base"
-              >
-                {isPhotoKarteComplete(karteNo) ? "完了マーク解除" : "完了マーク"}
-              </button>
-              <button
-                type="button"
-                onClick={savePhotoKarteDraft}
-                disabled={isSending}
-                className="min-h-14 rounded-xl border-2 border-emerald-600 bg-white px-2 py-3 text-sm font-black leading-tight text-black shadow-xl transition-all active:scale-95 disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-400 sm:text-base"
-              >
-                {isSending ? "保存中..." : "この内容を一時保存"}
-              </button>
-              <button
-                type="button"
-                onClick={() => syncUnsavedPhotoKartes()}
-                disabled={isSending || unsavedPhotoKarteCount === 0}
-                className="min-h-14 rounded-xl bg-emerald-600 px-2 py-3 text-sm font-black leading-tight text-white shadow-xl transition-all active:scale-95 disabled:bg-slate-400 sm:text-base"
-              >
-                {isSending ? "保存中..." : "未保存分をスプレッドシートへ保存"}
-              </button>
-              <button
-                type="button"
-                onClick={() => sendGenericKarte("uploadKarte")}
-                disabled={isSending}
-                className="min-h-14 rounded-xl bg-blue-600 px-2 py-3 text-sm font-black leading-tight text-white shadow-xl transition-all active:scale-95 disabled:bg-slate-400 sm:text-base"
-              >
-                {isSending ? "送信中..." : "この内容でスプレッドシートを更新"}
-              </button>
-            </div>
-          )}
-          {!isPhoto && (
             <button
-              onClick={() => sendGenericKarte("uploadInclination")}
-              disabled={isSending}
-              className="w-full max-w-xl py-3 bg-blue-600 text-white rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+              type="button"
+              onClick={toggleCurrentPhotoKarteComplete}
+              className={`w-full max-w-xl py-3 rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all ${
+                isPhotoKarteComplete(karteNo)
+                  ? "bg-emerald-500 text-white"
+                  : "bg-amber-400 text-slate-950"
+              }`}
             >
-              {isSending ? "データを送信中..." : "この内容でスプレッドシートを更新"}
+              {isPhotoKarteComplete(karteNo) ? "完了マーク解除" : "完了マーク"}
             </button>
           )}
+          <button 
+            onClick={() => sendGenericKarte(isPhoto ? "uploadKarte" : "uploadInclination")} 
+            disabled={isSending}
+            className="w-full max-w-xl py-3 bg-blue-600 text-white rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            {isSending ? "データを送信中..." : "この内容でスプレッドシートを更新"}
+          </button>
         </div>
       </div>
     );
