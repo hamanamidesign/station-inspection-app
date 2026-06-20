@@ -940,6 +940,8 @@ useEffect(() => {
   const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
+  const [originalPhotos, setOriginalPhotos] = useState<(string | null)[]>(Array(4).fill(null));
+  const [firstOriginalPhotos, setFirstOriginalPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ cover: [], photo: [], photoPositionMap: [], slope: [], inclination: [], inspectionReport: [] });
   const [selectedPdfSheets, setSelectedPdfSheets] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
@@ -1544,6 +1546,8 @@ const isPhotoKarteComplete = (no: string | number) =>
   setMarkers([]); 
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
+  setOriginalPhotos(Array(4).fill(null));
+  setFirstOriginalPhotos(Array(4).fill(null));
   setCurrentPhotoMarks(createEmptyPhotoMarkSets());
   setFirstPhotoMarks(createEmptyPhotoMarkSets());
   setSlopeRows(createEmptySlopeRows());
@@ -1700,6 +1704,11 @@ const handleCreateNewSheet = async () => {
     const newPhotos = [...photos];
     newPhotos[index] = compressed;
     setPhotos(newPhotos);
+    setOriginalPhotos(current => {
+      const next = [...current];
+      next[index] = compressed;
+      return next;
+    });
     setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
   } catch (error) {
     alert(
@@ -1720,6 +1729,11 @@ const handleCreateNewSheet = async () => {
     const newPhotos = [...firstPhotos];
     newPhotos[index] = compressed;
     setFirstPhotos(newPhotos);
+    setFirstOriginalPhotos(current => {
+      const next = [...current];
+      next[index] = compressed;
+      return next;
+    });
     setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
   } catch (error) {
     alert(
@@ -2102,20 +2116,43 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
   setRemarks2(getRecordText(d, ['remarks2', 'currentSituation', 'latestSituation', 'situation']));
   setRemarks3(getRecordText(d, ['remarks3', 'currentDetail', 'latestDetail', 'detail']));
 
-  setPhotos(normalizePhotoArray(
+  const loadedPhotos = normalizePhotoArray(
     d,
     ['photos', 'photoUrls', 'currentPhotos', 'currentPhotoUrls', 'latestPhotos', 'latestPhotoUrls', 'photoFiles'],
     ['photo', 'currentPhoto', 'latestPhoto']
-  ));
-  setFirstPhotos(normalizePhotoArray(
+  );
+  const loadedFirstPhotos = normalizePhotoArray(
     d,
     ['firstPhotos', 'firstPhotoUrls', 'initialPhotos', 'initialPhotoUrls', 'firstPhotoFiles'],
     ['firstPhoto', 'initialPhoto']
-  ));
+  );
+  const loadedOriginalPhotos = normalizePhotoArray(
+    d,
+    ['originalPhotos', 'currentOriginalPhotos'],
+    ['originalPhoto', 'currentOriginalPhoto']
+  );
+  const loadedFirstOriginalPhotos = normalizePhotoArray(
+    d,
+    ['firstOriginalPhotos', 'initialOriginalPhotos'],
+    ['firstOriginalPhoto', 'initialOriginalPhoto']
+  );
   const photoSources = Array.isArray(d.photoSources) ? d.photoSources.map(value => String(value || '')) : null;
   const firstPhotoSources = Array.isArray(d.firstPhotoSources) ? d.firstPhotoSources.map(value => String(value || '')) : null;
   const loadedPhotoMarks = normalizePhotoMarks(d.photoMarks);
   const loadedFirstPhotoMarks = normalizePhotoMarks(d.firstPhotoMarks);
+
+  setPhotos(loadedPhotos);
+  setFirstPhotos(loadedFirstPhotos);
+  setOriginalPhotos(
+    loadedOriginalPhotos.some(Boolean)
+      ? loadedOriginalPhotos
+      : loadedPhotos.map((photo, index) => !photoSources || photoSources[index] === 'original' ? photo : null)
+  );
+  setFirstOriginalPhotos(
+    loadedFirstOriginalPhotos.some(Boolean)
+      ? loadedFirstOriginalPhotos
+      : loadedFirstPhotos.map((photo, index) => !firstPhotoSources || firstPhotoSources[index] === 'original' ? photo : null)
+  );
 
   setCurrentPhotoMarks(
     photoSources
@@ -2202,7 +2239,8 @@ const result = await gasApi("getKarteData", {
 
       const marks = currentPhotoMarks[index] || [];
       const resized = await renderPhotoForSave(p, marks);
-      const original = marks.length ? await resizeImage(p) : "";
+      const sourceOriginal = originalPhotos[index] || p;
+      const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
 
       return {
         no: index + 1,
@@ -2230,7 +2268,8 @@ const firstPhotoDataList = await Promise.all(
 
       const marks = firstPhotoMarks[index] || [];
       const resized = await renderPhotoForSave(p, marks);
-      const original = marks.length ? await resizeImage(p) : "";
+      const sourceOriginal = firstOriginalPhotos[index] || p;
+      const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
 
       return {
         no: index + 1,
@@ -2345,7 +2384,11 @@ const firstPhotoDataList = await Promise.all(
         karteNo: String(karteNo),
         stationName,
         year: selectedYear,
-        payload,
+        payload: {
+          ...payload,
+          originalPhotos,
+          firstOriginalPhotos,
+        },
         savedAt: new Date().toISOString(),
       });
 
@@ -2387,7 +2430,12 @@ const firstPhotoDataList = await Promise.all(
     try {
       for (const item of targetRows) {
         try {
-          const result = await gasApi("uploadKarte", item.payload);
+          const {
+            originalPhotos: _originalPhotos,
+            firstOriginalPhotos: _firstOriginalPhotos,
+            ...uploadPayload
+          } = item.payload;
+          const result = await gasApi("uploadKarte", uploadPayload);
           if (result.success) {
             await deleteUnsavedPhotoKarteFromDb(item.id);
           } else {
@@ -2440,6 +2488,8 @@ const resetAllState = () => {
   setMarkers([]);
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
+  setOriginalPhotos(Array(4).fill(null));
+  setFirstOriginalPhotos(Array(4).fill(null));
   setCurrentPhotoMarks(createEmptyPhotoMarkSets());
   setFirstPhotoMarks(createEmptyPhotoMarkSets());
   setSourceImage(null);
@@ -3653,6 +3703,8 @@ const resetKarteFields = () => {
   // ★追加
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
+  setOriginalPhotos(Array(4).fill(null));
+  setFirstOriginalPhotos(Array(4).fill(null));
   setCurrentPhotoMarks(createEmptyPhotoMarkSets());
   setFirstPhotoMarks(createEmptyPhotoMarkSets());
   };
@@ -5010,9 +5062,19 @@ const getSlopeRangeLabel = (rows: SlopeTableRow[]) =>
           next[drivePickerTarget.index] = displayImageDataUrl;
           return next;
         });
+        setFirstOriginalPhotos(current => {
+          const next = [...current];
+          next[drivePickerTarget.index] = displayImageDataUrl;
+          return next;
+        });
         setFirstPhotoMarks(prev => prev.map((marks, index) => index === drivePickerTarget.index ? [] : marks));
       } else if (drivePickerTarget.type === 'karteCurrent') {
         setPhotos(current => {
+          const next = [...current];
+          next[drivePickerTarget.index] = displayImageDataUrl;
+          return next;
+        });
+        setOriginalPhotos(current => {
           const next = [...current];
           next[drivePickerTarget.index] = displayImageDataUrl;
           return next;
@@ -6162,6 +6224,7 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
+                  setFirstOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
                   setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 onClick={(e) => {
@@ -6170,6 +6233,7 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
+                  setFirstOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
                   setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
@@ -6249,6 +6313,7 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
+                  setFirstOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
                   setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 onClick={(e) => {
@@ -6257,6 +6322,7 @@ if (mode === 'inclination_menu') {
                   const n = [...firstPhotos];
                   n[index] = null;
                   setFirstPhotos(n);
+                  setFirstOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
                   setFirstPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
                 }}
                 className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
@@ -6453,6 +6519,7 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
+      setOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
       setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     onClick={(e) => {
@@ -6461,6 +6528,7 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
+      setOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
       setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
@@ -6542,6 +6610,7 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
+      setOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
       setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     onClick={(e) => {
@@ -6550,6 +6619,7 @@ if (mode === 'inclination_menu') {
       const n = [...photos];
       n[index] = null;
       setPhotos(n);
+      setOriginalPhotos(current => current.map((photo, markIndex) => markIndex === index ? null : photo));
       setCurrentPhotoMarks(prev => prev.map((marks, markIndex) => markIndex === index ? [] : marks));
     }}
     className="absolute top-1 right-1 z-30 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg border border-white"
