@@ -38,3 +38,45 @@ body {
 .marker-active {
   touch-action: none !important;
 }
+
+@keyframes station-check-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes station-check-pulse-dot {
+  0%, 80%, 100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.station-check-spinner {
+  animation: station-check-spin 0.8s linear infinite;
+  backface-visibility: hidden;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.station-check-loading-dot {
+  animation: station-check-pulse-dot 1s ease-in-out infinite;
+  display: inline-block;
+}
+
+.station-check-loading-dot:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.station-check-loading-dot:nth-child(3) {
+  animation-delay: 0.24s;
+}

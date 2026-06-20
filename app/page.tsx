@@ -3100,10 +3100,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   (isSending || isLoading || isMergingPdfs || isSyncingUnsavedPhotoKartes) ? (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
-        <div
-          className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"
-          style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-        ></div>
+        <div className="station-check-spinner mb-4 h-12 w-12 rounded-full border-4 border-indigo-600 border-t-transparent" />
 
         <p className="text-slate-900 font-bold text-lg">
           {isSyncingUnsavedPhotoKartes
@@ -3117,6 +3114,11 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 
         <p className="text-slate-500 text-sm">
           そのままお待ちください
+          <span className="ml-1 inline-flex gap-0.5">
+            <span className="station-check-loading-dot">.</span>
+            <span className="station-check-loading-dot">.</span>
+            <span className="station-check-loading-dot">.</span>
+          </span>
         </p>
 
       </div>
@@ -3126,12 +3128,16 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 const LoadingSpinner = () => isLoading ? (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
     <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
-      <div
-        className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"
-        style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-      ></div>
+      <div className="station-check-spinner mb-4 h-12 w-12 rounded-full border-4 border-indigo-600 border-t-transparent" />
       <p className="text-slate-900 font-bold text-lg">作成中...</p>
-      <p className="text-slate-500 text-sm">そのままお待ちください</p>
+      <p className="text-slate-500 text-sm">
+        そのままお待ちください
+        <span className="ml-1 inline-flex gap-0.5">
+          <span className="station-check-loading-dot">.</span>
+          <span className="station-check-loading-dot">.</span>
+          <span className="station-check-loading-dot">.</span>
+        </span>
+      </p>
     </div>
   </div>
 ) : null;
