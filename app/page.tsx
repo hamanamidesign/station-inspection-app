@@ -183,6 +183,7 @@ const PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY = "station-check:photo-drive-last-fold
 const UNSAVED_PHOTO_KARTE_LIMIT = 10;
 const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
 const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
+const APP_VERSION_LABEL = "front-check-20260620-1";
 
 const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -3147,6 +3148,10 @@ if (mode === 'route_select') return (
   // 1. メインメニュー画面
   if (mode === 'menu') return (
     <div className="flex flex-col items-center justify-start h-screen gap-6 bg-slate-50 text-black p-6" style={routePageStyle}>
+      <div className="fixed bottom-2 right-2 text-[10px] font-bold text-slate-400">
+        {APP_VERSION_LABEL}
+      </div>
+
       <div className="w-full max-w-md bg-white border border-indigo-100 rounded-2xl shadow-sm p-5 text-center">
         <div className="text-xs font-bold text-indigo-500 mb-1">選択中の路線</div>
         <div className="text-2xl font-black text-slate-900 text-center">
