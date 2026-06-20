@@ -183,7 +183,7 @@ const PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY = "station-check:photo-drive-last-fold
 const UNSAVED_PHOTO_KARTE_LIMIT = 10;
 const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
 const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
-const APP_VERSION_LABEL = "front-check-20260620-3";
+const APP_VERSION_LABEL = "front-check-20260620-4";
 
 const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -1258,10 +1258,6 @@ const loadRoutes = useCallback(async () => {
     }
   }
 
-  if (cachedList.length === 0) {
-    setIsLoading(true);
-  }
-
   try {
     const result = await gasApi("getExistingData", {
       routeFolderId,
@@ -2048,7 +2044,7 @@ const handleCreateNewSheet = async () => {
     if (!marks.length) return base;
 
     const img = await loadImageElement(photo);
-    const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 2500000);
+    const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 1400000);
     const canvas = document.createElement('canvas');
     canvas.width = outputSize.width;
     canvas.height = outputSize.height;
@@ -2058,7 +2054,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimitAsync(canvas, 1800000, 0.86);
   };
 
   const renderPhotoForEditorPreview = async (photo: string, marks: PhotoMark[]) => {
@@ -2067,7 +2063,7 @@ const handleCreateNewSheet = async () => {
     const img = await loadImageElement(photo);
     const displayWidth = Math.max(1, Math.round(photoEditorDisplaySize.width || img.naturalWidth));
     const displayHeight = Math.max(1, Math.round(photoEditorDisplaySize.height || img.naturalHeight));
-    const outputSize = getScaledImageSize(displayWidth, displayHeight, 2500000);
+    const outputSize = getScaledImageSize(displayWidth, displayHeight, 1400000);
 
     const canvas = document.createElement('canvas');
     canvas.width = outputSize.width;
@@ -2078,7 +2074,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimitAsync(canvas, 1800000, 0.86);
   };
 
   const getPhotoMarks = (target: PhotoEditorTarget) =>
@@ -2391,40 +2387,39 @@ const result = await gasApi("getKarteData", {
         setInspector(payloadInspector);
       }
 
-      // 画像のリサイズ処理
-      const photoDataList = await Promise.all(
-  photos.map(async (p, index) => {
-    if (p && p.startsWith("data:image")) {
+      // iPad Safariで固まらないよう、写真は同時処理せず1枚ずつ変換する。
+      const photoDataList = [];
+      for (const [index, p] of photos.entries()) {
+        await waitForNextPaint();
+        if (p && p.startsWith("data:image")) {
 
-      const marks = currentPhotoMarks[index] || [];
-      const sourceOriginal = originalPhotos[index] || p;
-      const hasSavedMarkerPreview = marks.length > 0 && originalPhotos[index] && p !== originalPhotos[index];
-      const resized = hasSavedMarkerPreview
-        ? await resizeImage(p)
-        : await renderPhotoForSave(sourceOriginal, marks);
-      const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
+          const marks = currentPhotoMarks[index] || [];
+          const sourceOriginal = originalPhotos[index] || p;
+          const hasSavedMarkerPreview = marks.length > 0 && originalPhotos[index] && p !== originalPhotos[index];
+          const resized = hasSavedMarkerPreview
+            ? await resizeImage(p)
+            : await renderPhotoForSave(sourceOriginal, marks);
+          const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
 
-      return {
-        no: index + 1,
-        fileName: `${index + 1}.jpg`,
-        base64: resized.includes(',')
-          ? resized.split(',')[1]
-          : resized,
-        originalBase64: original
-          ? original.includes(',') ? original.split(',')[1] : original
-          : ""
-      };
+          photoDataList.push({
+            no: index + 1,
+            fileName: `${index + 1}.jpg`,
+            base64: resized.includes(',')
+              ? resized.split(',')[1]
+              : resized,
+            originalBase64: original
+              ? original.includes(',') ? original.split(',')[1] : original
+              : ""
+          });
 
-    }
-
-    return null;
-  })
-);
+        }
+      }
 
       const validPhotos = photoDataList.filter(Boolean);
 
-const firstPhotoDataList = await Promise.all(
-  firstPhotos.map(async (p, index) => {
+const firstPhotoDataList = [];
+for (const [index, p] of firstPhotos.entries()) {
+  await waitForNextPaint();
 
     if (p && p.startsWith("data:image")) {
 
@@ -2436,7 +2431,7 @@ const firstPhotoDataList = await Promise.all(
         : await renderPhotoForSave(sourceOriginal, marks);
       const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
 
-      return {
+      firstPhotoDataList.push({
         no: index + 1,
         fileName: `初回点検_${index + 1}.jpg`,
         base64: resized.includes(',')
@@ -2445,14 +2440,10 @@ const firstPhotoDataList = await Promise.all(
         originalBase64: original
           ? original.includes(',') ? original.split(',')[1] : original
           : ""
-      };
+      });
 
     }
-
-    return null;
-
-  })
-);
+}
 
       const validFirstPhotos = firstPhotoDataList.filter(Boolean);
 
@@ -3364,19 +3355,14 @@ if (mode === 'exist_select') return (
         既存駅を編集
       </h2>
 
-      {/* ★読み込み中 */}
-      {isLoading ? (
-
-        <div className="flex flex-col items-center py-12">
-          <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
-          <div className="mt-4 text-sm text-slate-500">
-            駅データ読込中...
-          </div>
-        </div>
-
-      ) : (
-
         <>
+          {isLoading && existingData.length === 0 && (
+            <div className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">
+              <span className="h-5 w-5 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin"></span>
+              駅データ読込中...
+            </div>
+          )}
+
           {/* 駅名 */}
           <select
             value={stationName}
@@ -3438,8 +3424,6 @@ if (mode === 'exist_select') return (
             この駅を編集
           </button>
         </>
-
-      )}
 
     </div>
   </div>
@@ -4624,6 +4608,7 @@ const sendSlopeTable = async () => {
   setIsSending(true);
 
   try {
+    await waitForNextPaint();
     const result = await gasApi("uploadSlopeTable", {
       spreadsheetId,
       stationNo,
@@ -4694,6 +4679,7 @@ const sendInclinationKarte = async () => {
   setIsSending(true);
 
   try {
+    await waitForNextPaint();
     const inclinationGroups = chunkSlopeRows(slopeRows);
     const rows = filledRows.map(row => {
       const { photo1, photo2, ...rowWithoutPhotos } = row;
@@ -4737,6 +4723,7 @@ const sendInclinationKarte = async () => {
       let uploadedPhotoCount = 0;
 
       for (const row of group) {
+        await waitForNextPaint();
         const firstPhotoFile = await toPhotoPayload(row.photo1, row.point, 'first');
         if (firstPhotoFile) {
           try {
