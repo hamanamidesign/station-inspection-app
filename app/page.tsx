@@ -2233,6 +2233,7 @@ const firstPhotoDataList = await Promise.all(
             await deleteUnsavedPhotoKarteFromDb(draftId);
             await refreshUnsavedPhotoKartes();
           }
+          setMode('karte_menu');
         }
       } else {
         alert("保存に失敗しました: " + (result.error || "不明なエラー"));
@@ -2327,6 +2328,7 @@ const firstPhotoDataList = await Promise.all(
       }
 
       alert(`未保存カルテ ${targetRows.length}件をスプレッドシートへ保存しました。`);
+      setMode('karte_menu');
       setExistingKartes(current =>
         Array.from(new Set([
           ...current,
