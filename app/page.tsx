@@ -2433,7 +2433,11 @@ const loadKarteNumberOptions = async () => {
       ? existingResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
       : [];
 
-    const blocked = Array.from(new Set([...unavailable, ...existing]));
+    const unsaved = unsavedPhotoKartes
+      .map(item => String(item.karteNo).trim())
+      .filter(Boolean);
+
+    const blocked = Array.from(new Set([...unavailable, ...existing, ...unsaved]));
 
     const available = buildAvailableNumbers(blocked);
 

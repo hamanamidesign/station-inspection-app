@@ -1310,9 +1310,11 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
   const hasPhotoFiles =
     (data.photoFiles && data.photoFiles.length > 0) ||
     (data.firstPhotoFiles && data.firstPhotoFiles.length > 0);
+  const shouldPreparePhotoFolder =
+    templateName === "写真カルテ_マスタ" || hasPhotoFiles;
   let karteSubFolder = null;
 
-  if (hasPhotoFiles) {
+  if (shouldPreparePhotoFolder) {
 
     const photoFolderId = getPhotoFolderId(
     data.station,
