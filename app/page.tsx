@@ -183,7 +183,7 @@ const PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY = "station-check:photo-drive-last-fold
 const UNSAVED_PHOTO_KARTE_LIMIT = 10;
 const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
 const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
-const APP_VERSION_LABEL = "front-check-20260620-2";
+const APP_VERSION_LABEL = "front-check-20260620-3";
 
 const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -392,6 +392,26 @@ const getScaledImageSize = (width: number, height: number, maxPixels: number) =>
   };
 };
 
+const waitForNextPaint = () =>
+  new Promise<void>(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+
+const canvasToJpegDataUrl = (canvas: HTMLCanvasElement, quality: number) =>
+  new Promise<string>((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (!blob) {
+        reject(new Error("写真データを作成できませんでした"));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("写真データの読み込みに失敗しました"));
+      reader.readAsDataURL(blob);
+    }, "image/jpeg", quality);
+  });
+
 const getCanvasDataUrlUnderLimit = (
   canvas: HTMLCanvasElement,
   maxBase64Length: number,
@@ -403,6 +423,24 @@ const getCanvasDataUrlUnderLimit = (
   while (dataUrl.length > maxBase64Length && quality > 0.42) {
     quality -= 0.08;
     dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+
+  return dataUrl;
+};
+
+const getCanvasDataUrlUnderLimitAsync = async (
+  canvas: HTMLCanvasElement,
+  maxBase64Length: number,
+  initialQuality = 0.82
+) => {
+  let quality = initialQuality;
+  await waitForNextPaint();
+  let dataUrl = await canvasToJpegDataUrl(canvas, quality);
+
+  while (dataUrl.length > maxBase64Length && quality > 0.42) {
+    quality -= 0.08;
+    await waitForNextPaint();
+    dataUrl = await canvasToJpegDataUrl(canvas, quality);
   }
 
   return dataUrl;
@@ -1904,7 +1942,8 @@ const handleCreateNewSheet = async () => {
 
     const img = new Image();
 
-    img.onload = () => {
+    img.onload = async () => {
+      try {
 
       let width = img.width;
       let height = img.height;
@@ -1932,14 +1971,19 @@ const handleCreateNewSheet = async () => {
       ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       let quality = 0.6;
-      let result = canvas.toDataURL("image/jpeg", quality);
+      await waitForNextPaint();
+      let result = await canvasToJpegDataUrl(canvas, quality);
 
       while (result.length > maxBytes && quality > minQuality) {
         quality -= 0.05;
-        result = canvas.toDataURL("image/jpeg", quality);
+        await waitForNextPaint();
+        result = await canvasToJpegDataUrl(canvas, quality);
       }
 
       resolve(result);
+      } catch (error) {
+        reject(error);
+      }
     };
 
     img.onerror = () => {
@@ -2014,7 +2058,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
   };
 
   const renderPhotoForEditorPreview = async (photo: string, marks: PhotoMark[]) => {
@@ -2034,7 +2078,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
   };
 
   const getPhotoMarks = (target: PhotoEditorTarget) =>
@@ -2120,6 +2164,7 @@ const handleCreateNewSheet = async () => {
     setIsLoading(true);
 
     try {
+      await waitForNextPaint();
       const marks = getPhotoMarks(photoEditorTarget);
       const previewPhoto = marks.length
         ? await renderPhotoForEditorPreview(sourcePhoto, marks)
@@ -2457,6 +2502,7 @@ const firstPhotoDataList = await Promise.all(
     setIsSending(true);
 
     try {
+      await waitForNextPaint();
       const payload = await buildKartePayload(actionType);
       const result = await gasApi(actionType, payload);
       
@@ -2497,6 +2543,7 @@ const firstPhotoDataList = await Promise.all(
     setIsSending(true);
 
     try {
+      await waitForNextPaint();
       const payload = await buildKartePayload("uploadKarte");
       await saveUnsavedPhotoKarteToDb({
         id: draftId,
@@ -2548,6 +2595,7 @@ const firstPhotoDataList = await Promise.all(
     const failed: string[] = [];
 
     try {
+      await waitForNextPaint();
       for (const item of targetRows) {
         try {
           const {
@@ -3024,7 +3072,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 };
 
   const Nav = () => (
-    <div className="w-full mb-4 px-2 shrink-0">
+    <div className="relative z-[100000] w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
         <button onClick={goBack} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm">← 戻る</button>
         <button onClick={() => { resetAllState(); setHistory([]); setMode('menu'); }} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
@@ -3050,7 +3098,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   // --- 送信中のくるくるアニメーション（全画面共通） ---
   const LoadingOverlay = () =>
   (isSending || isLoading || isMergingPdfs) ? (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[90000]">
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
 
@@ -3071,7 +3119,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   ) : null;
 
 const LoadingSpinner = () => isLoading ? (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[90000]">
     <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
       <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
       <p className="text-slate-900 font-bold text-lg">作成中...</p>
