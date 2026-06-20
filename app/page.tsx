@@ -2282,8 +2282,11 @@ const firstPhotoDataList = await Promise.all(
           await syncUnsavedPhotoKartes(rows);
           return;
         }
+
+        setMode('karte_menu');
       } else {
         alert(`No.${karteNo} を一時保存しました。未保存 ${rows.length}件 / あと${UNSAVED_PHOTO_KARTE_LIMIT - rows.length}件作成できます。`);
+        setMode('karte_menu');
       }
     } catch (e) {
       console.error(e);
@@ -7062,7 +7065,7 @@ if (mode === 'inclination_menu') {
             </div>
           )}
           {isPhoto && (
-            <div className="grid w-full max-w-5xl grid-cols-3 gap-2">
+            <div className="grid w-full max-w-6xl grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={toggleCurrentPhotoKarteComplete}
@@ -7080,6 +7083,14 @@ if (mode === 'inclination_menu') {
               </button>
               <button
                 type="button"
+                onClick={() => syncUnsavedPhotoKartes()}
+                disabled={isSending || unsavedPhotoKarteCount === 0}
+                className="min-h-14 rounded-xl bg-emerald-600 px-2 py-3 text-sm font-black leading-tight text-white shadow-xl transition-all active:scale-95 disabled:bg-slate-400 sm:text-base"
+              >
+                {isSending ? "保存中..." : "未保存分をスプレッドシートへ保存"}
+              </button>
+              <button
+                type="button"
                 onClick={() => sendGenericKarte("uploadKarte")}
                 disabled={isSending}
                 className="min-h-14 rounded-xl bg-blue-600 px-2 py-3 text-sm font-black leading-tight text-white shadow-xl transition-all active:scale-95 disabled:bg-slate-400 sm:text-base"
@@ -7087,16 +7098,6 @@ if (mode === 'inclination_menu') {
                 {isSending ? "送信中..." : "この内容でスプレッドシートを更新"}
               </button>
             </div>
-          )}
-          {isPhoto && unsavedPhotoKarteCount > 0 && (
-            <button
-              type="button"
-              onClick={() => syncUnsavedPhotoKartes()}
-              disabled={isSending}
-              className="w-full max-w-xl py-3 bg-emerald-600 text-white rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all disabled:bg-slate-400"
-            >
-              {isSending ? "保存中..." : "未保存分をスプレッドシートへ保存"}
-            </button>
           )}
           {!isPhoto && (
             <button
