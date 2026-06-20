@@ -183,7 +183,7 @@ const PHOTO_DRIVE_LAST_FOLDER_STORAGE_KEY = "station-check:photo-drive-last-fold
 const UNSAVED_PHOTO_KARTE_LIMIT = 10;
 const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
 const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
-const APP_VERSION_LABEL = "front-check-20260620-1";
+const APP_VERSION_LABEL = "front-check-20260620-2";
 
 const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -3148,7 +3148,8 @@ if (mode === 'route_select') return (
   // 1. メインメニュー画面
   if (mode === 'menu') return (
     <div className="flex flex-col items-center justify-start h-screen gap-6 bg-slate-50 text-black p-6" style={routePageStyle}>
-      <div className="fixed bottom-2 right-2 text-[10px] font-bold text-slate-400">
+      <div className="fixed bottom-2 right-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
+        <span className="h-3 w-3 rounded-full border-2 border-slate-300 border-t-indigo-600 animate-spin"></span>
         {APP_VERSION_LABEL}
       </div>
 
