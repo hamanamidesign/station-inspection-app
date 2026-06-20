@@ -5742,7 +5742,7 @@ if (mode === 'inclination_menu') {
               {p ? (
                 <img
                   src={p}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   onMouseDown={() => handlePressStart(p)}
                   onMouseUp={handlePressEnd}
                   onMouseLeave={handlePressEnd}
@@ -5837,7 +5837,7 @@ if (mode === 'inclination_menu') {
               {p ? (
                 <img
                   src={p}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   onMouseDown={() => handlePressStart(p)}
                   onMouseUp={handlePressEnd}
                   onMouseLeave={handlePressEnd}
@@ -6050,7 +6050,7 @@ if (mode === 'inclination_menu') {
               {p ? (
                 <img
                   src={p}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   onMouseDown={() => handlePressStart(p)}
                   onMouseUp={handlePressEnd}
                   onMouseLeave={handlePressEnd}
@@ -6149,7 +6149,7 @@ if (mode === 'inclination_menu') {
               {p ? (
                 <img
                   src={p}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   onMouseDown={() => handlePressStart(p)}
                   onMouseUp={handlePressEnd}
                   onMouseLeave={handlePressEnd}
@@ -6673,13 +6673,13 @@ if (mode === 'inclination_menu') {
 
               <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
                 <div
-                  className="relative max-h-full max-w-full touch-none"
+                  className="relative touch-none"
                   onPointerDown={handleEditorCanvasTap}
                 >
                   <img
                     ref={photoEditorImageRef}
                     src={editorPhoto}
-                    className="max-h-full max-w-full select-none object-contain"
+                    className="block max-h-[calc(100vh-284px)] max-w-[calc(100vw-16px)] select-none object-contain"
                     draggable={false}
                   />
                   <div className="pointer-events-none absolute inset-0">
