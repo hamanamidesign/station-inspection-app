@@ -898,6 +898,9 @@ useEffect(() => {
   const imageRef = useRef<HTMLImageElement>(null);
   const mapStageRef = useRef<HTMLDivElement>(null);
   const photoEditorImageRef = useRef<HTMLImageElement>(null);
+  const photoEditorStageRef = useRef<HTMLDivElement>(null);
+  const [photoEditorNaturalSize, setPhotoEditorNaturalSize] = useState({ width: 0, height: 0 });
+  const [photoEditorDisplaySize, setPhotoEditorDisplaySize] = useState({ width: 0, height: 0 });
   const [firstPhotoMarks, setFirstPhotoMarks] = useState<PhotoMark[][]>(() => createEmptyPhotoMarkSets());
   const [currentPhotoMarks, setCurrentPhotoMarks] = useState<PhotoMark[][]>(() => createEmptyPhotoMarkSets());
   const [photoEditorTarget, setPhotoEditorTarget] = useState<PhotoEditorTarget | null>(null);
@@ -1007,6 +1010,64 @@ useEffect(() => {
     window.removeEventListener('resize', updateMapDisplaySize);
   };
 }, [finalImage, updateMapDisplaySize]);
+
+const updatePhotoEditorDisplaySize = useCallback(() => {
+  const stage = photoEditorStageRef.current;
+  const naturalWidth = photoEditorNaturalSize.width;
+  const naturalHeight = photoEditorNaturalSize.height;
+
+  if (!stage || !naturalWidth || !naturalHeight) {
+    setPhotoEditorDisplaySize({ width: 0, height: 0 });
+    return;
+  }
+
+  const rect = stage.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const style = window.getComputedStyle(stage);
+  const horizontalPadding =
+    (Number.parseFloat(style.paddingLeft) || 0) +
+    (Number.parseFloat(style.paddingRight) || 0);
+  const verticalPadding =
+    (Number.parseFloat(style.paddingTop) || 0) +
+    (Number.parseFloat(style.paddingBottom) || 0);
+  const availableWidth = Math.max(1, rect.width - horizontalPadding);
+  const availableHeight = Math.max(1, rect.height - verticalPadding);
+  const scale = Math.min(availableWidth / naturalWidth, availableHeight / naturalHeight);
+  const nextWidth = Math.max(1, Math.round(naturalWidth * scale));
+  const nextHeight = Math.max(1, Math.round(naturalHeight * scale));
+
+  setPhotoEditorDisplaySize(prev =>
+    prev.width === nextWidth && prev.height === nextHeight
+      ? prev
+      : { width: nextWidth, height: nextHeight }
+  );
+}, [photoEditorNaturalSize]);
+
+useEffect(() => {
+  if (!photoEditorTarget) {
+    setPhotoEditorNaturalSize({ width: 0, height: 0 });
+    setPhotoEditorDisplaySize({ width: 0, height: 0 });
+    return;
+  }
+
+  updatePhotoEditorDisplaySize();
+
+  const stage = photoEditorStageRef.current;
+  if (!stage || typeof ResizeObserver === 'undefined') {
+    window.addEventListener('resize', updatePhotoEditorDisplaySize);
+    return () => window.removeEventListener('resize', updatePhotoEditorDisplaySize);
+  }
+
+  const observer = new ResizeObserver(updatePhotoEditorDisplaySize);
+  observer.observe(stage);
+  window.addEventListener('resize', updatePhotoEditorDisplaySize);
+
+  return () => {
+    observer.disconnect();
+    window.removeEventListener('resize', updatePhotoEditorDisplaySize);
+  };
+}, [photoEditorTarget, updatePhotoEditorDisplaySize]);
 
 const getInspectionReportEvalClass = (
   field: keyof Omit<InspectionReportRow, 'id'>,
@@ -1968,11 +2029,8 @@ const handleCreateNewSheet = async () => {
     if (!marks.length) return photo;
 
     const img = await loadImageElement(photo);
-    const displayRect =
-      photoEditorImageRef.current?.parentElement?.getBoundingClientRect() ||
-      photoEditorImageRef.current?.getBoundingClientRect();
-    const displayWidth = Math.max(1, Math.round(displayRect?.width || img.naturalWidth));
-    const displayHeight = Math.max(1, Math.round(displayRect?.height || img.naturalHeight));
+    const displayWidth = Math.max(1, Math.round(photoEditorDisplaySize.width || img.naturalWidth));
+    const displayHeight = Math.max(1, Math.round(photoEditorDisplaySize.height || img.naturalHeight));
     const outputSize = getScaledImageSize(displayWidth, displayHeight, 2500000);
 
     const canvas = document.createElement('canvas');
@@ -6774,22 +6832,10 @@ if (mode === 'inclination_menu') {
           if (!editorPhoto) return null;
 
           const getPhotoEditorImageRect = () => {
-            const image = photoEditorImageRef.current;
-            const rect = image?.getBoundingClientRect();
-            if (!image || !rect) return null;
+            const rect = photoEditorImageRef.current?.parentElement?.getBoundingClientRect();
+            if (!rect) return null;
 
-            const naturalWidth = image.naturalWidth || rect.width;
-            const naturalHeight = image.naturalHeight || rect.height;
-            const scale = Math.min(rect.width / naturalWidth, rect.height / naturalHeight);
-            const renderedWidth = naturalWidth * scale;
-            const renderedHeight = naturalHeight * scale;
-
-            return {
-              left: rect.left + (rect.width - renderedWidth) / 2,
-              top: rect.top + (rect.height - renderedHeight) / 2,
-              width: renderedWidth,
-              height: renderedHeight,
-            };
+            return rect;
           };
 
           const getPhotoEditorPoint = (event: React.PointerEvent<Element>) => {
@@ -7165,15 +7211,28 @@ if (mode === 'inclination_menu') {
                 </button>
               </div>
 
-              <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
+              <div ref={photoEditorStageRef} className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
                 <div
-                  className="relative inline-block max-h-full max-w-full touch-none leading-none"
+                  className="relative touch-none leading-none"
+                  style={{
+                    width: photoEditorDisplaySize.width || undefined,
+                    height: photoEditorDisplaySize.height || undefined,
+                  }}
                   onPointerDown={handleEditorCanvasTap}
                 >
                   <img
                     ref={photoEditorImageRef}
                     src={editorPhoto}
-                    className="block max-h-full max-w-full select-none object-contain"
+                    className="block h-full w-full select-none object-fill"
+                    onLoad={event => {
+                      const image = event.currentTarget;
+                      if (image.naturalWidth && image.naturalHeight) {
+                        setPhotoEditorNaturalSize({
+                          width: image.naturalWidth,
+                          height: image.naturalHeight,
+                        });
+                      }
+                    }}
                     draggable={false}
                   />
                   <div className="pointer-events-none absolute inset-0">
