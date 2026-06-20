@@ -2029,6 +2029,47 @@ const handleCreateNewSheet = async () => {
     setEditingPhotoMark(nextMark);
   };
 
+  const savePhotoMarksAndClose = async () => {
+    if (!photoEditorTarget) return;
+
+    const index = photoEditorTarget.index;
+    const isFirst = photoEditorTarget.target === 'first';
+    const displayPhoto = isFirst ? firstPhotos[index] : photos[index];
+    const originalPhoto = isFirst ? firstOriginalPhotos[index] : originalPhotos[index];
+    const sourcePhoto = originalPhoto || displayPhoto;
+
+    if (!sourcePhoto) {
+      setPhotoEditorTarget(null);
+      setEditingPhotoMark(null);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const marks = getPhotoMarks(photoEditorTarget);
+      const previewPhoto = marks.length
+        ? await renderPhotoForSave(sourcePhoto, marks)
+        : sourcePhoto;
+
+      if (isFirst) {
+        setFirstPhotos(current => current.map((photo, photoIndex) => photoIndex === index ? previewPhoto : photo));
+        setFirstOriginalPhotos(current => current.map((photo, photoIndex) => photoIndex === index ? (photo || sourcePhoto) : photo));
+      } else {
+        setPhotos(current => current.map((photo, photoIndex) => photoIndex === index ? previewPhoto : photo));
+        setOriginalPhotos(current => current.map((photo, photoIndex) => photoIndex === index ? (photo || sourcePhoto) : photo));
+      }
+
+      setPhotoEditorTarget(null);
+      setEditingPhotoMark(null);
+    } catch (error) {
+      console.error(error);
+      alert(`マーカー保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 let pressTimer: NodeJS.Timeout;
 
 const handlePressStart = (photo: string) => {
@@ -2238,8 +2279,8 @@ const result = await gasApi("getKarteData", {
     if (p && p.startsWith("data:image")) {
 
       const marks = currentPhotoMarks[index] || [];
-      const resized = await renderPhotoForSave(p, marks);
       const sourceOriginal = originalPhotos[index] || p;
+      const resized = await renderPhotoForSave(sourceOriginal, marks);
       const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
 
       return {
@@ -2267,8 +2308,8 @@ const firstPhotoDataList = await Promise.all(
     if (p && p.startsWith("data:image")) {
 
       const marks = firstPhotoMarks[index] || [];
-      const resized = await renderPhotoForSave(p, marks);
       const sourceOriginal = firstOriginalPhotos[index] || p;
+      const resized = await renderPhotoForSave(sourceOriginal, marks);
       const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
 
       return {
@@ -6166,12 +6207,13 @@ if (mode === 'inclination_menu') {
       {firstPhotos.slice(0,2).map((p, i) => {
         const index = i;
         const marks = firstPhotoMarks[index] || [];
+        const previewMarks = p && firstOriginalPhotos[index] && p !== firstOriginalPhotos[index] ? [] : marks;
 
         return (
           <div key={index} className="relative aspect-[4/3]">
             <PhotoPreviewWithMarks
               photo={p}
-              marks={marks}
+              marks={previewMarks}
               placeholder={`初回写真${index + 1}`}
               borderClassName="border border-slate-300 bg-white"
               placeholderClassName="text-slate-400"
@@ -6255,12 +6297,13 @@ if (mode === 'inclination_menu') {
       {firstPhotos.slice(2,4).map((p, i) => {
         const index = i + 2;
         const marks = firstPhotoMarks[index] || [];
+        const previewMarks = p && firstOriginalPhotos[index] && p !== firstOriginalPhotos[index] ? [] : marks;
 
         return (
           <div key={index} className="relative aspect-[4/3]">
             <PhotoPreviewWithMarks
               photo={p}
-              marks={marks}
+              marks={previewMarks}
               placeholder={`初回写真${index + 1}`}
               borderClassName="border border-slate-300 bg-white"
               placeholderClassName="text-slate-400"
@@ -6460,13 +6503,14 @@ if (mode === 'inclination_menu') {
       {photos.slice(0,2).map((p, i) => {
         const index = i;
         const marks = currentPhotoMarks[index] || [];
+        const previewMarks = p && originalPhotos[index] && p !== originalPhotos[index] ? [] : marks;
 
         return (
           <div key={index} className="relative aspect-[4/3]">
 
             <PhotoPreviewWithMarks
               photo={p}
-              marks={marks}
+              marks={previewMarks}
               placeholder={`写真${index + 1}`}
               borderClassName="border border-blue-200 bg-white"
               placeholderClassName="text-blue-300"
@@ -6551,13 +6595,14 @@ if (mode === 'inclination_menu') {
       {photos.slice(2,4).map((p, i) => {
         const index = i + 2;
         const marks = currentPhotoMarks[index] || [];
+        const previewMarks = p && originalPhotos[index] && p !== originalPhotos[index] ? [] : marks;
 
         return (
           <div key={index} className="relative aspect-[4/3]">
 
             <PhotoPreviewWithMarks
               photo={p}
-              marks={marks}
+              marks={previewMarks}
               placeholder={`写真${index + 1}`}
               borderClassName="border border-blue-200 bg-white"
               placeholderClassName="text-blue-300"
@@ -6692,8 +6737,8 @@ if (mode === 'inclination_menu') {
 
         {photoEditorTarget && (() => {
           const editorPhoto = photoEditorTarget.target === 'first'
-            ? firstPhotos[photoEditorTarget.index]
-            : photos[photoEditorTarget.index];
+            ? firstOriginalPhotos[photoEditorTarget.index] || firstPhotos[photoEditorTarget.index]
+            : originalPhotos[photoEditorTarget.index] || photos[photoEditorTarget.index];
           const editorMarks = getPhotoMarks(photoEditorTarget);
           const selectedMark = editingPhotoMark && editorMarks.find(mark => mark.id === editingPhotoMark.id);
 
@@ -7070,13 +7115,11 @@ if (mode === 'inclination_menu') {
               <div className="relative z-20 flex shrink-0 items-center gap-2 border-b border-white/15 bg-slate-900 p-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setPhotoEditorTarget(null);
-                    setEditingPhotoMark(null);
-                  }}
-                  className="rounded bg-white/10 px-3 py-2 text-sm font-bold"
+                  onClick={savePhotoMarksAndClose}
+                  disabled={isLoading}
+                  className="rounded bg-emerald-600 px-3 py-2 text-sm font-bold disabled:bg-slate-500"
                 >
-                  閉じる
+                  {isLoading ? "保存中..." : "マーカー保存"}
                 </button>
                 <div className="min-w-0 flex-1 text-center text-sm font-black">
                   {photoEditorTarget.target === 'first' ? '初回写真' : '今回写真'}{photoEditorTarget.index + 1}
