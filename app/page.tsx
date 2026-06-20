@@ -184,26 +184,6 @@ const UNSAVED_PHOTO_KARTE_LIMIT = 10;
 const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
 const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
 
-const waitForNextPaint = () =>
-  new Promise<void>(resolve => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-
-const canvasToJpegDataUrl = (canvas: HTMLCanvasElement, quality: number) =>
-  new Promise<string>((resolve, reject) => {
-    canvas.toBlob(blob => {
-      if (!blob) {
-        reject(new Error("画像の変換に失敗しました"));
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
-      reader.readAsDataURL(blob);
-    }, "image/jpeg", quality);
-  });
-
 const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     if (typeof window === 'undefined' || !window.indexedDB) {
@@ -422,23 +402,6 @@ const getCanvasDataUrlUnderLimit = (
   while (dataUrl.length > maxBase64Length && quality > 0.42) {
     quality -= 0.08;
     dataUrl = canvas.toDataURL('image/jpeg', quality);
-  }
-
-  return dataUrl;
-};
-
-const getCanvasDataUrlUnderLimitAsync = async (
-  canvas: HTMLCanvasElement,
-  maxBase64Length: number,
-  initialQuality = 0.82
-) => {
-  let quality = initialQuality;
-  let dataUrl = await canvasToJpegDataUrl(canvas, quality);
-
-  while (dataUrl.length > maxBase64Length && quality > 0.42) {
-    quality -= 0.08;
-    await waitForNextPaint();
-    dataUrl = await canvasToJpegDataUrl(canvas, quality);
   }
 
   return dataUrl;
@@ -2050,7 +2013,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
   };
 
   const renderPhotoForEditorPreview = async (photo: string, marks: PhotoMark[]) => {
@@ -2070,7 +2033,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
   };
 
   const getPhotoMarks = (target: PhotoEditorTarget) =>
@@ -2156,7 +2119,6 @@ const handleCreateNewSheet = async () => {
     setIsLoading(true);
 
     try {
-      await waitForNextPaint();
       const marks = getPhotoMarks(photoEditorTarget);
       const previewPhoto = marks.length
         ? await renderPhotoForEditorPreview(sourcePhoto, marks)
@@ -2494,7 +2456,6 @@ const firstPhotoDataList = await Promise.all(
     setIsSending(true);
 
     try {
-      await waitForNextPaint();
       const payload = await buildKartePayload(actionType);
       const result = await gasApi(actionType, payload);
       
@@ -2535,7 +2496,6 @@ const firstPhotoDataList = await Promise.all(
     setIsSending(true);
 
     try {
-      await waitForNextPaint();
       const payload = await buildKartePayload("uploadKarte");
       await saveUnsavedPhotoKarteToDb({
         id: draftId,
@@ -2587,7 +2547,6 @@ const firstPhotoDataList = await Promise.all(
     const failed: string[] = [];
 
     try {
-      await waitForNextPaint();
       for (const item of targetRows) {
         try {
           const {
@@ -3091,12 +3050,9 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   );
 
   // --- 送信中のくるくるアニメーション（全画面共通） ---
-  const LoadingOverlay = () => {
-    const shouldShow = isSending || isLoading || isMergingPdfs || isSyncingUnsavedPhotoKartes;
-    const shouldBlockUi = isSending || isMergingPdfs || isSyncingUnsavedPhotoKartes;
-
-    return shouldShow ? (
-    <div className={`fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999] ${shouldBlockUi ? '' : 'pointer-events-none'}`}>
+  const LoadingOverlay = () =>
+  (isSending || isLoading || isMergingPdfs || isSyncingUnsavedPhotoKartes) ? (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
 
@@ -3116,11 +3072,10 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 
       </div>
     </div>
-    ) : null;
-  };
+  ) : null;
 
 const LoadingSpinner = () => isLoading ? (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999] pointer-events-none">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
     <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
       <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
       <p className="text-slate-900 font-bold text-lg">作成中...</p>
@@ -3128,13 +3083,6 @@ const LoadingSpinner = () => isLoading ? (
     </div>
   </div>
 ) : null;
-
-const withBlockingOverlay = (content: React.ReactNode) => (
-  <>
-    {content}
-    {isSyncingUnsavedPhotoKartes && <LoadingOverlay />}
-  </>
-);
 
   // --- 画面表示 ---
 const selectedRouteColor = getRouteColor(getRouteIndex(routeList, selectedRoute, routeFolderId));
@@ -3249,7 +3197,6 @@ if (mode === 'edit_list') {
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black" style={routePageStyle}>
 
     <LoadingSpinner />
-    <LoadingOverlay />
 
     <Nav />
 
@@ -5882,7 +5829,6 @@ if (mode === 'inclination_menu') {
     return (
       <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black" style={routePageStyle}>
         <Nav />
-        <LoadingOverlay />
         <h2 className="text-2xl font-black mb-8">{isPhoto ? '写真カルテ' : '傾斜測定カルテ'}</h2>
         <div className="flex flex-col gap-6 w-full max-w-sm">
           {isPhoto && (
