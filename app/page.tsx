@@ -1964,6 +1964,29 @@ const handleCreateNewSheet = async () => {
     return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
   };
 
+  const renderPhotoForEditorPreview = async (photo: string, marks: PhotoMark[]) => {
+    if (!marks.length) return photo;
+
+    const img = await loadImageElement(photo);
+    const displayRect =
+      photoEditorImageRef.current?.parentElement?.getBoundingClientRect() ||
+      photoEditorImageRef.current?.getBoundingClientRect();
+    const displayWidth = Math.max(1, Math.round(displayRect?.width || img.naturalWidth));
+    const displayHeight = Math.max(1, Math.round(displayRect?.height || img.naturalHeight));
+    const outputSize = getScaledImageSize(displayWidth, displayHeight, 2500000);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outputSize.width;
+    canvas.height = outputSize.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error("写真の注釈処理を開始できません");
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
+
+    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
+  };
+
   const getPhotoMarks = (target: PhotoEditorTarget) =>
     target.target === 'first'
       ? firstPhotoMarks[target.index] || []
@@ -2049,7 +2072,7 @@ const handleCreateNewSheet = async () => {
     try {
       const marks = getPhotoMarks(photoEditorTarget);
       const previewPhoto = marks.length
-        ? await renderPhotoForSave(sourcePhoto, marks)
+        ? await renderPhotoForEditorPreview(sourcePhoto, marks)
         : sourcePhoto;
 
       if (isFirst) {
@@ -2280,7 +2303,10 @@ const result = await gasApi("getKarteData", {
 
       const marks = currentPhotoMarks[index] || [];
       const sourceOriginal = originalPhotos[index] || p;
-      const resized = await renderPhotoForSave(sourceOriginal, marks);
+      const hasSavedMarkerPreview = marks.length > 0 && originalPhotos[index] && p !== originalPhotos[index];
+      const resized = hasSavedMarkerPreview
+        ? await resizeImage(p)
+        : await renderPhotoForSave(sourceOriginal, marks);
       const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
 
       return {
@@ -2309,7 +2335,10 @@ const firstPhotoDataList = await Promise.all(
 
       const marks = firstPhotoMarks[index] || [];
       const sourceOriginal = firstOriginalPhotos[index] || p;
-      const resized = await renderPhotoForSave(sourceOriginal, marks);
+      const hasSavedMarkerPreview = marks.length > 0 && firstOriginalPhotos[index] && p !== firstOriginalPhotos[index];
+      const resized = hasSavedMarkerPreview
+        ? await resizeImage(p)
+        : await renderPhotoForSave(sourceOriginal, marks);
       const original = marks.length && sourceOriginal ? await resizeImage(sourceOriginal) : "";
 
       return {
