@@ -6575,8 +6575,27 @@ if (mode === 'inclination_menu') {
 
           if (!editorPhoto) return null;
 
+          const getPhotoEditorImageRect = () => {
+            const image = photoEditorImageRef.current;
+            const rect = image?.getBoundingClientRect();
+            if (!image || !rect) return null;
+
+            const naturalWidth = image.naturalWidth || rect.width;
+            const naturalHeight = image.naturalHeight || rect.height;
+            const scale = Math.min(rect.width / naturalWidth, rect.height / naturalHeight);
+            const renderedWidth = naturalWidth * scale;
+            const renderedHeight = naturalHeight * scale;
+
+            return {
+              left: rect.left + (rect.width - renderedWidth) / 2,
+              top: rect.top + (rect.height - renderedHeight) / 2,
+              width: renderedWidth,
+              height: renderedHeight,
+            };
+          };
+
           const getPhotoEditorPoint = (event: React.PointerEvent<Element>) => {
-            const rect = photoEditorImageRef.current?.getBoundingClientRect();
+            const rect = getPhotoEditorImageRect();
             if (!rect) return null;
 
             return {
@@ -6952,13 +6971,13 @@ if (mode === 'inclination_menu') {
 
               <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
                 <div
-                  className="relative max-h-full max-w-full touch-none"
+                  className="relative max-h-full max-w-full touch-none leading-none"
                   onPointerDown={handleEditorCanvasTap}
                 >
                   <img
                     ref={photoEditorImageRef}
                     src={editorPhoto}
-                    className="max-h-full max-w-full select-none object-contain"
+                    className="block max-h-full max-w-full select-none object-contain"
                     draggable={false}
                   />
                   <div className="pointer-events-none absolute inset-0">
