@@ -7062,27 +7062,31 @@ if (mode === 'inclination_menu') {
             </div>
           )}
           {isPhoto && (
-            <button
-              type="button"
-              onClick={toggleCurrentPhotoKarteComplete}
-              className={`w-full max-w-xl py-3 rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all ${
-                isPhotoKarteComplete(karteNo)
-                  ? "bg-emerald-500 text-white"
-                  : "bg-amber-400 text-slate-950"
-              }`}
-            >
-              {isPhotoKarteComplete(karteNo) ? "完了マーク解除" : "完了マーク"}
-            </button>
-          )}
-          {isPhoto && (
-            <button
-              type="button"
-              onClick={savePhotoKarteDraft}
-              disabled={isSending}
-              className="w-full max-w-xl py-3 bg-amber-500 text-white rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all disabled:bg-slate-400"
-            >
-              {isSending ? "保存中..." : "この内容を一時保存"}
-            </button>
+            <div className="grid w-full max-w-5xl grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={toggleCurrentPhotoKarteComplete}
+                className="min-h-14 rounded-xl bg-amber-400 px-2 py-3 text-sm font-black leading-tight text-slate-950 shadow-xl transition-all active:scale-95 sm:text-base"
+              >
+                {isPhotoKarteComplete(karteNo) ? "完了マーク解除" : "完了マーク"}
+              </button>
+              <button
+                type="button"
+                onClick={savePhotoKarteDraft}
+                disabled={isSending}
+                className="min-h-14 rounded-xl border-2 border-emerald-600 bg-white px-2 py-3 text-sm font-black leading-tight text-black shadow-xl transition-all active:scale-95 disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-400 sm:text-base"
+              >
+                {isSending ? "保存中..." : "この内容を一時保存"}
+              </button>
+              <button
+                type="button"
+                onClick={() => sendGenericKarte("uploadKarte")}
+                disabled={isSending}
+                className="min-h-14 rounded-xl bg-blue-600 px-2 py-3 text-sm font-black leading-tight text-white shadow-xl transition-all active:scale-95 disabled:bg-slate-400 sm:text-base"
+              >
+                {isSending ? "送信中..." : "この内容でスプレッドシートを更新"}
+              </button>
+            </div>
           )}
           {isPhoto && unsavedPhotoKarteCount > 0 && (
             <button
@@ -7094,13 +7098,15 @@ if (mode === 'inclination_menu') {
               {isSending ? "保存中..." : "未保存分をスプレッドシートへ保存"}
             </button>
           )}
-          <button 
-            onClick={() => sendGenericKarte(isPhoto ? "uploadKarte" : "uploadInclination")} 
-            disabled={isSending}
-            className="w-full max-w-xl py-3 bg-blue-600 text-white rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            {isSending ? "データを送信中..." : "この内容でスプレッドシートを更新"}
-          </button>
+          {!isPhoto && (
+            <button
+              onClick={() => sendGenericKarte("uploadInclination")}
+              disabled={isSending}
+              className="w-full max-w-xl py-3 bg-blue-600 text-white rounded-xl font-black text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              {isSending ? "データを送信中..." : "この内容でスプレッドシートを更新"}
+            </button>
+          )}
         </div>
       </div>
     );
