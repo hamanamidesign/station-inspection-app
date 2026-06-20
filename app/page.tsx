@@ -184,6 +184,26 @@ const UNSAVED_PHOTO_KARTE_LIMIT = 10;
 const PHOTO_KARTE_DRAFT_DB_NAME = "station-check-photo-karte-drafts";
 const PHOTO_KARTE_DRAFT_STORE = "unsavedPhotoKartes";
 
+const waitForNextPaint = () =>
+  new Promise<void>(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+
+const canvasToJpegDataUrl = (canvas: HTMLCanvasElement, quality: number) =>
+  new Promise<string>((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (!blob) {
+        reject(new Error("画像の変換に失敗しました"));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
+      reader.readAsDataURL(blob);
+    }, "image/jpeg", quality);
+  });
+
 const openPhotoKarteDraftDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     if (typeof window === 'undefined' || !window.indexedDB) {
@@ -402,6 +422,23 @@ const getCanvasDataUrlUnderLimit = (
   while (dataUrl.length > maxBase64Length && quality > 0.42) {
     quality -= 0.08;
     dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+
+  return dataUrl;
+};
+
+const getCanvasDataUrlUnderLimitAsync = async (
+  canvas: HTMLCanvasElement,
+  maxBase64Length: number,
+  initialQuality = 0.82
+) => {
+  let quality = initialQuality;
+  let dataUrl = await canvasToJpegDataUrl(canvas, quality);
+
+  while (dataUrl.length > maxBase64Length && quality > 0.42) {
+    quality -= 0.08;
+    await waitForNextPaint();
+    dataUrl = await canvasToJpegDataUrl(canvas, quality);
   }
 
   return dataUrl;
@@ -2013,7 +2050,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
   };
 
   const renderPhotoForEditorPreview = async (photo: string, marks: PhotoMark[]) => {
@@ -2033,7 +2070,7 @@ const handleCreateNewSheet = async () => {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     drawPhotoMarks(ctx, marks, canvas.width, canvas.height, outputSize.scale);
 
-    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
+    return getCanvasDataUrlUnderLimitAsync(canvas, 2400000, 0.9);
   };
 
   const getPhotoMarks = (target: PhotoEditorTarget) =>
@@ -2119,6 +2156,7 @@ const handleCreateNewSheet = async () => {
     setIsLoading(true);
 
     try {
+      await waitForNextPaint();
       const marks = getPhotoMarks(photoEditorTarget);
       const previewPhoto = marks.length
         ? await renderPhotoForEditorPreview(sourcePhoto, marks)
@@ -2456,6 +2494,7 @@ const firstPhotoDataList = await Promise.all(
     setIsSending(true);
 
     try {
+      await waitForNextPaint();
       const payload = await buildKartePayload(actionType);
       const result = await gasApi(actionType, payload);
       
@@ -2496,6 +2535,7 @@ const firstPhotoDataList = await Promise.all(
     setIsSending(true);
 
     try {
+      await waitForNextPaint();
       const payload = await buildKartePayload("uploadKarte");
       await saveUnsavedPhotoKarteToDb({
         id: draftId,
@@ -2547,6 +2587,7 @@ const firstPhotoDataList = await Promise.all(
     const failed: string[] = [];
 
     try {
+      await waitForNextPaint();
       for (const item of targetRows) {
         try {
           const {
@@ -3029,7 +3070,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
     <div className="w-full mb-4 px-2 shrink-0">
       <div className="flex justify-between mb-2">
         <button onClick={goBack} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-200 rounded-xl font-bold text-slate-700 text-sm">← 戻る</button>
-        <button onClick={() => { resetAllState(); setHistory([]); setMode('menu'); }}className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
+        <button onClick={() => { resetAllState(); setHistory([]); setMode('menu'); }} className="transition-all active:scale-95 active:brightness-90 px-5 py-2 bg-slate-800 rounded-xl font-bold text-white text-sm">🏠 ホーム</button>
       </div>
       
       {/* 駅名と年度を表示するヘッダー */}
@@ -3050,14 +3091,14 @@ const deleteUnavailableKarteNumber = async (no: string) => {
   );
 
   // --- 送信中のくるくるアニメーション（全画面共通） ---
-  const LoadingOverlay = () =>
-  (isSending || isLoading || isMergingPdfs || isSyncingUnsavedPhotoKartes) ? (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
+  const LoadingOverlay = () => {
+    const shouldShow = isSending || isLoading || isMergingPdfs || isSyncingUnsavedPhotoKartes;
+    const shouldBlockUi = isSending || isMergingPdfs || isSyncingUnsavedPhotoKartes;
+
+    return shouldShow ? (
+    <div className={`fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999] ${shouldBlockUi ? '' : 'pointer-events-none'}`}>
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
-        <div
-          className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"
-          style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-        ></div>
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
 
         <p className="text-slate-900 font-bold text-lg">
           {isSyncingUnsavedPhotoKartes
@@ -3075,15 +3116,13 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 
       </div>
     </div>
-  ) : null;
+    ) : null;
+  };
 
 const LoadingSpinner = () => isLoading ? (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999] pointer-events-none">
     <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
-      <div
-        className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"
-        style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-      ></div>
+      <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
       <p className="text-slate-900 font-bold text-lg">作成中...</p>
       <p className="text-slate-500 text-sm">そのままお待ちください</p>
     </div>
