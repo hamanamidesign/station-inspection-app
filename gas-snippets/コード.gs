@@ -258,6 +258,15 @@ function doPost(e) {
       case "addUnavailableKarteNumber":
         return addUnavailableKarteNumber(body.spreadsheetId, body.karteNo);
 
+      case "getReservedPhotoKarteNumbers":
+        return getReservedPhotoKarteNumbers(body.spreadsheetId);
+
+      case "reservePhotoKarteNumber":
+        return reservePhotoKarteNumber(body.spreadsheetId, body.karteNo);
+
+      case "releaseReservedPhotoKarteNumber":
+        return releaseReservedPhotoKarteNumber(body.spreadsheetId, body.karteNo);
+
 case "getMapEditorData":
   return createJsonResponse(getMapEditorData(body));
 
@@ -1061,6 +1070,10 @@ function getPhotoNumberSheet(ss) {
     sheet.getRange("A1").setValue("使用できない写真カルテ番号");
   }
 
+  if (!sheet.getRange("B1").getValue()) {
+    sheet.getRange("B1").setValue("一時保存中写真カルテ番号");
+  }
+
   return sheet;
 }
 
@@ -1134,6 +1147,94 @@ function getUnavailableKarteNumbersRaw(sheet) {
     .getValues()
     .map(r => String(r[0]).trim())
     .filter(v => v && !isNaN(v));
+}
+
+function getReservedPhotoKarteNumbers(spreadsheetId) {
+  try {
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = getPhotoNumberSheet(ss);
+
+    return createJsonResponse({
+      success: true,
+      list: getReservedPhotoKarteNumbersRaw(sheet)
+    });
+  } catch (e) {
+    return createJsonResponse({
+      success: false,
+      error: e.toString()
+    });
+  }
+}
+
+function reservePhotoKarteNumber(spreadsheetId, karteNo) {
+  try {
+    const no = String(karteNo).trim();
+
+    if (!no || isNaN(no)) {
+      return createJsonResponse({
+        success: false,
+        error: "番号は数字で入力してください"
+      });
+    }
+
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = getPhotoNumberSheet(ss);
+    const existing = getReservedPhotoKarteNumbersRaw(sheet);
+
+    if (!existing.includes(no)) {
+      const nextRow = Math.max(2, sheet.getLastRow() + 1);
+      sheet.getRange(nextRow, 2).setValue(no);
+    }
+
+    return createJsonResponse({
+      success: true,
+      karteNo: no
+    });
+  } catch (e) {
+    return createJsonResponse({
+      success: false,
+      error: e.toString()
+    });
+  }
+}
+
+function releaseReservedPhotoKarteNumber(spreadsheetId, karteNo) {
+  try {
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = getPhotoNumberSheet(ss);
+    const no = String(karteNo).trim();
+    const lastRow = sheet.getLastRow();
+
+    if (lastRow >= 2) {
+      const values = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
+      for (let i = values.length - 1; i >= 0; i--) {
+        if (String(values[i][0]).trim() === no) {
+          sheet.getRange(i + 2, 2).clearContent();
+        }
+      }
+    }
+
+    return createJsonResponse({ success: true });
+  } catch (e) {
+    return createJsonResponse({
+      success: false,
+      error: e.toString()
+    });
+  }
+}
+
+function getReservedPhotoKarteNumbersRaw(sheet) {
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) return [];
+
+  return Array.from(new Set(
+    sheet
+      .getRange(2, 2, lastRow - 1, 1)
+      .getValues()
+      .map(r => String(r[0]).trim())
+      .filter(v => v && !isNaN(v))
+  ));
 }
 
 const PHOTO_LAYOUT = {

@@ -5,6 +5,7 @@ const RETRYABLE_ACTIONS = new Set([
   "getInspectionListDates",
   "getKarteList",
   "getUnavailableKarteNumbers",
+  "getReservedPhotoKarteNumbers",
   "getPdfSheetOptions",
   "getInspectionPdfMergeStatus",
   "findCompletedInspectionPdf",

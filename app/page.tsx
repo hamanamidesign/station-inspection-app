@@ -2234,6 +2234,8 @@ const firstPhotoDataList = await Promise.all(
             await deleteUnsavedPhotoKarteFromDb(draftId);
             await refreshUnsavedPhotoKartes();
           }
+          gasApi("releaseReservedPhotoKarteNumber", { spreadsheetId, karteNo })
+            .catch(error => console.warn("一時保存No.の予約解除に失敗しました", error));
           setMode('karte_menu');
         }
       } else {
@@ -2263,6 +2265,7 @@ const firstPhotoDataList = await Promise.all(
 
     try {
       const payload = await buildKartePayload("uploadKarte");
+      await gasApi("reservePhotoKarteNumber", { spreadsheetId, karteNo });
       await saveUnsavedPhotoKarteToDb({
         id: draftId,
         spreadsheetId,
@@ -2313,6 +2316,10 @@ const firstPhotoDataList = await Promise.all(
           const result = await gasApi("uploadKarte", item.payload);
           if (result.success) {
             await deleteUnsavedPhotoKarteFromDb(item.id);
+            gasApi("releaseReservedPhotoKarteNumber", {
+              spreadsheetId: item.spreadsheetId,
+              karteNo: item.karteNo,
+            }).catch(error => console.warn("一時保存No.の予約解除に失敗しました", error));
           } else {
             failed.push(`${item.karteNo}: ${result.error || "不明なエラー"}`);
           }
@@ -2420,9 +2427,10 @@ const loadKarteNumberOptions = async () => {
 
   try {
 
-    const [unavailableResult, existingResult] = await Promise.all([
+    const [unavailableResult, existingResult, reservedResult] = await Promise.all([
       gasApi("getUnavailableKarteNumbers", { spreadsheetId }),
-      gasApi("getKarteList", { spreadsheetId, type: "photo" })
+      gasApi("getKarteList", { spreadsheetId, type: "photo" }),
+      gasApi("getReservedPhotoKarteNumbers", { spreadsheetId })
     ]);
 
     const unavailable = Array.isArray(unavailableResult.list)
@@ -2433,11 +2441,15 @@ const loadKarteNumberOptions = async () => {
       ? existingResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
       : [];
 
+    const reserved = Array.isArray(reservedResult.list)
+      ? reservedResult.list.map((n: unknown) => String(n).trim()).filter(Boolean)
+      : [];
+
     const unsaved = unsavedPhotoKartes
       .map(item => String(item.karteNo).trim())
       .filter(Boolean);
 
-    const blocked = Array.from(new Set([...unavailable, ...existing, ...unsaved]));
+    const blocked = Array.from(new Set([...unavailable, ...existing, ...reserved, ...unsaved]));
 
     const available = buildAvailableNumbers(blocked);
 
