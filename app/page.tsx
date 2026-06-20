@@ -824,6 +824,7 @@ export default function InspectorApp() {
   const [stationFolderId, setStationFolderId] = useState('');
   const [existingData, setExistingData] = useState<ExistingStation[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [isSyncingUnsavedPhotoKartes, setIsSyncingUnsavedPhotoKartes] = useState(false);
   const [isMergingPdfs, setIsMergingPdfs] = useState(false);
   const [activePlaceRowId, setActivePlaceRowId] = useState<number | null>(null);
   // 長押し判定や移動状態を保持するRef
@@ -2376,9 +2377,10 @@ const firstPhotoDataList = await Promise.all(
   const syncUnsavedPhotoKartes = async (targetRows = unsavedPhotoKartes) => {
     if (!spreadsheetId) return alert("スプレッドシートIDがありません");
     if (targetRows.length === 0) return alert("スプレッドシートへ保存する未保存カルテはありません");
-    if (isSending) return;
+    if (isSending || isSyncingUnsavedPhotoKartes) return;
 
     setIsSending(true);
+    setIsSyncingUnsavedPhotoKartes(true);
 
     const failed: string[] = [];
 
@@ -2415,6 +2417,7 @@ const firstPhotoDataList = await Promise.all(
         await loadKarteNumberOptions();
       }
     } finally {
+      setIsSyncingUnsavedPhotoKartes(false);
       setIsSending(false);
     }
   };
@@ -2876,13 +2879,15 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 
   // --- 送信中のくるくるアニメーション（全画面共通） ---
   const LoadingOverlay = () =>
-  (isSending || isLoading || isMergingPdfs) ? (
+  (isSending || isLoading || isMergingPdfs || isSyncingUnsavedPhotoKartes) ? (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
 
         <p className="text-slate-900 font-bold text-lg">
-          {isMergingPdfs
+          {isSyncingUnsavedPhotoKartes
+            ? '未保存分をスプレッドシートへ保存しています...'
+            : isMergingPdfs
             ? 'すべての資料を結合しています...'
             : isSending
               ? '保存しています...'
@@ -2906,6 +2911,13 @@ const LoadingSpinner = () => isLoading ? (
     </div>
   </div>
 ) : null;
+
+const withBlockingOverlay = (content: React.ReactNode) => (
+  <>
+    {content}
+    {isSyncingUnsavedPhotoKartes && <LoadingOverlay />}
+  </>
+);
 
   // --- 画面表示 ---
 const selectedRouteColor = getRouteColor(getRouteIndex(routeList, selectedRoute, routeFolderId));
@@ -3020,6 +3032,7 @@ if (mode === 'edit_list') {
   <div className="flex flex-col items-center justify-start min-h-screen bg-slate-100 p-6 text-black" style={routePageStyle}>
 
     <LoadingSpinner />
+    <LoadingOverlay />
 
     <Nav />
 
@@ -5640,6 +5653,7 @@ if (mode === 'inclination_menu') {
     return (
       <div className="flex flex-col items-center justify-start h-screen bg-slate-50 p-6 text-black" style={routePageStyle}>
         <Nav />
+        <LoadingOverlay />
         <h2 className="text-2xl font-black mb-8">{isPhoto ? '写真カルテ' : '傾斜測定カルテ'}</h2>
         <div className="flex flex-col gap-6 w-full max-w-sm">
           {isPhoto && (
