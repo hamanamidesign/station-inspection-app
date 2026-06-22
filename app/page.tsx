@@ -584,7 +584,7 @@ const compareInspectionReportText = (a: string, b: string) =>
   });
 
 const compareInspectionReportTotalEval = (a: string, b: string) => {
-  const order = ['AA', 'A2', 'A1', 'B', 'C', 'S'];
+  const order = ['AA', 'A1', 'A2', 'B', 'C', 'S'];
   const rank = (value: string) => {
     const index = order.indexOf(String(value || '').trim());
     return index === -1 ? order.length : index;
