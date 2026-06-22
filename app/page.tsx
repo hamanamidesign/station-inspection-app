@@ -6649,6 +6649,45 @@ if (mode === 'inclination_menu') {
             return normalizePhotoRotation(angle + 90);
           };
 
+          const resizeRotatedEllipse = (
+            event: React.PointerEvent<Element>,
+            mark: PhotoEllipseMark,
+            corner: 'nw' | 'ne' | 'sw' | 'se'
+          ) => {
+            const rect = photoEditorImageRef.current?.getBoundingClientRect();
+            if (!rect) return mark;
+
+            const centerX = rect.left + (mark.x / 100) * rect.width;
+            const centerY = rect.top + (mark.y / 100) * rect.height;
+            const halfWidth = ((mark.width / 100) * rect.width) / 2;
+            const halfHeight = ((mark.height / 100) * rect.height) / 2;
+            const angle = (mark.rotation * Math.PI) / 180;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            const dx = event.clientX - centerX;
+            const dy = event.clientY - centerY;
+            const localX = dx * cos + dy * sin;
+            const localY = -dx * sin + dy * cos;
+            const cornerX = corner.includes('e') ? 1 : -1;
+            const cornerY = corner.includes('s') ? 1 : -1;
+            const fixedX = -cornerX * halfWidth;
+            const fixedY = -cornerY * halfHeight;
+            const nextWidth = Math.max((4 / 100) * rect.width, Math.abs(localX - fixedX));
+            const nextHeight = Math.max((4 / 100) * rect.height, Math.abs(localY - fixedY));
+            const localCenterX = (localX + fixedX) / 2;
+            const localCenterY = (localY + fixedY) / 2;
+            const nextCenterX = centerX + localCenterX * cos - localCenterY * sin;
+            const nextCenterY = centerY + localCenterX * sin + localCenterY * cos;
+
+            return {
+              ...mark,
+              x: clampPhotoPercent(((nextCenterX - rect.left) / rect.width) * 100),
+              y: clampPhotoPercent(((nextCenterY - rect.top) / rect.height) * 100),
+              width: Math.min(100, (nextWidth / rect.width) * 100),
+              height: Math.min(100, (nextHeight / rect.height) * 100),
+            };
+          };
+
           const handlePhotoMarkDragMove = (event: React.PointerEvent<Element>, mark: PhotoMark) => {
             const drag = photoMarkDragRef.current;
             if (drag.id !== mark.id || !drag.mode) return;
@@ -6686,24 +6725,7 @@ if (mode === 'inclination_menu') {
             }
 
             if (mark.type === 'ellipse' && drag.mode === 'resize' && drag.corner) {
-              const left = mark.x - mark.width / 2;
-              const right = mark.x + mark.width / 2;
-              const top = mark.y - mark.height / 2;
-              const bottom = mark.y + mark.height / 2;
-              const nextLeft = drag.corner.includes('w') ? point.x : left;
-              const nextRight = drag.corner.includes('e') ? point.x : right;
-              const nextTop = drag.corner.includes('n') ? point.y : top;
-              const nextBottom = drag.corner.includes('s') ? point.y : bottom;
-              const width = Math.max(4, Math.abs(nextRight - nextLeft));
-              const height = Math.max(4, Math.abs(nextBottom - nextTop));
-
-              updatePhotoMark({
-                ...mark,
-                x: clampPhotoPercent((nextLeft + nextRight) / 2),
-                y: clampPhotoPercent((nextTop + nextBottom) / 2),
-                width: Math.min(100, width),
-                height: Math.min(100, height),
-              });
+              updatePhotoMark(resizeRotatedEllipse(event, mark, drag.corner));
               return;
             }
 
