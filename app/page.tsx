@@ -22,6 +22,7 @@ interface PhotoEllipseMark {
   y: number;
   width: number;
   height: number;
+  rotation: number;
   color: PhotoMarkColor;
 }
 
@@ -423,6 +424,12 @@ const clampPhotoPercent = (value: unknown, fallback = 0) => {
   return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
 };
 
+const normalizePhotoRotation = (value: unknown) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return ((number % 360) + 360) % 360;
+};
+
 const normalizePhotoMarks = (value: unknown): PhotoMark[][] => {
   const source = Array.isArray(value) ? value : [];
 
@@ -467,6 +474,7 @@ const normalizePhotoMarks = (value: unknown): PhotoMark[][] => {
           y: clampPhotoPercent(record.y),
           width: Math.max(2, Math.min(100, Number(record.width) || 20)),
           height: Math.max(2, Math.min(100, Number(record.height) || 14)),
+          rotation: normalizePhotoRotation(record.rotation),
           color,
         };
       })
@@ -844,7 +852,7 @@ useEffect(() => {
   const [photoMarkText, setPhotoMarkText] = useState('');
   const photoMarkDragRef = useRef<{
     id: number | null;
-    mode: 'move' | 'resize' | 'line-start' | 'line-end' | null;
+    mode: 'move' | 'resize' | 'rotate' | 'line-start' | 'line-end' | null;
     corner?: 'nw' | 'ne' | 'sw' | 'se';
     lastX: number;
     lastY: number;
@@ -1850,7 +1858,7 @@ const handleCreateNewSheet = async () => {
         const radiusX = Math.max(4, (mark.width / 100) * width / 2);
         const radiusY = Math.max(4, (mark.height / 100) * height / 2);
         ctx.beginPath();
-        ctx.ellipse(x, y, radiusX, radiusY, 0, 0, Math.PI * 2);
+        ctx.ellipse(x, y, radiusX, radiusY, (mark.rotation * Math.PI) / 180, 0, Math.PI * 2);
         ctx.stroke();
       } else if (mark.type === 'line') {
         ctx.beginPath();
@@ -1944,7 +1952,7 @@ const handleCreateNewSheet = async () => {
       return;
     }
 
-    const nextMark: PhotoEllipseMark = { id, type: 'ellipse', x, y, width: 24, height: 16, color: photoMarkColor };
+    const nextMark: PhotoEllipseMark = { id, type: 'ellipse', x, y, width: 24, height: 16, rotation: 0, color: photoMarkColor };
     setPhotoMarksForTarget(photoEditorTarget, marks => [
       ...marks,
       nextMark,
@@ -3610,6 +3618,7 @@ const renderPhotoMarkOverlay = (marks: PhotoMark[], interactive = false) => (
               fill="none"
               stroke={mark.color}
               strokeWidth={4}
+              transform={`rotate(${mark.rotation} ${mark.x} ${mark.y})`}
               vectorEffect="non-scaling-stroke"
             />
           </svg>
@@ -6593,7 +6602,7 @@ if (mode === 'inclination_menu') {
           const beginPhotoMarkDrag = (
             event: React.PointerEvent<Element>,
             mark: PhotoMark,
-            mode: 'move' | 'resize' | 'line-start' | 'line-end',
+            mode: 'move' | 'resize' | 'rotate' | 'line-start' | 'line-end',
             corner?: 'nw' | 'ne' | 'sw' | 'se'
           ) => {
             event.preventDefault();
@@ -6613,6 +6622,20 @@ if (mode === 'inclination_menu') {
             setPhotoMarkTool(mark.type);
             setPhotoMarkColor(mark.color);
             if (mark.type === 'text') setPhotoMarkText(mark.text);
+          };
+
+          const getEllipseRotationFromPointer = (
+            event: React.PointerEvent<Element>,
+            mark: PhotoEllipseMark
+          ) => {
+            const rect = photoEditorImageRef.current?.getBoundingClientRect();
+            if (!rect) return mark.rotation;
+
+            const centerX = rect.left + (mark.x / 100) * rect.width;
+            const centerY = rect.top + (mark.y / 100) * rect.height;
+            const angle = Math.atan2(event.clientY - centerY, event.clientX - centerX) * 180 / Math.PI;
+
+            return normalizePhotoRotation(angle + 90);
           };
 
           const handlePhotoMarkDragMove = (event: React.PointerEvent<Element>, mark: PhotoMark) => {
@@ -6643,6 +6666,11 @@ if (mode === 'inclination_menu') {
               } else {
                 updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
               }
+              return;
+            }
+
+            if (mark.type === 'ellipse' && drag.mode === 'rotate') {
+              updatePhotoMark({ ...mark, rotation: getEllipseRotationFromPointer(event, mark) });
               return;
             }
 
@@ -6715,73 +6743,72 @@ if (mode === 'inclination_menu') {
 
             if (mark.type === 'ellipse') {
               const handles = [
-                { key: 'nw', left: mark.x - mark.width / 2, top: mark.y - mark.height / 2, cursor: 'nwse-resize' },
-                { key: 'ne', left: mark.x + mark.width / 2, top: mark.y - mark.height / 2, cursor: 'nesw-resize' },
-                { key: 'sw', left: mark.x - mark.width / 2, top: mark.y + mark.height / 2, cursor: 'nesw-resize' },
-                { key: 'se', left: mark.x + mark.width / 2, top: mark.y + mark.height / 2, cursor: 'nwse-resize' },
+                { key: 'nw', left: '0%', top: '0%', cursor: 'nwse-resize' },
+                { key: 'ne', left: '100%', top: '0%', cursor: 'nesw-resize' },
+                { key: 'sw', left: '0%', top: '100%', cursor: 'nesw-resize' },
+                { key: 'se', left: '100%', top: '100%', cursor: 'nwse-resize' },
               ] as const;
 
               return (
                 <React.Fragment key={mark.id}>
-                  <svg
-                    className="pointer-events-none absolute inset-0 h-full w-full touch-none"
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
+                  <div
+                    className="pointer-events-none absolute z-10 touch-none"
+                    style={{
+                      left: `${mark.x}%`,
+                      top: `${mark.y}%`,
+                      width: `${Math.max(2, mark.width)}%`,
+                      height: `${Math.max(2, mark.height)}%`,
+                      transform: `translate(-50%, -50%) rotate(${mark.rotation}deg)`,
+                      transformOrigin: 'center',
+                    }}
                   >
                     {isSelected && (
-                      <ellipse
-                        cx={mark.x}
-                        cy={mark.y}
-                        rx={Math.max(0.5, mark.width / 2)}
-                        ry={Math.max(0.5, mark.height / 2)}
-                        fill="none"
-                        stroke="white"
-                        strokeWidth={8}
-                        opacity={0.9}
-                        vectorEffect="non-scaling-stroke"
-                      />
+                      <div className="absolute inset-0 rounded-full border-[8px] border-white opacity-90" />
                     )}
-                    <ellipse
-                      cx={mark.x}
-                      cy={mark.y}
-                      rx={Math.max(0.5, mark.width / 2)}
-                      ry={Math.max(0.5, mark.height / 2)}
-                      fill="none"
-                      stroke={mark.color}
-                      strokeWidth={4}
-                      vectorEffect="non-scaling-stroke"
+                    <div
+                      className="absolute inset-0 rounded-full border-4"
+                      style={{ borderColor: mark.color }}
                     />
-                    <ellipse
-                      className="pointer-events-auto cursor-move"
-                      cx={mark.x}
-                      cy={mark.y}
-                      rx={Math.max(2, mark.width / 2)}
-                      ry={Math.max(2, mark.height / 2)}
-                      fill="transparent"
-                      stroke="transparent"
-                      strokeWidth={18}
-                      vectorEffect="non-scaling-stroke"
+                    <div
+                      className="pointer-events-auto absolute inset-[-10px] cursor-move rounded-full"
                       onPointerDown={selectMark}
                       onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
                       onPointerUp={endPhotoMarkDrag}
                       onPointerCancel={endPhotoMarkDrag}
                     />
-                  </svg>
-                  {isSelected && handles.map(handle => (
-                    <div
-                      key={`${mark.id}-${handle.key}`}
-                      className="pointer-events-auto absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 touch-none border-2 border-white bg-slate-900 shadow"
-                      style={{
-                        left: `${handle.left}%`,
-                        top: `${handle.top}%`,
-                        cursor: handle.cursor,
-                      }}
-                      onPointerDown={(event) => beginPhotoMarkDrag(event, mark, 'resize', handle.key)}
-                      onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
-                      onPointerUp={endPhotoMarkDrag}
-                      onPointerCancel={endPhotoMarkDrag}
-                    />
-                  ))}
+                    {isSelected && (
+                      <>
+                        <div className="absolute left-1/2 top-[-38px] h-[38px] w-px -translate-x-1/2 bg-white/80" />
+                        <button
+                          type="button"
+                          aria-label="楕円を回転"
+                          title="楕円を回転"
+                          className="pointer-events-auto absolute left-1/2 top-[-52px] flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-lg font-black leading-none text-white shadow"
+                          onPointerDown={(event) => beginPhotoMarkDrag(event, mark, 'rotate')}
+                          onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                          onPointerUp={endPhotoMarkDrag}
+                          onPointerCancel={endPhotoMarkDrag}
+                        >
+                          ↻
+                        </button>
+                        {handles.map(handle => (
+                          <div
+                            key={`${mark.id}-${handle.key}`}
+                            className="pointer-events-auto absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 touch-none border-2 border-white bg-slate-900 shadow"
+                            style={{
+                              left: handle.left,
+                              top: handle.top,
+                              cursor: handle.cursor,
+                            }}
+                            onPointerDown={(event) => beginPhotoMarkDrag(event, mark, 'resize', handle.key)}
+                            onPointerMove={(event) => handlePhotoMarkDragMove(event, mark)}
+                            onPointerUp={endPhotoMarkDrag}
+                            onPointerCancel={endPhotoMarkDrag}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </div>
                   {isSelected && (
                     <button
                       type="button"
@@ -7022,7 +7049,7 @@ if (mode === 'inclination_menu') {
                 <div className="h-[62px] overflow-y-auto text-center text-xs font-bold text-white/70">
                   {selectedMark ? (
                     <>
-                    {selectedMark.type === 'ellipse' && '中央をスライドで移動、四隅の■をスライドでサイズ変更できます。'}
+                    {selectedMark.type === 'ellipse' && '中央をスライドで移動、四隅の■でサイズ変更、上の↻で回転できます。'}
                     {selectedMark.type === 'line' && '線をスライドで移動、両端の■をスライドで長さと向きを変更できます。'}
                     {selectedMark.type === 'text' && '文字をスライドで移動、文字変更は下のボタンか文字をダブルタップします。'}
                     {selectedMark.type === 'text' && (
