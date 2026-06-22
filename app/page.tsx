@@ -3598,11 +3598,17 @@ const renderPhotoMarkOverlay = (marks: PhotoMark[], interactive = false) => (
     {marks.map(mark => {
       if (mark.type === 'ellipse') {
         return (
-          <svg
+          <div
             key={mark.id}
-            className={`absolute inset-0 h-full w-full ${interactive ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
+            className={`absolute ${interactive ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
+            style={{
+              left: `${mark.x}%`,
+              top: `${mark.y}%`,
+              width: `${Math.max(2, mark.width)}%`,
+              height: `${Math.max(2, mark.height)}%`,
+              transform: `translate(-50%, -50%) rotate(${mark.rotation}deg)`,
+              transformOrigin: 'center',
+            }}
             onClick={interactive ? (e) => {
               e.stopPropagation();
               setEditingPhotoMark(mark);
@@ -3610,18 +3616,23 @@ const renderPhotoMarkOverlay = (marks: PhotoMark[], interactive = false) => (
               setPhotoMarkColor(mark.color);
             } : undefined}
           >
-            <ellipse
-              cx={mark.x}
-              cy={mark.y}
-              rx={Math.max(0.5, mark.width / 2)}
-              ry={Math.max(0.5, mark.height / 2)}
-              fill="none"
-              stroke={mark.color}
-              strokeWidth={4}
-              transform={`rotate(${mark.rotation} ${mark.x} ${mark.y})`}
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
+            <svg
+              className="h-full w-full overflow-visible"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
+              <ellipse
+                cx={50}
+                cy={50}
+                rx={48}
+                ry={48}
+                fill="none"
+                stroke={mark.color}
+                strokeWidth={4}
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+          </div>
         );
       }
 
@@ -6762,13 +6773,35 @@ if (mode === 'inclination_menu') {
                       transformOrigin: 'center',
                     }}
                   >
-                    {isSelected && (
-                      <div className="absolute inset-0 rounded-full border-[8px] border-white opacity-90" />
-                    )}
-                    <div
-                      className="absolute inset-0 rounded-full border-4"
-                      style={{ borderColor: mark.color }}
-                    />
+                    <svg
+                      className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                    >
+                      {isSelected && (
+                        <ellipse
+                          cx={50}
+                          cy={50}
+                          rx={48}
+                          ry={48}
+                          fill="none"
+                          stroke="white"
+                          strokeWidth={8}
+                          opacity={0.9}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      )}
+                      <ellipse
+                        cx={50}
+                        cy={50}
+                        rx={48}
+                        ry={48}
+                        fill="none"
+                        stroke={mark.color}
+                        strokeWidth={4}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
                     <div
                       className="pointer-events-auto absolute inset-[-10px] cursor-move rounded-full"
                       onPointerDown={selectMark}
