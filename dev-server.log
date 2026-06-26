@@ -8,9 +8,4 @@
 - Environments: .env.local
 
 ✓ Starting...
-✓ Ready in 2.1s
- GET / 200 in 1321ms (compile: 1146ms, render: 175ms)
- POST /api/gas 200 in 3.3s (compile: 93ms, render: 3.2s)
-✓ Compiled in 221ms
-✓ Compiled in 201ms
-✓ Compiled in 278ms
+✓ Ready in 1787ms

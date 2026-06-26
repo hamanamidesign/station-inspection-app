@@ -1,15 +1,24 @@
 {
   "name": "駅構内点検アプリ",
   "short_name": "駅構内点検",
+  "description": "駅構内点検の写真カルテ・傾斜測定カルテ作成アプリ",
   "start_url": "/",
-  "display": "minimal-ui",
+  "scope": "/",
+  "display": "standalone",
   "background_color": "#f97316",
   "theme_color": "#f97316",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
