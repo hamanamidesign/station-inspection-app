@@ -391,6 +391,12 @@ const buildImageDataUrl = (base64: string, mimeType?: string) => {
   return `data:${mimeType || detectImageMimeTypeFromBase64(value)};base64,${value}`;
 };
 
+const extractDriveFileId = (src: string) =>
+  src.match(/[?&]id=([^&#]+)/)?.[1] ||
+  src.match(/\/d\/([^/]+)/)?.[1] ||
+  src.match(/\/file\/d\/([^/]+)/)?.[1] ||
+  "";
+
 const getScaledImageSize = (width: number, height: number, maxPixels: number) => {
   const pixels = Math.max(1, width * height);
   const scale = Math.min(1, Math.sqrt(maxPixels / pixels));
@@ -1952,6 +1958,27 @@ const handleCreateNewSheet = async () => {
     }
   };
 
+  const loadDrivePhotoAsEditableDataUrl = async (fileId: string) => {
+    const result = await gasApi("getMapBase64", { id: fileId });
+    const base64 = String(result.base64 || "").trim();
+
+    if (!base64) {
+      throw new Error("写真データを取得できませんでした");
+    }
+
+    const imageDataUrl = await convertHeicDataUrlToJpegIfNeeded(
+      buildImageDataUrl(base64, result.mimeType)
+    );
+
+    return resizeImageWithHeicFallback(
+      imageDataUrl,
+      900,
+      1000000,
+      0.3,
+      1000000
+    );
+  };
+
   const resizeImage = async (
     base64Str: string,
     maxSize = 900,
@@ -2158,7 +2185,29 @@ const handleCreateNewSheet = async () => {
     setPhotoMarkTool('ellipse');
   };
 
-  const openSlopePhotoMarkEditor = (rowId: number, photoField: SlopePhotoField) => {
+  const openSlopePhotoMarkEditor = async (rowId: number, photoField: SlopePhotoField) => {
+    const photo = slopeRows.find(row => row.id === rowId)?.[photoField];
+    if (!photo) return;
+
+    if (!photo.startsWith("data:image")) {
+      const fileId = extractDriveFileId(photo);
+      if (!fileId) {
+        alert("この写真は編集用データを取得できません。写真を選び直してから編集してください。");
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const editablePhoto = await loadDrivePhotoAsEditableDataUrl(decodeURIComponent(fileId));
+        updateSlopePhoto(rowId, photoField, editablePhoto, false);
+      } catch (error) {
+        alert(`写真を編集用に読み込めませんでした: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
     setPhotoEditorTarget({ target: 'slope', rowId, photoField });
     setEditingPhotoMark(null);
     setPhotoMarkText('');
@@ -4649,11 +4698,7 @@ const toPhotoPayload = async (
       throw new Error(`${point} の写真はDrive参照のため、先に写真を選び直してからマーク編集してください`);
     }
 
-    const fileId =
-      photo.match(/[?&]id=([^&#]+)/)?.[1] ||
-      photo.match(/\/d\/([^/]+)/)?.[1] ||
-      photo.match(/\/file\/d\/([^/]+)/)?.[1] ||
-      "";
+    const fileId = extractDriveFileId(photo);
     if (!fileId) {
       throw new Error(`${point} の写真ファイルIDを取得できませんでした`);
     }
