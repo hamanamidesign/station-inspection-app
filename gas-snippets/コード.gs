@@ -1328,6 +1328,20 @@ function applyKarteHeaderTextStyle_(range, value) {
     .setWrap(style.wrap);
 }
 
+function applyPhotoKarteLocationDetailStyle_(sheet, value) {
+  const text = value === null || value === undefined ? "" : String(value);
+  const range = sheet.getRange("Q1:T1");
+
+  range
+    .breakApart()
+    .merge()
+    .setValue(text)
+    .setBorder(true, true, true, true, false, false)
+    .setHorizontalAlignment("left")
+    .setFontSize(11)
+    .setFontFamily("MS Mincho");
+}
+
 function getKarteHeaderTextStyle_(length) {
   if (length >= 13) {
     return { fontSize: 5, wrap: true };
@@ -1411,7 +1425,11 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
   sheet.getRange("R6").setValue(data.inspector);
   sheet.getRange("L1").setValue(data.buildingCategory || "");
   applyKarteHeaderTextStyle_(sheet.getRange("P1"), data.inspectionPlace || "");
-  applyKarteHeaderTextStyle_(sheet.getRange("Q1"), data.locationDetail || "");
+  if (templateName === "写真カルテ_マスタ") {
+    applyPhotoKarteLocationDetailStyle_(sheet, data.locationDetail || "");
+  } else {
+    applyKarteHeaderTextStyle_(sheet.getRange("Q1"), data.locationDetail || "");
+  }
   sheet.getRange("V10").setValue(data.remarks1);
   sheet.getRange("V13").setValue(data.remarks2);
   sheet.getRange("V16").setValue(data.remarks3);
