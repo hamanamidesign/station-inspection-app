@@ -1331,14 +1331,20 @@ function applyKarteHeaderTextStyle_(range, value) {
 function applyPhotoKarteLocationDetailStyle_(sheet, value) {
   const text = value === null || value === undefined ? "" : String(value);
   const range = sheet.getRange("Q1:T1");
+  const length = text.length;
+  const fontSize =
+    length >= 14 ? 7 :
+    length >= 12 ? 9 :
+    length === 11 ? 10 :
+    11;
 
   range
     .breakApart()
     .merge()
     .setValue(text)
-    .setBorder(true, true, true, true, false, false)
+    .setBorder(true, false, true, true, false, false)
     .setHorizontalAlignment("left")
-    .setFontSize(11)
+    .setFontSize(fontSize)
     .setFontFamily("MS Mincho");
 }
 
