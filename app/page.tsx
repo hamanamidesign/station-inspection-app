@@ -409,6 +409,130 @@ const getCanvasDataUrlUnderLimit = (
   return dataUrl;
 };
 
+const getJpegExifOrientation = async (blob: Blob): Promise<number> => {
+  const buffer = await blob.arrayBuffer();
+  const view = new DataView(buffer);
+
+  if (view.byteLength < 4 || view.getUint16(0, false) !== 0xffd8) return 1;
+
+  let offset = 2;
+  while (offset + 4 <= view.byteLength) {
+    const marker = view.getUint16(offset, false);
+    offset += 2;
+
+    if (marker === 0xffda || marker === 0xffd9) break;
+    if ((marker & 0xff00) !== 0xff00 || offset + 2 > view.byteLength) break;
+
+    const size = view.getUint16(offset, false);
+    if (size < 2 || offset + size > view.byteLength) break;
+
+    if (marker === 0xffe1 && size >= 10) {
+      const exifHeader = offset + 2;
+      const isExif =
+        view.getUint32(exifHeader, false) === 0x45786966 &&
+        view.getUint16(exifHeader + 4, false) === 0;
+
+      if (!isExif) return 1;
+
+      const tiffOffset = exifHeader + 6;
+      const littleEndian = view.getUint16(tiffOffset, false) === 0x4949;
+      const firstIfdOffset = view.getUint32(tiffOffset + 4, littleEndian);
+      const ifdOffset = tiffOffset + firstIfdOffset;
+      if (ifdOffset + 2 > view.byteLength) return 1;
+
+      const entries = view.getUint16(ifdOffset, littleEndian);
+      for (let i = 0; i < entries; i++) {
+        const entryOffset = ifdOffset + 2 + i * 12;
+        if (entryOffset + 12 > view.byteLength) return 1;
+        if (view.getUint16(entryOffset, littleEndian) === 0x0112) {
+          const orientation = view.getUint16(entryOffset + 8, littleEndian);
+          return orientation >= 1 && orientation <= 8 ? orientation : 1;
+        }
+      }
+
+      return 1;
+    }
+
+    offset += size;
+  }
+
+  return 1;
+};
+
+const loadImageBitmapWithoutOrientation = async (blob: Blob): Promise<ImageBitmap | HTMLImageElement> => {
+  if ("createImageBitmap" in window) {
+    try {
+      return await createImageBitmap(blob, { imageOrientation: "none" });
+    } catch (_) {
+      // Fall through to HTMLImageElement for older mobile browsers.
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("写真を読み込めませんでした"));
+    };
+    img.src = url;
+  });
+};
+
+const drawImageWithExifOrientation = async (blob: Blob, orientation: number): Promise<string> => {
+  const image = await loadImageBitmapWithoutOrientation(blob);
+  const sourceWidth = image.width;
+  const sourceHeight = image.height;
+  const swapsAxes = orientation >= 5 && orientation <= 8;
+  const canvas = document.createElement("canvas");
+  canvas.width = swapsAxes ? sourceHeight : sourceWidth;
+  canvas.height = swapsAxes ? sourceWidth : sourceHeight;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("写真の向き補正を開始できません");
+
+  switch (orientation) {
+    case 2:
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      break;
+    case 3:
+      ctx.translate(canvas.width, canvas.height);
+      ctx.rotate(Math.PI);
+      break;
+    case 4:
+      ctx.translate(0, canvas.height);
+      ctx.scale(1, -1);
+      break;
+    case 5:
+      ctx.rotate(0.5 * Math.PI);
+      ctx.scale(1, -1);
+      break;
+    case 6:
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(0.5 * Math.PI);
+      break;
+    case 7:
+      ctx.translate(canvas.width, canvas.height);
+      ctx.scale(-1, 1);
+      ctx.rotate(0.5 * Math.PI);
+      break;
+    case 8:
+      ctx.translate(0, canvas.height);
+      ctx.rotate(-0.5 * Math.PI);
+      break;
+  }
+
+  ctx.drawImage(image, 0, 0);
+  if ("close" in image) image.close();
+
+  return canvas.toDataURL("image/jpeg", 0.92);
+};
+
 const createEmptyPhotoMarkSets = (): PhotoMark[][] =>
   Array.from({ length: 4 }, () => []);
 
@@ -1701,6 +1825,11 @@ const handleCreateNewSheet = async () => {
   const readPhotoFileAsDataUrl = async (file: File): Promise<string> => {
     if (isHeicFile(file) || await isHeicBlob(file)) {
       return convertHeicBlobToJpegDataUrl(file);
+    }
+
+    const orientation = await getJpegExifOrientation(file);
+    if (orientation > 1) {
+      return drawImageWithExifOrientation(file, orientation);
     }
 
     return convertHeicDataUrlToJpegIfNeeded(await readBlobAsDataUrl(file));

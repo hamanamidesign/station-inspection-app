@@ -723,7 +723,7 @@ try {
         const f = files.next();
         const name = f.getName();
 
-        if (name.startsWith("_編集元_初回点検_")) {
+        if (name.startsWith("編集元_初回点検_")) {
           const idx = getPhotoIndexFromFileName_(name);
 
           if (idx >= 0 && idx < 4) {
@@ -731,10 +731,26 @@ try {
               "data:image/jpeg;base64," +
               Utilities.base64Encode(f.getBlob().getBytes());
           }
-        } else if (name.startsWith("_編集元_")) {
+        } else if (name.startsWith("_編集元_初回点検_")) {
+          const idx = getPhotoIndexFromFileName_(name);
+
+          if (idx >= 0 && idx < 4 && !firstPhotos[idx]) {
+            firstPhotos[idx] =
+              "data:image/jpeg;base64," +
+              Utilities.base64Encode(f.getBlob().getBytes());
+          }
+        } else if (name.startsWith("編集元_")) {
           const idx = getPhotoIndexFromFileName_(name);
 
           if (idx >= 0 && idx < 4) {
+            photos[idx] =
+              "data:image/jpeg;base64," +
+              Utilities.base64Encode(f.getBlob().getBytes());
+          }
+        } else if (name.startsWith("_編集元_")) {
+          const idx = getPhotoIndexFromFileName_(name);
+
+          if (idx >= 0 && idx < 4 && !photos[idx]) {
             photos[idx] =
               "data:image/jpeg;base64," +
               Utilities.base64Encode(f.getBlob().getBytes());
@@ -1484,7 +1500,7 @@ const savedBlobs = {};
     const originalBlob = Utilities.newBlob(
       Utilities.base64Decode(originalBase64),
       "image/jpeg",
-      `_編集元_${data.year}_${newSheetName}_${index}.jpg`
+      `編集元_${data.year}_${newSheetName}_${index}.jpg`
     );
     karteSubFolder.createFile(originalBlob);
   }
@@ -1526,7 +1542,7 @@ const savedFirstBlobs = {};
     const originalBlob = Utilities.newBlob(
       Utilities.base64Decode(originalBase64),
       "image/jpeg",
-      `_編集元_初回点検_${data.year}_${newSheetName}_${index}.jpg`
+      `編集元_初回点検_${data.year}_${newSheetName}_${index}.jpg`
     );
     karteSubFolder.createFile(originalBlob);
   }
