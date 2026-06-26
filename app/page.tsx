@@ -14,6 +14,7 @@ type MapAddMode = 'marker' | 'text' | 'line';
 type PhotoMarkColor = 'red' | 'black' | '#0070c0';
 type PhotoMarkTool = 'ellipse' | 'line' | 'text';
 type PhotoMarkTarget = 'first' | 'current';
+type SlopePhotoField = 'photo1' | 'photo2';
 
 interface PhotoEllipseMark {
   id: number;
@@ -51,6 +52,14 @@ interface PhotoEditorTarget {
   target: PhotoMarkTarget;
   index: number;
 }
+
+interface SlopePhotoEditorTarget {
+  target: 'slope';
+  rowId: number;
+  photoField: SlopePhotoField;
+}
+
+type ActivePhotoEditorTarget = PhotoEditorTarget | SlopePhotoEditorTarget;
 
 interface MapTextAnnotation {
   id: number;
@@ -536,6 +545,9 @@ const drawImageWithExifOrientation = async (blob: Blob, orientation: number): Pr
 const createEmptyPhotoMarkSets = (): PhotoMark[][] =>
   Array.from({ length: 4 }, () => []);
 
+const getSlopePhotoMarkKey = (rowId: number, photoField: SlopePhotoField) =>
+  `${rowId}:${photoField}`;
+
 const normalizePhotoMarkColor = (value: unknown): PhotoMarkColor => {
   const color = String(value || '').trim().toLowerCase();
   if (color === 'black') return 'black';
@@ -1008,7 +1020,8 @@ useEffect(() => {
   const photoEditorImageRef = useRef<HTMLImageElement>(null);
   const [firstPhotoMarks, setFirstPhotoMarks] = useState<PhotoMark[][]>(() => createEmptyPhotoMarkSets());
   const [currentPhotoMarks, setCurrentPhotoMarks] = useState<PhotoMark[][]>(() => createEmptyPhotoMarkSets());
-  const [photoEditorTarget, setPhotoEditorTarget] = useState<PhotoEditorTarget | null>(null);
+  const [slopePhotoMarks, setSlopePhotoMarks] = useState<Record<string, PhotoMark[]>>({});
+  const [photoEditorTarget, setPhotoEditorTarget] = useState<ActivePhotoEditorTarget | null>(null);
   const [photoMarkTool, setPhotoMarkTool] = useState<PhotoMarkTool>('ellipse');
   const [photoMarkColor, setPhotoMarkColor] = useState<PhotoMarkColor>('red');
   const [editingPhotoMark, setEditingPhotoMark] = useState<PhotoMark | null>(null);
@@ -2086,29 +2099,49 @@ const handleCreateNewSheet = async () => {
     return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
   };
 
-  const getPhotoMarks = (target: PhotoEditorTarget) =>
-    target.target === 'first'
+  const getPhotoMarks = (target: ActivePhotoEditorTarget) => {
+    if (target.target === 'slope') {
+      return slopePhotoMarks[getSlopePhotoMarkKey(target.rowId, target.photoField)] || [];
+    }
+
+    return target.target === 'first'
       ? firstPhotoMarks[target.index] || []
       : currentPhotoMarks[target.index] || [];
+  };
 
-  const setPhotoMarksForTarget = (target: PhotoEditorTarget, updater: (marks: PhotoMark[]) => PhotoMark[]) => {
+  const setPhotoMarksForTarget = (target: ActivePhotoEditorTarget, updater: (marks: PhotoMark[]) => PhotoMark[]) => {
+    if (target.target === 'slope') {
+      const key = getSlopePhotoMarkKey(target.rowId, target.photoField);
+      setSlopePhotoMarks(prev => ({
+        ...prev,
+        [key]: updater(prev[key] || []),
+      }));
+      return;
+    }
+
     const setMarks = target.target === 'first' ? setFirstPhotoMarks : setCurrentPhotoMarks;
     setMarks(prev => prev.map((marks, index) => index === target.index ? updater(marks) : marks));
   };
 
-  const rotateEditorPhoto = async (target: PhotoEditorTarget, degrees: 90 | -90) => {
+  const rotateEditorPhoto = async (target: ActivePhotoEditorTarget, degrees: 90 | -90) => {
     if (isPhotoRotating) return;
 
-    const photo = target.target === 'first'
-      ? firstPhotos[target.index]
-      : photos[target.index];
+    const photo = target.target === 'slope'
+      ? slopeRows.find(row => row.id === target.rowId)?.[target.photoField]
+      : target.target === 'first'
+        ? firstPhotos[target.index]
+        : photos[target.index];
     if (!photo) return;
 
     setIsPhotoRotating(true);
     try {
       const rotated = await rotatePhotoDataUrl(photo, degrees);
-      const setPhotoList = target.target === 'first' ? setFirstPhotos : setPhotos;
-      setPhotoList(prev => prev.map((item, index) => index === target.index ? rotated : item));
+      if (target.target === 'slope') {
+        updateSlopePhoto(target.rowId, target.photoField, rotated, false);
+      } else {
+        const setPhotoList = target.target === 'first' ? setFirstPhotos : setPhotos;
+        setPhotoList(prev => prev.map((item, index) => index === target.index ? rotated : item));
+      }
       setPhotoMarksForTarget(target, marks => rotatePhotoMarks(marks, degrees));
       setEditingPhotoMark(null);
     } catch (error) {
@@ -2120,6 +2153,13 @@ const handleCreateNewSheet = async () => {
 
   const openPhotoMarkEditor = (target: PhotoMarkTarget, index: number) => {
     setPhotoEditorTarget({ target, index });
+    setEditingPhotoMark(null);
+    setPhotoMarkText('');
+    setPhotoMarkTool('ellipse');
+  };
+
+  const openSlopePhotoMarkEditor = (rowId: number, photoField: SlopePhotoField) => {
+    setPhotoEditorTarget({ target: 'slope', rowId, photoField });
     setEditingPhotoMark(null);
     setPhotoMarkText('');
     setPhotoMarkTool('ellipse');
@@ -4196,6 +4236,7 @@ const result = await gasApi("getSlopeTableData", {
       ? result.rows.map((row: Partial<SlopeTableRow>, index: number) => normalizeSlopeRow(row, index))
       : createEmptySlopeRows();
 
+    setSlopePhotoMarks({});
     setSlopeRows(padSlopeRowsForDisplay(loadedSlopeRows, nextInspectList));
 
     if (mode === 'inclination_menu') {
@@ -4479,8 +4520,9 @@ const addSlopeRow = () => {
 
 const updateSlopePhoto = (
   rowId: number,
-  photoField: 'photo1' | 'photo2',
-  photo: string | null
+  photoField: SlopePhotoField,
+  photo: string | null,
+  clearMarks = true
 ) => {
 
   setSlopeRows(rows =>
@@ -4493,6 +4535,15 @@ const updateSlopePhoto = (
         : row
     )
   );
+
+  if (clearMarks) {
+    const key = getSlopePhotoMarkKey(rowId, photoField);
+    setSlopePhotoMarks(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
 
 };
 
@@ -4584,11 +4635,20 @@ const sendSlopeTable = async () => {
   }
 };
 
-const toPhotoPayload = async (photo: string | null | undefined, point: string, kind: 'first' | 'current') => {
+const toPhotoPayload = async (
+  photo: string | null | undefined,
+  point: string,
+  kind: 'first' | 'current',
+  marks: PhotoMark[] = []
+) => {
   if (!photo) return null;
   const fileName = kind === 'first' ? `初回_${point}.jpg` : `${selectedYear}_${point}.jpg`;
 
   if (!photo.startsWith("data:image")) {
+    if (marks.length) {
+      throw new Error(`${point} の写真はDrive参照のため、先に写真を選び直してからマーク編集してください`);
+    }
+
     const fileId =
       photo.match(/[?&]id=([^&#]+)/)?.[1] ||
       photo.match(/\/d\/([^/]+)/)?.[1] ||
@@ -4606,7 +4666,8 @@ const toPhotoPayload = async (photo: string | null | undefined, point: string, k
     };
   }
 
-  const resized = await resizeImage(photo, 800, 350000, 0.4, 490000);
+  const markedPhoto = marks.length ? await renderPhotoForSave(photo, marks) : photo;
+  const resized = await resizeImage(markedPhoto, 800, 350000, 0.4, 490000);
   const base64 = resized.includes(',') ? resized.split(',')[1] : "";
   if (!base64) {
     throw new Error(`${point} の写真データを作成できませんでした`);
@@ -4673,7 +4734,12 @@ const sendInclinationKarte = async () => {
       let uploadedPhotoCount = 0;
 
       for (const row of group) {
-        const firstPhotoFile = await toPhotoPayload(row.photo1, row.point, 'first');
+        const firstPhotoFile = await toPhotoPayload(
+          row.photo1,
+          row.point,
+          'first',
+          slopePhotoMarks[getSlopePhotoMarkKey(row.id, 'photo1')] || []
+        );
         if (firstPhotoFile) {
           try {
             await gasApi("uploadInclinationKartePhoto", {
@@ -4701,7 +4767,12 @@ const sendInclinationKarte = async () => {
           });
         }
 
-        const currentPhotoFile = await toPhotoPayload(row.photo2, row.point, 'current');
+        const currentPhotoFile = await toPhotoPayload(
+          row.photo2,
+          row.point,
+          'current',
+          slopePhotoMarks[getSlopePhotoMarkKey(row.id, 'photo2')] || []
+        );
         if (currentPhotoFile) {
           try {
             await gasApi("uploadInclinationKartePhoto", {
@@ -5282,6 +5353,167 @@ if (mode === 'inclination_menu') {
     Math.max(0.3, (viewportWidth - 32) / INCLINATION_CARD_WIDTH)
   );
   const scaledInclinationWidth = INCLINATION_CARD_WIDTH * inclinationScale;
+  const slopeEditorPhoto =
+    photoEditorTarget?.target === 'slope'
+      ? slopeRows.find(row => row.id === photoEditorTarget.rowId)?.[photoEditorTarget.photoField] || null
+      : null;
+  const slopeEditorMarks =
+    photoEditorTarget?.target === 'slope'
+      ? getPhotoMarks(photoEditorTarget)
+      : [];
+  const selectedSlopeMark = editingPhotoMark && slopeEditorMarks.find(mark => mark.id === editingPhotoMark.id);
+
+  const getSlopeEditorPoint = (event: React.PointerEvent<Element>) => {
+    const rect = photoEditorImageRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+
+    return {
+      x: clampPhotoPercent(((event.clientX - rect.left) / rect.width) * 100),
+      y: clampPhotoPercent(((event.clientY - rect.top) / rect.height) * 100),
+    };
+  };
+
+  const beginSlopeMarkMove = (event: React.PointerEvent<Element>, mark: PhotoMark) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const point = getSlopeEditorPoint(event);
+    if (!point) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    photoMarkDragRef.current = {
+      id: mark.id,
+      mode: 'move',
+      lastX: point.x,
+      lastY: point.y,
+    };
+    setEditingPhotoMark(mark);
+    setPhotoMarkTool(mark.type);
+    setPhotoMarkColor(mark.color);
+    if (mark.type === 'text') setPhotoMarkText(mark.text);
+  };
+
+  const moveSlopeMark = (event: React.PointerEvent<Element>, mark: PhotoMark) => {
+    const drag = photoMarkDragRef.current;
+    if (drag.id !== mark.id || drag.mode !== 'move') return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const point = getSlopeEditorPoint(event);
+    if (!point) return;
+
+    const dx = point.x - drag.lastX;
+    const dy = point.y - drag.lastY;
+    drag.lastX = point.x;
+    drag.lastY = point.y;
+
+    if (mark.type === 'ellipse') {
+      updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
+    } else if (mark.type === 'line') {
+      updatePhotoMark({
+        ...mark,
+        x1: clampPhotoPercent(mark.x1 + dx),
+        y1: clampPhotoPercent(mark.y1 + dy),
+        x2: clampPhotoPercent(mark.x2 + dx),
+        y2: clampPhotoPercent(mark.y2 + dy),
+      });
+    } else {
+      updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
+    }
+  };
+
+  const endSlopeMarkMove = (event: React.PointerEvent<Element>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    photoMarkDragRef.current = { id: null, mode: null, lastX: 0, lastY: 0 };
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch (_) {
+      // Pointer capture may already be released by the browser.
+    }
+  };
+
+  const handleSlopeEditorTap = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget && event.target !== photoEditorImageRef.current) return;
+    const point = getSlopeEditorPoint(event);
+    if (!point) return;
+
+    if (selectedSlopeMark) {
+      setEditingPhotoMark(null);
+      return;
+    }
+
+    addPhotoMarkAt(point.x, point.y);
+  };
+
+  const renderSlopeEditorMark = (mark: PhotoMark) => {
+    const isSelected = selectedSlopeMark?.id === mark.id;
+
+    if (mark.type === 'ellipse') {
+      return (
+        <div
+          key={mark.id}
+          className="pointer-events-auto absolute z-10 touch-none cursor-move"
+          style={{
+            left: `${mark.x}%`,
+            top: `${mark.y}%`,
+            width: `${Math.max(2, mark.width)}%`,
+            height: `${Math.max(2, mark.height)}%`,
+            transform: `translate(-50%, -50%) rotate(${mark.rotation}deg)`,
+            transformOrigin: 'center',
+          }}
+          onPointerDown={(event) => beginSlopeMarkMove(event, mark)}
+          onPointerMove={(event) => moveSlopeMark(event, mark)}
+          onPointerUp={endSlopeMarkMove}
+          onPointerCancel={endSlopeMarkMove}
+        >
+          <svg className="h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {isSelected && <ellipse cx={50} cy={50} rx={48} ry={48} fill="none" stroke="white" strokeWidth={8} opacity={0.9} vectorEffect="non-scaling-stroke" />}
+            <ellipse cx={50} cy={50} rx={48} ry={48} fill="none" stroke={mark.color} strokeWidth={4} vectorEffect="non-scaling-stroke" />
+          </svg>
+        </div>
+      );
+    }
+
+    if (mark.type === 'line') {
+      return (
+        <svg
+          key={mark.id}
+          className="pointer-events-auto absolute inset-0 z-10 h-full w-full touch-none cursor-move"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          onPointerDown={(event) => beginSlopeMarkMove(event, mark)}
+          onPointerMove={(event) => moveSlopeMark(event, mark)}
+          onPointerUp={endSlopeMarkMove}
+          onPointerCancel={endSlopeMarkMove}
+        >
+          {isSelected && <line x1={mark.x1} y1={mark.y1} x2={mark.x2} y2={mark.y2} stroke="white" strokeWidth={8} strokeLinecap="round" opacity={0.9} vectorEffect="non-scaling-stroke" />}
+          <line x1={mark.x1} y1={mark.y1} x2={mark.x2} y2={mark.y2} stroke={mark.color} strokeWidth={4} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <line x1={mark.x1} y1={mark.y1} x2={mark.x2} y2={mark.y2} stroke="transparent" strokeWidth={18} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      );
+    }
+
+    return (
+      <div
+        key={mark.id}
+        className="pointer-events-auto absolute z-10 touch-none whitespace-pre rounded bg-white/60 px-1 text-[16px] font-black leading-tight"
+        style={{
+          left: `${mark.x}%`,
+          top: `${mark.y}%`,
+          color: mark.color,
+          fontFamily: '"MS Gothic", "ＭＳ ゴシック", sans-serif',
+          boxShadow: isSelected ? '0 0 0 2px rgba(255,255,255,0.9)' : undefined,
+          cursor: 'move',
+        }}
+        onPointerDown={(event) => beginSlopeMarkMove(event, mark)}
+        onPointerMove={(event) => moveSlopeMark(event, mark)}
+        onPointerUp={endSlopeMarkMove}
+        onPointerCancel={endSlopeMarkMove}
+      >
+        {mark.text}
+      </div>
+    );
+  };
 
   return (
 
@@ -5290,6 +5522,146 @@ if (mode === 'inclination_menu') {
     <Nav />
     <LoadingOverlay />
     {drivePickerModal}
+    {photoEditorTarget?.target === 'slope' && slopeEditorPhoto && (
+      <div className="fixed inset-0 z-[900] flex flex-col overflow-hidden bg-slate-950 text-white">
+        <div className="relative z-20 flex shrink-0 items-center gap-2 border-b border-white/15 bg-slate-900 p-2">
+          <button
+            type="button"
+            onClick={() => {
+              setPhotoEditorTarget(null);
+              setEditingPhotoMark(null);
+            }}
+            className="rounded bg-white/10 px-3 py-2 text-sm font-bold"
+          >
+            閉じる
+          </button>
+          <div className="min-w-0 flex-1 text-center text-sm font-black">
+            {photoEditorTarget.photoField === 'photo1' ? '初回写真' : '最新写真'}
+          </div>
+          <button
+            type="button"
+            aria-label="写真を左に90度回転"
+            title="写真を左に90度回転"
+            disabled={isPhotoRotating}
+            onClick={() => rotateEditorPhoto(photoEditorTarget, -90)}
+            className="flex h-10 w-10 items-center justify-center rounded bg-white/10 text-lg font-black disabled:opacity-40"
+          >
+            ↺
+          </button>
+          <button
+            type="button"
+            aria-label="写真を右に90度回転"
+            title="写真を右に90度回転"
+            disabled={isPhotoRotating}
+            onClick={() => rotateEditorPhoto(photoEditorTarget, 90)}
+            className="flex h-10 w-10 items-center justify-center rounded bg-white/10 text-lg font-black disabled:opacity-40"
+          >
+            ↻
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPhotoMarksForTarget(photoEditorTarget, () => []);
+              setEditingPhotoMark(null);
+            }}
+            className="rounded bg-rose-600 px-3 py-2 text-sm font-bold"
+          >
+            全削除
+          </button>
+        </div>
+
+        <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-2">
+          <div className="relative touch-none" onPointerDown={handleSlopeEditorTap}>
+            <img
+              ref={photoEditorImageRef}
+              src={slopeEditorPhoto}
+              className="block max-h-[calc(100vh-284px)] max-w-[calc(100vw-16px)] select-none object-contain"
+              draggable={false}
+            />
+            <div className="pointer-events-none absolute inset-0">
+              {slopeEditorMarks.map(renderSlopeEditorMark)}
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-30 h-[204px] shrink-0 space-y-2 overflow-y-auto border-t border-white/15 bg-slate-900 p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.35)]">
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { id: 'ellipse', label: '楕円○' },
+              { id: 'line', label: '線' },
+              { id: 'text', label: '文字' },
+            ] as const).map(tool => (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => {
+                  setPhotoMarkTool(tool.id);
+                  setEditingPhotoMark(null);
+                }}
+                className={`rounded px-3 py-2 text-sm font-black ${photoMarkTool === tool.id && !selectedSlopeMark ? 'bg-white text-slate-900' : 'bg-white/10 text-white'}`}
+              >
+                {tool.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex gap-3">
+              {(['red', 'black', '#0070c0'] as const).map(color => (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={color}
+                  onClick={() => {
+                    setPhotoMarkColor(color);
+                    if (selectedSlopeMark) updatePhotoMark({ ...selectedSlopeMark, color } as PhotoMark);
+                  }}
+                  className={`h-10 w-10 rounded-full border-4 ${photoMarkColor === color ? 'border-white' : 'border-transparent'}`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+            {selectedSlopeMark ? (
+              <button
+                type="button"
+                onClick={() => deletePhotoMark(selectedSlopeMark.id)}
+                className="rounded bg-rose-600 px-4 py-2 text-sm font-black"
+              >
+                選択を削除
+              </button>
+            ) : (
+              <div className="min-w-[96px]" />
+            )}
+          </div>
+
+          <div className="h-[62px] overflow-y-auto text-center text-xs font-bold text-white/70">
+            {selectedSlopeMark ? (
+              selectedSlopeMark.type === 'text' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = window.prompt("文字を編集してください", selectedSlopeMark.text);
+                    if (text === null) return;
+                    if (!text.trim()) {
+                      deletePhotoMark(selectedSlopeMark.id);
+                    } else {
+                      updatePhotoMark({ ...selectedSlopeMark, text: text.trim() });
+                    }
+                  }}
+                  className="mt-2 block w-full rounded bg-white/10 py-2 font-black"
+                >
+                  文字を変更
+                </button>
+              ) : (
+                '選択中のマークはスライドで移動できます。'
+              )
+            ) : (
+              '写真をタップすると選択中のマークを追加できます。マークをタップすると編集できます。'
+            )}
+          </div>
+        </div>
+      </div>
+    )}
 
     <div
       className="mx-auto"
@@ -5645,7 +6017,7 @@ if (mode === 'inclination_menu') {
   {/* 写真① */}
   <div className="relative aspect-[4/3] bg-slate-100">
 
-    <div className="w-full h-full overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden">
 
       {row.photo1 ? (
 
@@ -5661,6 +6033,8 @@ if (mode === 'inclination_menu') {
         </div>
 
       )}
+
+      {row.photo1 && renderPhotoMarkOverlay(slopePhotoMarks[getSlopePhotoMarkKey(row.id, 'photo1')] || [])}
 
     </div>
 
@@ -5685,6 +6059,20 @@ if (mode === 'inclination_menu') {
     >
       Drive
     </button>
+
+    {!!row.photo1 && (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openSlopePhotoMarkEditor(row.id, 'photo1');
+        }}
+        className="absolute bottom-1 right-1 z-20 rounded bg-indigo-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+      >
+        編集
+      </button>
+    )}
 
     {!!row.photo1 && (
 
@@ -5712,7 +6100,7 @@ if (mode === 'inclination_menu') {
   {/* 写真② */}
   <div className="relative aspect-[4/3] bg-slate-100 border-l border-slate-300">
 
-    <div className="w-full h-full overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden">
 
       {row.photo2 ? (
 
@@ -5728,6 +6116,8 @@ if (mode === 'inclination_menu') {
         </div>
 
       )}
+
+      {row.photo2 && renderPhotoMarkOverlay(slopePhotoMarks[getSlopePhotoMarkKey(row.id, 'photo2')] || [])}
 
     </div>
 
@@ -5752,6 +6142,20 @@ if (mode === 'inclination_menu') {
     >
       Drive
     </button>
+
+    {!!row.photo2 && (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openSlopePhotoMarkEditor(row.id, 'photo2');
+        }}
+        className="absolute bottom-1 right-1 z-20 rounded bg-indigo-600 px-2 py-1 text-[10px] font-bold text-white shadow"
+      >
+        編集
+      </button>
+    )}
 
     {!!row.photo2 && (
 
@@ -6804,11 +7208,12 @@ if (mode === 'inclination_menu') {
           </div>
         )}
 
-        {photoEditorTarget && (() => {
-          const editorPhoto = photoEditorTarget.target === 'first'
-            ? firstPhotos[photoEditorTarget.index]
-            : photos[photoEditorTarget.index];
-          const editorMarks = getPhotoMarks(photoEditorTarget);
+        {photoEditorTarget && photoEditorTarget.target !== 'slope' && (() => {
+          const target = photoEditorTarget;
+          const editorPhoto = target.target === 'first'
+            ? firstPhotos[target.index]
+            : photos[target.index];
+          const editorMarks = getPhotoMarks(target);
           const selectedMark = editingPhotoMark && editorMarks.find(mark => mark.id === editingPhotoMark.id);
 
           if (!editorPhoto) return null;
@@ -7236,7 +7641,7 @@ if (mode === 'inclination_menu') {
                   閉じる
                 </button>
                 <div className="min-w-0 flex-1 text-center text-sm font-black">
-                  {photoEditorTarget.target === 'first' ? '初回写真' : '今回写真'}{photoEditorTarget.index + 1}
+                  {target.target === 'first' ? '初回写真' : '今回写真'}{target.index + 1}
                 </div>
                 <div className="flex shrink-0 gap-1">
                   <button
