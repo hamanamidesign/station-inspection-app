@@ -2894,6 +2894,7 @@ const createPdf = async () => {
       const startedAt = new Date().toISOString();
       const payload = {
         spreadsheetId,
+        folderId: stationFolderId,
         stationName,
         year: selectedYear,
         pdfKind: job.kind,
@@ -2911,6 +2912,7 @@ const createPdf = async () => {
 
         const completed = await waitForCompletedPdfFile({
           spreadsheetId,
+          folderId: stationFolderId,
           stationName,
           year: selectedYear,
           fileSuffix: job.suffix,
@@ -2960,6 +2962,7 @@ const isPdfCreationTimeoutError = (error: unknown) => {
 
 const waitForCompletedPdfFile = async (params: {
   spreadsheetId: string;
+  folderId?: string;
   stationName: string;
   year: string;
   fileSuffix: string;
@@ -2987,6 +2990,7 @@ const mergeAllPdfs = async () => {
   try {
     const startResult = await gasApi("startInspectionPdfMerge", {
       spreadsheetId,
+      folderId: stationFolderId,
       stationName,
       year: selectedYear,
       mergeOrder: [
@@ -3021,6 +3025,7 @@ const mergeAllPdfs = async () => {
 
       const completedFile = await gasApi("findCompletedInspectionPdf", {
         spreadsheetId,
+        folderId: stationFolderId,
         stationName,
         year: selectedYear,
         startedAt: mergeStartedAt,
@@ -9029,3 +9034,4 @@ if (mode === 'editor') {
   // 最後に何も該当しない場合のフォールバック
   return null;
   } //
+

@@ -129,7 +129,7 @@ function startInspectionPdfMerge(data) {
   if (!stationName) throw new Error("駅名がありません");
   if (!year) throw new Error("年度がありません");
 
-  const folder = getInspectionPdfFolder_(spreadsheetId);
+  const folder = getInspectionPdfFolder_(spreadsheetId, data.folderId);
   const pdfFiles = [];
   const missing = [];
   const mergeOrder = getInspectionPdfMergeOrder_(data);
@@ -304,7 +304,7 @@ function findCompletedInspectionPdf(data) {
     throw new Error("完成PDFの確認条件が不足しています");
   }
 
-  const folder = getInspectionPdfFolder_(spreadsheetId);
+  const folder = getInspectionPdfFolder_(spreadsheetId, data.folderId);
   const fileName = buildInspectionPdfFileName_({
     stationName: stationName,
     year: year,
@@ -343,7 +343,7 @@ function findCompletedInspectionPdfFile(data) {
     throw new Error("完成PDFの確認条件が不足しています");
   }
 
-  const folder = getInspectionPdfFolder_(spreadsheetId);
+  const folder = getInspectionPdfFolder_(spreadsheetId, data.folderId);
   const fileName = buildInspectionPdfFileName_({
     stationName: stationName,
     year: year,
@@ -470,11 +470,16 @@ function runPendingInspectionPdfMerges() {
   }
 }
 
-function getInspectionPdfFolder_(spreadsheetId) {
+function getInspectionPdfFolder_(spreadsheetId, folderId) {
+  const explicitFolderId = String(folderId || "").trim();
+  if (explicitFolderId) {
+    return DriveApp.getFolderById(explicitFolderId);
+  }
+
   const spreadsheetFile = DriveApp.getFileById(spreadsheetId);
   const parents = spreadsheetFile.getParents();
   if (!parents.hasNext()) {
-    throw new Error("選択中の駅フォルダが見つかりません");
+    throw new Error("PDF保存先フォルダが見つかりません。駅を選び直してからPDF作成を実行してください。");
   }
   return parents.next();
 }
@@ -747,7 +752,7 @@ function createGenericInspectionPdf_(data, sheetNames) {
     });
 
     const blob = exportSheetPdfBlob_(ss.getId(), null, fileName, exportOptions);
-    const file = savePdfBlob_(data.spreadsheetId, blob);
+    const file = savePdfBlob_(data.spreadsheetId, blob, data.folderId);
 
     return {
       success: true,
@@ -938,19 +943,11 @@ function exportSheetPdfBlob_(spreadsheetId, sheetId, fileName, options) {
   return response.getBlob().setName(fileName + ".pdf");
 }
 
-function savePdfBlob_(spreadsheetId, blob) {
-  const spreadsheetFile = DriveApp.getFileById(spreadsheetId);
-  const parents = spreadsheetFile.getParents();
+function savePdfBlob_(spreadsheetId, blob, folderId) {
   const fileName = blob.getName();
-
-  if (parents.hasNext()) {
-    const folder = parents.next();
-    trashExistingFilesByName_(folder, fileName);
-    return folder.createFile(blob);
-  }
-
-  trashExistingRootFilesByName_(fileName);
-  return DriveApp.createFile(blob);
+  const folder = getInspectionPdfFolder_(spreadsheetId, folderId);
+  trashExistingFilesByName_(folder, fileName);
+  return folder.createFile(blob);
 }
 
 function trashExistingFilesByName_(folder, fileName) {
@@ -982,3 +979,4 @@ function buildInspectionPdfFileName_(data, suffix) {
 
   return parts.join("_");
 }
+

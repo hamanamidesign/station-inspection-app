@@ -2198,7 +2198,7 @@ function createInspectionPdf(data) {
   }));
 
   const activeSheet = ss.getActiveSheet();
-  const folder = getSpreadsheetParentFolder_(spreadsheetId);
+  const folder = getSpreadsheetParentFolder_(spreadsheetId, data.folderId || data.stationFolderId);
   const multipleFiles = exportGroups.length > 1;
   const files = [];
 
@@ -2396,10 +2396,18 @@ function buildSpreadsheetPdfExportUrl_(spreadsheetId, portrait, group) {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?${params.join("&")}`;
 }
 
-function getSpreadsheetParentFolder_(spreadsheetId) {
+function getSpreadsheetParentFolder_(spreadsheetId, folderId) {
+  const explicitFolderId = String(folderId || "").trim();
+  if (explicitFolderId) {
+    return DriveApp.getFolderById(explicitFolderId);
+  }
+
   const file = DriveApp.getFileById(spreadsheetId);
   const parents = file.getParents();
-  return parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+  if (!parents.hasNext()) {
+    throw new Error("PDF保存先フォルダが見つかりません。駅を選び直してからPDF作成を実行してください。");
+  }
+  return parents.next();
 }
 
 function toSheetDate(value) {
@@ -2510,3 +2518,5 @@ function getOrCreateStationPhotoFolder_(stationYearFolder) {
 
   return stationYearFolder.createFolder("写真保存エリア");
 }
+
+
