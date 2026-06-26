@@ -1331,11 +1331,11 @@ function applyKarteHeaderTextStyle_(range, value) {
 function applyPhotoKarteLocationDetailStyle_(sheet, value) {
   const text = value === null || value === undefined ? "" : String(value);
   const range = sheet.getRange("Q1:T1");
-  const length = text.length;
+  const displayWidth = getPhotoKarteLocationDetailTextWidth_(text);
   const fontSize =
-    length >= 14 ? 7 :
-    length >= 12 ? 9 :
-    length === 11 ? 10 :
+    displayWidth >= 14 ? 7 :
+    displayWidth >= 12 ? 9 :
+    displayWidth >= 11 ? 10 :
     11;
 
   range
@@ -1346,6 +1346,14 @@ function applyPhotoKarteLocationDetailStyle_(sheet, value) {
     .setHorizontalAlignment("left")
     .setFontSize(fontSize)
     .setFontFamily("MS Mincho");
+}
+
+function getPhotoKarteLocationDetailTextWidth_(text) {
+  return String(text || "").split("").reduce(function(total, char) {
+    if (/[\uFF61-\uFF9F]/.test(char)) return total + 0.65;
+    if (/[\u0020-\u007E]/.test(char)) return total + 0.5;
+    return total + 1;
+  }, 0);
 }
 
 function getKarteHeaderTextStyle_(length) {
