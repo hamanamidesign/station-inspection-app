@@ -5418,7 +5418,12 @@ if (mode === 'inclination_menu') {
     };
   };
 
-  const beginSlopeMarkMove = (event: React.PointerEvent<Element>, mark: PhotoMark) => {
+  const beginSlopeMarkDrag = (
+    event: React.PointerEvent<Element>,
+    mark: PhotoMark,
+    mode: 'move' | 'resize' | 'rotate' | 'line-start' | 'line-end',
+    corner?: 'nw' | 'ne' | 'sw' | 'se'
+  ) => {
     event.preventDefault();
     event.stopPropagation();
     const point = getSlopeEditorPoint(event);
@@ -5427,7 +5432,8 @@ if (mode === 'inclination_menu') {
     event.currentTarget.setPointerCapture(event.pointerId);
     photoMarkDragRef.current = {
       id: mark.id,
-      mode: 'move',
+      mode,
+      corner,
       lastX: point.x,
       lastY: point.y,
     };
@@ -5437,36 +5443,111 @@ if (mode === 'inclination_menu') {
     if (mark.type === 'text') setPhotoMarkText(mark.text);
   };
 
-  const moveSlopeMark = (event: React.PointerEvent<Element>, mark: PhotoMark) => {
+  const getSlopeEllipseRotationFromPointer = (
+    event: React.PointerEvent<Element>,
+    mark: PhotoEllipseMark
+  ) => {
+    const rect = photoEditorImageRef.current?.getBoundingClientRect();
+    if (!rect) return mark.rotation;
+
+    const centerX = rect.left + (mark.x / 100) * rect.width;
+    const centerY = rect.top + (mark.y / 100) * rect.height;
+    const angle = Math.atan2(event.clientY - centerY, event.clientX - centerX) * 180 / Math.PI;
+
+    return normalizePhotoRotation(angle + 90);
+  };
+
+  const resizeSlopeRotatedEllipse = (
+    event: React.PointerEvent<Element>,
+    mark: PhotoEllipseMark,
+    corner: 'nw' | 'ne' | 'sw' | 'se'
+  ) => {
+    const rect = photoEditorImageRef.current?.getBoundingClientRect();
+    if (!rect) return mark;
+
+    const centerX = rect.left + (mark.x / 100) * rect.width;
+    const centerY = rect.top + (mark.y / 100) * rect.height;
+    const halfWidth = ((mark.width / 100) * rect.width) / 2;
+    const halfHeight = ((mark.height / 100) * rect.height) / 2;
+    const angle = (mark.rotation * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const dx = event.clientX - centerX;
+    const dy = event.clientY - centerY;
+    const localX = dx * cos + dy * sin;
+    const localY = -dx * sin + dy * cos;
+    const cornerX = corner.includes('e') ? 1 : -1;
+    const cornerY = corner.includes('s') ? 1 : -1;
+    const fixedX = -cornerX * halfWidth;
+    const fixedY = -cornerY * halfHeight;
+    const nextWidth = Math.max((4 / 100) * rect.width, Math.abs(localX - fixedX));
+    const nextHeight = Math.max((4 / 100) * rect.height, Math.abs(localY - fixedY));
+    const localCenterX = (localX + fixedX) / 2;
+    const localCenterY = (localY + fixedY) / 2;
+    const nextCenterX = centerX + localCenterX * cos - localCenterY * sin;
+    const nextCenterY = centerY + localCenterX * sin + localCenterY * cos;
+
+    return {
+      ...mark,
+      x: clampPhotoPercent(((nextCenterX - rect.left) / rect.width) * 100),
+      y: clampPhotoPercent(((nextCenterY - rect.top) / rect.height) * 100),
+      width: Math.min(100, (nextWidth / rect.width) * 100),
+      height: Math.min(100, (nextHeight / rect.height) * 100),
+    };
+  };
+
+  const handleSlopeMarkDragMove = (event: React.PointerEvent<Element>, mark: PhotoMark) => {
     const drag = photoMarkDragRef.current;
-    if (drag.id !== mark.id || drag.mode !== 'move') return;
+    if (drag.id !== mark.id || !drag.mode) return;
 
     event.preventDefault();
     event.stopPropagation();
     const point = getSlopeEditorPoint(event);
     if (!point) return;
 
-    const dx = point.x - drag.lastX;
-    const dy = point.y - drag.lastY;
-    drag.lastX = point.x;
-    drag.lastY = point.y;
+    if (drag.mode === 'move') {
+      const dx = point.x - drag.lastX;
+      const dy = point.y - drag.lastY;
+      drag.lastX = point.x;
+      drag.lastY = point.y;
 
-    if (mark.type === 'ellipse') {
-      updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
-    } else if (mark.type === 'line') {
-      updatePhotoMark({
-        ...mark,
-        x1: clampPhotoPercent(mark.x1 + dx),
-        y1: clampPhotoPercent(mark.y1 + dy),
-        x2: clampPhotoPercent(mark.x2 + dx),
-        y2: clampPhotoPercent(mark.y2 + dy),
-      });
-    } else {
-      updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
+      if (mark.type === 'ellipse') {
+        updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
+      } else if (mark.type === 'line') {
+        updatePhotoMark({
+          ...mark,
+          x1: clampPhotoPercent(mark.x1 + dx),
+          y1: clampPhotoPercent(mark.y1 + dy),
+          x2: clampPhotoPercent(mark.x2 + dx),
+          y2: clampPhotoPercent(mark.y2 + dy),
+        });
+      } else {
+        updatePhotoMark({ ...mark, x: clampPhotoPercent(mark.x + dx), y: clampPhotoPercent(mark.y + dy) });
+      }
+      return;
+    }
+
+    if (mark.type === 'ellipse' && drag.mode === 'rotate') {
+      updatePhotoMark({ ...mark, rotation: getSlopeEllipseRotationFromPointer(event, mark) });
+      return;
+    }
+
+    if (mark.type === 'ellipse' && drag.mode === 'resize' && drag.corner) {
+      updatePhotoMark(resizeSlopeRotatedEllipse(event, mark, drag.corner));
+      return;
+    }
+
+    if (mark.type === 'line' && drag.mode === 'line-start') {
+      updatePhotoMark({ ...mark, x1: point.x, y1: point.y });
+      return;
+    }
+
+    if (mark.type === 'line' && drag.mode === 'line-end') {
+      updatePhotoMark({ ...mark, x2: point.x, y2: point.y });
     }
   };
 
-  const endSlopeMarkMove = (event: React.PointerEvent<Element>) => {
+  const endSlopeMarkDrag = (event: React.PointerEvent<Element>) => {
     event.preventDefault();
     event.stopPropagation();
     photoMarkDragRef.current = { id: null, mode: null, lastX: 0, lastY: 0 };
@@ -5492,49 +5573,162 @@ if (mode === 'inclination_menu') {
 
   const renderSlopeEditorMark = (mark: PhotoMark) => {
     const isSelected = selectedSlopeMark?.id === mark.id;
+    const selectMark = (event: React.PointerEvent<Element>) => {
+      beginSlopeMarkDrag(event, mark, 'move');
+    };
 
     if (mark.type === 'ellipse') {
+      const handles = [
+        { key: 'nw', left: '0%', top: '0%', cursor: 'nwse-resize' },
+        { key: 'ne', left: '100%', top: '0%', cursor: 'nesw-resize' },
+        { key: 'sw', left: '0%', top: '100%', cursor: 'nesw-resize' },
+        { key: 'se', left: '100%', top: '100%', cursor: 'nwse-resize' },
+      ] as const;
+
       return (
-        <div
-          key={mark.id}
-          className="pointer-events-auto absolute z-10 touch-none cursor-move"
-          style={{
-            left: `${mark.x}%`,
-            top: `${mark.y}%`,
-            width: `${Math.max(2, mark.width)}%`,
-            height: `${Math.max(2, mark.height)}%`,
-            transform: `translate(-50%, -50%) rotate(${mark.rotation}deg)`,
-            transformOrigin: 'center',
-          }}
-          onPointerDown={(event) => beginSlopeMarkMove(event, mark)}
-          onPointerMove={(event) => moveSlopeMark(event, mark)}
-          onPointerUp={endSlopeMarkMove}
-          onPointerCancel={endSlopeMarkMove}
-        >
-          <svg className="h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-            {isSelected && <ellipse cx={50} cy={50} rx={48} ry={48} fill="none" stroke="white" strokeWidth={8} opacity={0.9} vectorEffect="non-scaling-stroke" />}
-            <ellipse cx={50} cy={50} rx={48} ry={48} fill="none" stroke={mark.color} strokeWidth={4} vectorEffect="non-scaling-stroke" />
-          </svg>
-        </div>
+        <React.Fragment key={mark.id}>
+          <div
+            className="pointer-events-none absolute z-10 touch-none"
+            style={{
+              left: `${mark.x}%`,
+              top: `${mark.y}%`,
+              width: `${Math.max(2, mark.width)}%`,
+              height: `${Math.max(2, mark.height)}%`,
+              transform: `translate(-50%, -50%) rotate(${mark.rotation}deg)`,
+              transformOrigin: 'center',
+            }}
+          >
+            <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {isSelected && <ellipse cx={50} cy={50} rx={48} ry={48} fill="none" stroke="white" strokeWidth={8} opacity={0.9} vectorEffect="non-scaling-stroke" />}
+              <ellipse cx={50} cy={50} rx={48} ry={48} fill="none" stroke={mark.color} strokeWidth={4} vectorEffect="non-scaling-stroke" />
+            </svg>
+            <div
+              className="pointer-events-auto absolute inset-[-10px] cursor-move rounded-full"
+              onPointerDown={selectMark}
+              onPointerMove={(event) => handleSlopeMarkDragMove(event, mark)}
+              onPointerUp={endSlopeMarkDrag}
+              onPointerCancel={endSlopeMarkDrag}
+            />
+            {isSelected && (
+              <>
+                <div className="absolute left-1/2 top-[-38px] h-[38px] w-px -translate-x-1/2 bg-white/80" />
+                <button
+                  type="button"
+                  aria-label="楕円を回転"
+                  title="楕円を回転"
+                  className="pointer-events-auto absolute left-1/2 top-[-52px] flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-lg font-black leading-none text-white shadow"
+                  onPointerDown={(event) => beginSlopeMarkDrag(event, mark, 'rotate')}
+                  onPointerMove={(event) => handleSlopeMarkDragMove(event, mark)}
+                  onPointerUp={endSlopeMarkDrag}
+                  onPointerCancel={endSlopeMarkDrag}
+                >
+                  ↻
+                </button>
+                {handles.map(handle => (
+                  <div
+                    key={`${mark.id}-${handle.key}`}
+                    className="pointer-events-auto absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 touch-none border-2 border-white bg-slate-900 shadow"
+                    style={{
+                      left: handle.left,
+                      top: handle.top,
+                      cursor: handle.cursor,
+                    }}
+                    onPointerDown={(event) => beginSlopeMarkDrag(event, mark, 'resize', handle.key)}
+                    onPointerMove={(event) => handleSlopeMarkDragMove(event, mark)}
+                    onPointerUp={endSlopeMarkDrag}
+                    onPointerCancel={endSlopeMarkDrag}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+          {isSelected && (
+            <button
+              type="button"
+              className="pointer-events-auto absolute z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-rose-600 text-sm font-black text-white shadow"
+              style={{ left: `${Math.min(98, mark.x + mark.width / 2 + 4)}%`, top: `${Math.max(2, mark.y - mark.height / 2 - 4)}%` }}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                deletePhotoMark(mark.id);
+              }}
+            >
+              x
+            </button>
+          )}
+        </React.Fragment>
       );
     }
 
     if (mark.type === 'line') {
       return (
-        <svg
-          key={mark.id}
-          className="pointer-events-auto absolute inset-0 z-10 h-full w-full touch-none cursor-move"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          onPointerDown={(event) => beginSlopeMarkMove(event, mark)}
-          onPointerMove={(event) => moveSlopeMark(event, mark)}
-          onPointerUp={endSlopeMarkMove}
-          onPointerCancel={endSlopeMarkMove}
-        >
-          {isSelected && <line x1={mark.x1} y1={mark.y1} x2={mark.x2} y2={mark.y2} stroke="white" strokeWidth={8} strokeLinecap="round" opacity={0.9} vectorEffect="non-scaling-stroke" />}
-          <line x1={mark.x1} y1={mark.y1} x2={mark.x2} y2={mark.y2} stroke={mark.color} strokeWidth={4} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-          <line x1={mark.x1} y1={mark.y1} x2={mark.x2} y2={mark.y2} stroke="transparent" strokeWidth={18} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        </svg>
+        <React.Fragment key={mark.id}>
+          <svg
+            className="pointer-events-none absolute inset-0 z-10 h-full w-full touch-none"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
+            {isSelected && <line x1={mark.x1} y1={mark.y1} x2={mark.x2} y2={mark.y2} stroke="white" strokeWidth={8} strokeLinecap="round" opacity={0.9} vectorEffect="non-scaling-stroke" />}
+            <line
+              className="pointer-events-auto cursor-move"
+              x1={mark.x1}
+              y1={mark.y1}
+              x2={mark.x2}
+              y2={mark.y2}
+              stroke={mark.color}
+              strokeWidth={4}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              onPointerDown={selectMark}
+              onPointerMove={(event) => handleSlopeMarkDragMove(event, mark)}
+              onPointerUp={endSlopeMarkDrag}
+              onPointerCancel={endSlopeMarkDrag}
+            />
+            <line
+              className="pointer-events-auto cursor-move"
+              x1={mark.x1}
+              y1={mark.y1}
+              x2={mark.x2}
+              y2={mark.y2}
+              stroke="transparent"
+              strokeWidth={18}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              onPointerDown={selectMark}
+              onPointerMove={(event) => handleSlopeMarkDragMove(event, mark)}
+              onPointerUp={endSlopeMarkDrag}
+              onPointerCancel={endSlopeMarkDrag}
+            />
+          </svg>
+          {isSelected && ([
+            { mode: 'line-start' as const, x: mark.x1, y: mark.y1 },
+            { mode: 'line-end' as const, x: mark.x2, y: mark.y2 },
+          ]).map(handle => (
+            <div
+              key={`${mark.id}-${handle.mode}`}
+              className="pointer-events-auto absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 touch-none border-2 border-white bg-slate-900 shadow"
+              style={{ left: `${handle.x}%`, top: `${handle.y}%`, cursor: 'grab' }}
+              onPointerDown={(event) => beginSlopeMarkDrag(event, mark, handle.mode)}
+              onPointerMove={(event) => handleSlopeMarkDragMove(event, mark)}
+              onPointerUp={endSlopeMarkDrag}
+              onPointerCancel={endSlopeMarkDrag}
+            />
+          ))}
+          {isSelected && (
+            <button
+              type="button"
+              className="pointer-events-auto absolute z-30 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-rose-600 text-sm font-black text-white shadow"
+              style={{ left: `${Math.min(98, Math.max(mark.x1, mark.x2) + 4)}%`, top: `${Math.max(2, Math.min(mark.y1, mark.y2) - 4)}%` }}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                deletePhotoMark(mark.id);
+              }}
+            >
+              x
+            </button>
+          )}
+        </React.Fragment>
       );
     }
 
@@ -5550,10 +5744,10 @@ if (mode === 'inclination_menu') {
           boxShadow: isSelected ? '0 0 0 2px rgba(255,255,255,0.9)' : undefined,
           cursor: 'move',
         }}
-        onPointerDown={(event) => beginSlopeMarkMove(event, mark)}
-        onPointerMove={(event) => moveSlopeMark(event, mark)}
-        onPointerUp={endSlopeMarkMove}
-        onPointerCancel={endSlopeMarkMove}
+        onPointerDown={selectMark}
+        onPointerMove={(event) => handleSlopeMarkDragMove(event, mark)}
+        onPointerUp={endSlopeMarkDrag}
+        onPointerCancel={endSlopeMarkDrag}
       >
         {mark.text}
       </div>
@@ -5698,7 +5892,10 @@ if (mode === 'inclination_menu') {
                   文字を変更
                 </button>
               ) : (
-                '選択中のマークはスライドで移動できます。'
+                <>
+                  {selectedSlopeMark.type === 'ellipse' && '中央をスライドで移動、四隅の■でサイズ変更、上の↻で回転できます。'}
+                  {selectedSlopeMark.type === 'line' && '線をスライドで移動、両端の■をスライドで長さと向きを変更できます。'}
+                </>
               )
             ) : (
               '写真をタップすると選択中のマークを追加できます。マークをタップすると編集できます。'
