@@ -554,6 +554,45 @@ const normalizePhotoRotation = (value: unknown) => {
   return ((number % 360) + 360) % 360;
 };
 
+const rotatePhotoPoint = (x: number, y: number, degrees: 90 | -90) => (
+  degrees === 90
+    ? { x: clampPhotoPercent(100 - y), y: clampPhotoPercent(x) }
+    : { x: clampPhotoPercent(y), y: clampPhotoPercent(100 - x) }
+);
+
+const rotatePhotoMarks = (marks: PhotoMark[], degrees: 90 | -90): PhotoMark[] =>
+  marks.map(mark => {
+    if (mark.type === 'line') {
+      const start = rotatePhotoPoint(mark.x1, mark.y1, degrees);
+      const end = rotatePhotoPoint(mark.x2, mark.y2, degrees);
+      return {
+        ...mark,
+        x1: start.x,
+        y1: start.y,
+        x2: end.x,
+        y2: end.y,
+      };
+    }
+
+    const point = rotatePhotoPoint(mark.x, mark.y, degrees);
+    if (mark.type === 'ellipse') {
+      return {
+        ...mark,
+        x: point.x,
+        y: point.y,
+        width: mark.height,
+        height: mark.width,
+        rotation: normalizePhotoRotation(mark.rotation + degrees),
+      };
+    }
+
+    return {
+      ...mark,
+      x: point.x,
+      y: point.y,
+    };
+  });
+
 const normalizePhotoMarks = (value: unknown): PhotoMark[][] => {
   const source = Array.isArray(value) ? value : [];
 
@@ -974,6 +1013,7 @@ useEffect(() => {
   const [photoMarkColor, setPhotoMarkColor] = useState<PhotoMarkColor>('red');
   const [editingPhotoMark, setEditingPhotoMark] = useState<PhotoMark | null>(null);
   const [photoMarkText, setPhotoMarkText] = useState('');
+  const [isPhotoRotating, setIsPhotoRotating] = useState(false);
   const photoMarkDragRef = useRef<{
     id: number | null;
     mode: 'move' | 'resize' | 'rotate' | 'line-start' | 'line-end' | null;
@@ -1967,6 +2007,28 @@ const handleCreateNewSheet = async () => {
       img.src = src;
     });
 
+  const rotatePhotoDataUrl = async (src: string, degrees: 90 | -90) => {
+    const img = await loadImageElement(src);
+    const canvas = document.createElement("canvas");
+    const swapsAxes = Math.abs(degrees) === 90;
+    canvas.width = swapsAxes ? img.naturalHeight : img.naturalWidth;
+    canvas.height = swapsAxes ? img.naturalWidth : img.naturalHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("写真の回転処理を開始できません");
+
+    if (degrees === 90) {
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI / 2);
+    } else {
+      ctx.translate(0, canvas.height);
+      ctx.rotate(-Math.PI / 2);
+    }
+
+    ctx.drawImage(img, 0, 0);
+    return getCanvasDataUrlUnderLimit(canvas, 2400000, 0.9);
+  };
+
   const drawPhotoMarks = (
     ctx: CanvasRenderingContext2D,
     marks: PhotoMark[],
@@ -2032,6 +2094,28 @@ const handleCreateNewSheet = async () => {
   const setPhotoMarksForTarget = (target: PhotoEditorTarget, updater: (marks: PhotoMark[]) => PhotoMark[]) => {
     const setMarks = target.target === 'first' ? setFirstPhotoMarks : setCurrentPhotoMarks;
     setMarks(prev => prev.map((marks, index) => index === target.index ? updater(marks) : marks));
+  };
+
+  const rotateEditorPhoto = async (target: PhotoEditorTarget, degrees: 90 | -90) => {
+    if (isPhotoRotating) return;
+
+    const photo = target.target === 'first'
+      ? firstPhotos[target.index]
+      : photos[target.index];
+    if (!photo) return;
+
+    setIsPhotoRotating(true);
+    try {
+      const rotated = await rotatePhotoDataUrl(photo, degrees);
+      const setPhotoList = target.target === 'first' ? setFirstPhotos : setPhotos;
+      setPhotoList(prev => prev.map((item, index) => index === target.index ? rotated : item));
+      setPhotoMarksForTarget(target, marks => rotatePhotoMarks(marks, degrees));
+      setEditingPhotoMark(null);
+    } catch (error) {
+      alert(`写真を回転できませんでした: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsPhotoRotating(false);
+    }
   };
 
   const openPhotoMarkEditor = (target: PhotoMarkTarget, index: number) => {
@@ -7153,6 +7237,28 @@ if (mode === 'inclination_menu') {
                 </button>
                 <div className="min-w-0 flex-1 text-center text-sm font-black">
                   {photoEditorTarget.target === 'first' ? '初回写真' : '今回写真'}{photoEditorTarget.index + 1}
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    aria-label="写真を左に90度回転"
+                    title="写真を左に90度回転"
+                    disabled={isPhotoRotating}
+                    onClick={() => rotateEditorPhoto(photoEditorTarget, -90)}
+                    className="flex h-10 w-10 items-center justify-center rounded bg-white/10 text-lg font-black disabled:opacity-40"
+                  >
+                    ↺
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="写真を右に90度回転"
+                    title="写真を右に90度回転"
+                    disabled={isPhotoRotating}
+                    onClick={() => rotateEditorPhoto(photoEditorTarget, 90)}
+                    className="flex h-10 w-10 items-center justify-center rounded bg-white/10 text-lg font-black disabled:opacity-40"
+                  >
+                    ↻
+                  </button>
                 </div>
                 <button
                   type="button"
