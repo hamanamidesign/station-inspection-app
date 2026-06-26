@@ -4,7 +4,7 @@
   "description": "駅構内点検の写真カルテ・傾斜測定カルテ作成アプリ",
   "start_url": "/",
   "scope": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#f97316",
   "theme_color": "#f97316",
   "icons": [
@@ -22,3 +22,4 @@
     }
   ]
 }
+
