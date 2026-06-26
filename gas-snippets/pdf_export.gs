@@ -571,11 +571,37 @@ function createInspectionReportPdf_(data) {
     throw new Error("PDF用の施設点検報告書ページが見つかりません。先に施設点検報告書をスプレッドシートへ反映してください。");
   }
 
+  pageSheetNames.forEach(name => {
+    applyInspectionReportPdfFinishTypeLineBreaks_(ss.getSheetByName(name));
+  });
+  SpreadsheetApp.flush();
+
   return createGenericInspectionPdf_({
     ...data,
     pdfKind: "inspectionReport",
     fileSuffix: "施設点検報告書",
   }, pageSheetNames);
+}
+
+function applyInspectionReportPdfFinishTypeLineBreaks_(sheet) {
+  if (!sheet) return;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 3) return;
+
+  const startRow = sheet.getName() === "施設点検報告書_1" ? 9 : 3;
+  if (lastRow < startRow) return;
+
+  const rowCount = lastRow - startRow + 1;
+  const range = sheet.getRange(startRow, 6, rowCount, 1);
+  const values = range.getDisplayValues().map(row => [String(row[0] || "")]);
+
+  range
+    .setNumberFormat("@")
+    .setValues(values)
+    .setWrap(true)
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP)
+    .setVerticalAlignment("middle");
 }
 
 function buildInspectionReportPdfSheet_(source, output) {

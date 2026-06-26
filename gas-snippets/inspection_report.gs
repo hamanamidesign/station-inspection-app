@@ -189,6 +189,7 @@ function uploadInspectionReport(data) {
       .setNumberFormat("@")
       .setValues(values);
   });
+  applyInspectionReportFinishTypeLineBreaks_(sheet, startRow, rows.length);
 
   applyInspectionReportDefaultFontColors_(sheet, startRow, rows.length);
   applyInspectionReportEvalFontColors_(sheet, startRow, rows);
@@ -308,6 +309,7 @@ function populateInspectionReportPdfPage_(pageSheet, source, pageIndex, sourceSt
   source
     .getRange(sourceStartRow, 1, rowCount, 17)
     .copyTo(pageSheet.getRange(targetStartRow, 1, rowCount, 17), { contentsOnly: false });
+  copyInspectionReportFinishTypeLineBreaks_(source, pageSheet, sourceStartRow, targetStartRow, rowCount);
 
   for (let offset = 0; offset < rowCount; offset += 1) {
     pageSheet.setRowHeight(
@@ -317,6 +319,35 @@ function populateInspectionReportPdfPage_(pageSheet, source, pageIndex, sourceSt
   }
 
   trimInspectionReportRows_(pageSheet, targetStartRow + rowCount - 1);
+}
+
+function applyInspectionReportFinishTypeLineBreaks_(sheet, startRow, rowCount) {
+  if (rowCount <= 0) return;
+
+  const range = sheet.getRange(startRow, 6, rowCount, 1);
+  const texts = range.getDisplayValues().map(row => [inspectionReportText_(row[0])]);
+
+  range
+    .setNumberFormat("@")
+    .setValues(texts)
+    .setWrap(true)
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP)
+    .setVerticalAlignment("middle");
+}
+
+function copyInspectionReportFinishTypeLineBreaks_(source, target, sourceStartRow, targetStartRow, rowCount) {
+  if (rowCount <= 0) return;
+
+  const sourceRange = source.getRange(sourceStartRow, 6, rowCount, 1);
+  const targetRange = target.getRange(targetStartRow, 6, rowCount, 1);
+  const texts = sourceRange.getDisplayValues().map(row => [inspectionReportText_(row[0])]);
+
+  targetRange
+    .setNumberFormat("@")
+    .setValues(texts)
+    .setWrap(true)
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP)
+    .setVerticalAlignment("middle");
 }
 
 function buildInspectionReportPdfPages_(sheet, startRow, dataRowCount) {
