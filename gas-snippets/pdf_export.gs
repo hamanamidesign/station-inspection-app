@@ -995,7 +995,23 @@ function buildInspectionPdfFileName_(data, suffix) {
   const year = String(data.year || "").trim();
   const suffixText = String(suffix || "PDF").trim();
   const parts = [station, year ? year + "年度" : "", suffixText].filter(Boolean);
+  const numberPrefix = getInspectionPdfNumberPrefix_(suffixText);
 
-  return parts.join("_");
+  return numberPrefix + parts.join("_");
+}
+
+function getInspectionPdfNumberPrefix_(suffix) {
+  const suffixText = String(suffix || "").trim();
+
+  if (suffixText === "表紙") return "00.";
+  if (suffixText === "写真カルテ番号位置図") return "01.";
+  if (suffixText === "施設点検報告書") return "03.";
+  if (suffixText === "写真カルテ" || suffixText.indexOf("写真カルテ_") === 0) {
+    return "03-1.";
+  }
+  if (suffixText === "傾斜表") return "04.";
+  if (suffixText === "傾斜測定カルテ") return "04-1.";
+
+  return "";
 }
 

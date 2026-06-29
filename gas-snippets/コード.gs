@@ -2353,9 +2353,25 @@ function buildInspectionPdfName_(stationName, year, suffix) {
   const station = String(stationName || "").trim() || "駅名未設定";
   const targetYear = String(year || "").trim() || "年度未設定";
   const suffixText = String(suffix || "").trim();
+  const numberPrefix = getLegacyInspectionPdfNumberPrefix_(suffixText);
   return suffixText
-    ? `施設点検報告書_${station}_${targetYear}_${suffixText}.pdf`
-    : `施設点検報告書_${station}_${targetYear}.pdf`;
+    ? `${numberPrefix}${station}_${targetYear}年度_${suffixText}.pdf`
+    : `${station}_${targetYear}年度.pdf`;
+}
+
+function getLegacyInspectionPdfNumberPrefix_(suffix) {
+  const suffixText = String(suffix || "").trim();
+
+  if (suffixText === "表紙") return "00.";
+  if (suffixText === "写真カルテ番号位置図") return "01.";
+  if (suffixText === "施設点検報告書") return "03.";
+  if (suffixText === "写真カルテ" || suffixText.indexOf("写真カルテ_") === 0) {
+    return "03-1.";
+  }
+  if (suffixText === "傾斜表") return "04.";
+  if (suffixText === "傾斜測定カルテ") return "04-1.";
+
+  return "";
 }
 
 function buildSpreadsheetPdfExportUrl_(spreadsheetId, portrait, group) {
