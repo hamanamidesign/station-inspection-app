@@ -12,6 +12,13 @@
 //   return createJsonResponse(findCompletedInspectionPdf(body));
 // case "findCompletedInspectionPdfFile":
 //   return createJsonResponse(findCompletedInspectionPdfFile(body));
+// case "startAdobeInspectionPdfMerge":
+//   return createJsonResponse(startAdobeInspectionPdfMerge(body));
+// case "getAdobeInspectionPdfMergeStatus":
+//   return createJsonResponse(getAdobeInspectionPdfMergeStatus(body));
+//
+// Adobe無料APIを使う場合は、GASの「プロジェクトの設定」>「スクリプト プロパティ」に
+// ADOBE_PDF_SERVICES_CLIENT_ID と ADOBE_PDF_SERVICES_CLIENT_SECRET を設定してください。
 //
 // PDF結合には、GASプロジェクトへPDFAppライブラリを追加してください。
 // Script ID: 1Xmtr5XXEakVql7N6FqwdCNdpdijsJOxgqH173JSB0UOwdb0GJYJbnJLk
@@ -109,6 +116,339 @@ const INSPECTION_PDF_MERGE_ORDER_ = [
   "傾斜表",
   "傾斜測定カルテ",
 ];
+const ADOBE_PDF_MERGE_JOB_PREFIX_ = "adobeInspectionPdfMergeJob:";
+const ADOBE_PDF_SERVICES_BASE_URL_ = "https://pdf-services.adobe.io";
+const ADOBE_PDF_MERGE_MAX_FILES_ = 20;
+const ADOBE_PDF_MERGE_MAX_TOTAL_BYTES_ = 45 * 1024 * 1024;
+
+function startAdobeInspectionPdfMerge(data) {
+  const spreadsheetId = String(data.spreadsheetId || "").trim();
+  const stationName = String(data.stationName || "").trim();
+  const year = String(data.year || "").trim();
+  const requestedJobId = String(data.jobId || "").trim();
+
+  if (!spreadsheetId) throw new Error("スプレッドシートIDがありません");
+  if (!stationName) throw new Error("駅名がありません");
+  if (!year) throw new Error("年度がありません");
+
+  getAdobePdfServicesCredentials_();
+
+  if (requestedJobId) {
+    const existingJob = loadAdobeInspectionPdfMergeJob_(requestedJobId);
+    if (existingJob) return buildAdobeInspectionPdfMergeResponse_(existingJob);
+  }
+
+  const folder = getInspectionPdfFolder_(spreadsheetId, data.folderId);
+  const pdfFiles = [];
+  const missing = [];
+  const mergeOrder = getInspectionPdfMergeOrder_(data);
+
+  mergeOrder.forEach(suffix => {
+    const foundFiles = getInspectionPdfFilesForMerge_(folder, {
+      stationName: stationName,
+      year: year,
+    }, suffix);
+
+    if (foundFiles.length === 0) {
+      missing.push(suffix);
+      return;
+    }
+
+    foundFiles.forEach(item => pdfFiles.push(item));
+  });
+
+  if (missing.length > 0) {
+    throw new Error(
+      "すべてのファイルがありません。" +
+      missing.map(name => name + "のPDFが未作成です").join("、")
+    );
+  }
+
+  if (pdfFiles.length > ADOBE_PDF_MERGE_MAX_FILES_) {
+    throw new Error(
+      "Adobe無料APIで一度に結合できるPDFは20ファイルまでです。現在: " +
+      pdfFiles.length +
+      "ファイル"
+    );
+  }
+
+  let totalBytes = 0;
+  pdfFiles.forEach(item => {
+    const file = DriveApp.getFileById(item.fileId);
+    item.size = file.getSize();
+    totalBytes += item.size;
+  });
+
+  if (totalBytes > ADOBE_PDF_MERGE_MAX_TOTAL_BYTES_) {
+    throw new Error(
+      "結合元PDFの合計が45MBを超えています（現在: " +
+      formatAdobePdfBytes_(totalBytes) +
+      "）。Acrobatで高速結合をご利用ください"
+    );
+  }
+
+  const job = {
+    jobId: requestedJobId || Utilities.getUuid(),
+    status: "starting",
+    createdAt: new Date().toISOString(),
+    folderId: folder.getId(),
+    outputFileName: buildInspectionPdfFileName_({
+      stationName: stationName,
+      year: year,
+    }, "報告書") + ".pdf",
+    files: pdfFiles,
+    totalBytes: totalBytes,
+    message: "AdobeへPDFを送信しています",
+  };
+
+  saveAdobeInspectionPdfMergeJob_(job);
+
+  try {
+    const token = getAdobePdfServicesAccessToken_();
+    const assets = job.files.map(item => ({
+      assetID: uploadAdobePdfAsset_(DriveApp.getFileById(item.fileId).getBlob(), token),
+    }));
+    const statusUrl = submitAdobePdfCombineJob_(assets, token);
+
+    job.status = "processing";
+    job.statusUrl = statusUrl;
+    job.message = "AdobeでPDFを結合しています";
+    job.submittedAt = new Date().toISOString();
+    saveAdobeInspectionPdfMergeJob_(job);
+    return buildAdobeInspectionPdfMergeResponse_(job);
+  } catch (error) {
+    job.status = "failed";
+    job.message = error instanceof Error ? error.message : String(error);
+    job.completedAt = new Date().toISOString();
+    saveAdobeInspectionPdfMergeJob_(job);
+    throw error;
+  }
+}
+
+function getAdobeInspectionPdfMergeStatus(data) {
+  const jobId = String(data.jobId || "").trim();
+  if (!jobId) throw new Error("Adobe PDF結合ジョブIDがありません");
+
+  const job = loadAdobeInspectionPdfMergeJob_(jobId);
+  if (!job) throw new Error("Adobe PDF結合の処理状況が見つかりません");
+  if (job.status !== "processing") {
+    return buildAdobeInspectionPdfMergeResponse_(job);
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) {
+    return buildAdobeInspectionPdfMergeResponse_(job);
+  }
+
+  try {
+    const token = getAdobePdfServicesAccessToken_();
+    const response = fetchAdobePdfServices_(job.statusUrl, {
+      method: "get",
+      headers: buildAdobePdfServicesHeaders_(token),
+    }, [200]);
+    const result = parseAdobePdfJson_(response, "Adobe PDF結合状況");
+    const adobeStatus = String(result.status || "").toLowerCase();
+
+    if (adobeStatus === "in progress" || adobeStatus === "in_progress") {
+      job.message = "AdobeでPDFを結合しています";
+      saveAdobeInspectionPdfMergeJob_(job);
+      return buildAdobeInspectionPdfMergeResponse_(job);
+    }
+
+    if (adobeStatus === "failed") {
+      job.status = "failed";
+      job.message = getAdobePdfErrorMessage_(result) || "AdobeでPDF結合に失敗しました";
+      job.completedAt = new Date().toISOString();
+      saveAdobeInspectionPdfMergeJob_(job);
+      return buildAdobeInspectionPdfMergeResponse_(job);
+    }
+
+    if (adobeStatus !== "done") {
+      throw new Error("Adobe PDF結合の状態を確認できませんでした: " + (result.status || "不明"));
+    }
+
+    const downloadUri = getAdobePdfDownloadUri_(result);
+    if (!downloadUri) throw new Error("Adobeの完成PDFダウンロードURLがありません");
+
+    const downloadResponse = fetchAdobePdfServices_(downloadUri, {
+      method: "get",
+    }, [200]);
+    const mergedBlob = downloadResponse.getBlob()
+      .setContentType(MimeType.PDF)
+      .setName(job.outputFileName);
+    const folder = DriveApp.getFolderById(job.folderId);
+    const file = overwriteOrCreatePdfFile_(folder, mergedBlob);
+
+    job.status = "completed";
+    job.message = "すべての資料をAdobeで結合しました";
+    job.fileName = file.getName();
+    job.url = file.getUrl();
+    job.completedAt = new Date().toISOString();
+    saveAdobeInspectionPdfMergeJob_(job);
+    return buildAdobeInspectionPdfMergeResponse_(job);
+  } catch (error) {
+    job.status = "failed";
+    job.message = error instanceof Error ? error.message : String(error);
+    job.completedAt = new Date().toISOString();
+    saveAdobeInspectionPdfMergeJob_(job);
+    return buildAdobeInspectionPdfMergeResponse_(job);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getAdobePdfServicesCredentials_() {
+  const properties = PropertiesService.getScriptProperties();
+  const clientId = String(properties.getProperty("ADOBE_PDF_SERVICES_CLIENT_ID") || "").trim();
+  const clientSecret = String(properties.getProperty("ADOBE_PDF_SERVICES_CLIENT_SECRET") || "").trim();
+
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "Adobe PDF Servicesの認証情報が未設定です。GASのスクリプトプロパティに" +
+      "ADOBE_PDF_SERVICES_CLIENT_ID と ADOBE_PDF_SERVICES_CLIENT_SECRET を設定してください"
+    );
+  }
+
+  return { clientId: clientId, clientSecret: clientSecret };
+}
+
+function getAdobePdfServicesAccessToken_() {
+  const cache = CacheService.getScriptCache();
+  const cachedToken = cache.get("adobePdfServicesAccessToken");
+  if (cachedToken) return cachedToken;
+
+  const credentials = getAdobePdfServicesCredentials_();
+  const response = fetchAdobePdfServices_(ADOBE_PDF_SERVICES_BASE_URL_ + "/token", {
+    method: "post",
+    contentType: "application/x-www-form-urlencoded",
+    payload:
+      "client_id=" + encodeURIComponent(credentials.clientId) +
+      "&client_secret=" + encodeURIComponent(credentials.clientSecret),
+  }, [200]);
+  const result = parseAdobePdfJson_(response, "Adobe認証");
+  const token = String(result.access_token || "");
+  if (!token) throw new Error("Adobeのアクセストークンを取得できませんでした");
+
+  const expiresIn = Number(result.expires_in || 21600);
+  cache.put("adobePdfServicesAccessToken", token, Math.max(60, Math.min(21600, expiresIn - 120)));
+  return token;
+}
+
+function uploadAdobePdfAsset_(blob, token) {
+  const response = fetchAdobePdfServices_(ADOBE_PDF_SERVICES_BASE_URL_ + "/assets", {
+    method: "post",
+    contentType: "application/json",
+    headers: buildAdobePdfServicesHeaders_(token),
+    payload: JSON.stringify({ mediaType: "application/pdf" }),
+  }, [200]);
+  const result = parseAdobePdfJson_(response, "Adobeアップロード準備");
+  const uploadUri = String(result.uploadUri || "");
+  const assetId = String(result.assetID || "");
+  if (!uploadUri || !assetId) throw new Error("AdobeのPDFアップロード先を取得できませんでした");
+
+  fetchAdobePdfServices_(uploadUri, {
+    method: "put",
+    contentType: "application/pdf",
+    payload: blob.getBytes(),
+  }, [200, 201]);
+  return assetId;
+}
+
+function submitAdobePdfCombineJob_(assets, token) {
+  const response = fetchAdobePdfServices_(ADOBE_PDF_SERVICES_BASE_URL_ + "/operation/combinepdf", {
+    method: "post",
+    contentType: "application/json",
+    headers: buildAdobePdfServicesHeaders_(token),
+    payload: JSON.stringify({ assets: assets }),
+  }, [201, 202]);
+  const headers = response.getAllHeaders();
+  const location = String(headers.Location || headers.location || "");
+  if (!location) throw new Error("Adobe PDF結合の状態確認URLがありません");
+  return location;
+}
+
+function buildAdobePdfServicesHeaders_(token) {
+  const credentials = getAdobePdfServicesCredentials_();
+  return {
+    Authorization: "Bearer " + token,
+    "x-api-key": credentials.clientId,
+  };
+}
+
+function fetchAdobePdfServices_(url, options, expectedStatusCodes) {
+  const requestOptions = Object.assign({}, options || {}, { muteHttpExceptions: true });
+  const response = UrlFetchApp.fetch(url, requestOptions);
+  const statusCode = response.getResponseCode();
+
+  if (expectedStatusCodes.indexOf(statusCode) === -1) {
+    throw new Error(
+      "Adobe PDF Services APIエラー: HTTP " +
+      statusCode +
+      " " +
+      response.getContentText().slice(0, 500)
+    );
+  }
+
+  return response;
+}
+
+function parseAdobePdfJson_(response, label) {
+  try {
+    return JSON.parse(response.getContentText() || "{}");
+  } catch (error) {
+    throw new Error(label + "の応答を読み取れませんでした");
+  }
+}
+
+function getAdobePdfDownloadUri_(result) {
+  const asset = result && result.asset ? result.asset : {};
+  return String(
+    result.downloadUri ||
+    result.dowloadUri ||
+    asset.downloadUri ||
+    asset.dowloadUri ||
+    ""
+  );
+}
+
+function getAdobePdfErrorMessage_(result) {
+  if (!result) return "";
+  if (typeof result.error === "string") return result.error;
+  if (result.error && result.error.message) return String(result.error.message);
+  if (result.message) return String(result.message);
+  return "";
+}
+
+function saveAdobeInspectionPdfMergeJob_(job) {
+  PropertiesService.getScriptProperties().setProperty(
+    ADOBE_PDF_MERGE_JOB_PREFIX_ + job.jobId,
+    JSON.stringify(job)
+  );
+}
+
+function loadAdobeInspectionPdfMergeJob_(jobId) {
+  const value = PropertiesService.getScriptProperties().getProperty(
+    ADOBE_PDF_MERGE_JOB_PREFIX_ + jobId
+  );
+  return value ? JSON.parse(value) : null;
+}
+
+function buildAdobeInspectionPdfMergeResponse_(job) {
+  return {
+    success: true,
+    jobId: job.jobId,
+    status: job.status,
+    message: job.message || "",
+    fileName: job.fileName || "",
+    url: job.url || "",
+    fileCount: Array.isArray(job.files) ? job.files.length : 0,
+    totalBytes: Number(job.totalBytes || 0),
+  };
+}
+
+function formatAdobePdfBytes_(bytes) {
+  return (Number(bytes || 0) / 1024 / 1024).toFixed(1) + "MB";
+}
 
 // PDF結合機能を初めて導入したときに、GASエディタから1回実行してください。
 // appsscript.jsonでoauthScopesを明示している場合は、script.scriptappも追加が必要です。

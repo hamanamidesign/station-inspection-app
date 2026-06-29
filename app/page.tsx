@@ -2991,7 +2991,11 @@ const mergeAllPdfs = async () => {
   setIsMergingPdfs(true);
 
   try {
-    const startResult = await gasApi("startInspectionPdfMerge", {
+    const jobId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `adobe-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const payload = {
+      jobId,
       spreadsheetId,
       folderId: stationFolderId,
       stationName,
@@ -3004,23 +3008,38 @@ const mergeAllPdfs = async () => {
         "傾斜表",
         "傾斜測定カルテ",
       ],
-    });
-    const jobId = String(startResult.jobId || "");
+    };
+    let startResult: any = null;
 
-    if (!jobId) {
-      throw new Error("PDF結合の処理を開始できませんでした");
+    try {
+      startResult = await gasApi("startAdobeInspectionPdfMerge", payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/タイムアウト|Gateway Timeout|FUNCTION_INVOCATION_TIMEOUT/i.test(message)) {
+        throw error;
+      }
+    }
+
+    if (startResult?.status === "failed") {
+      throw new Error(startResult.message || "Adobe PDF結合を開始できませんでした");
+    }
+    if (startResult?.status === "completed") {
+      alert(
+        `すべての資料をAdobeで結合しました。\n${startResult.fileName || ""}\n${startResult.url || ""}`
+      );
+      return;
     }
 
     for (let attempt = 0; attempt < PDF_MERGE_MAX_POLL_ATTEMPTS; attempt += 1) {
       await waitForPdfMerge(PDF_MERGE_POLL_INTERVAL_MS);
 
-      const statusResult = await gasApi("getInspectionPdfMergeStatus", { jobId });
+      const statusResult = await gasApi("getAdobeInspectionPdfMergeStatus", { jobId });
       const status = String(statusResult.status || "");
 
       if (status === "completed") {
         setIsMergingPdfs(false);
         alert(
-          `すべての資料を結合しました。\n${statusResult.fileName || ""}\n${statusResult.url || ""}`
+          `すべての資料をAdobeで結合しました。\n${statusResult.fileName || ""}\n${statusResult.url || ""}`
         );
         return;
       }
@@ -3031,7 +3050,7 @@ const mergeAllPdfs = async () => {
     }
 
     throw new Error(
-      "アプリ内のPDF結合が6分以内に完了しませんでした。大きなPDFはAcrobatの高速結合をご利用ください"
+      "Adobe PDF結合が6分以内に完了しませんでした。Acrobatで高速結合をご利用ください"
     );
   } catch (e) {
     console.error(e);
@@ -3745,7 +3764,7 @@ if (mode === 'pdf_export') {
             disabled={isSending || isMergingPdfs || !spreadsheetId}
             className="w-full rounded-xl bg-emerald-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
           >
-            {isMergingPdfs ? "資料を結合中..." : "すべての資料を結合"}
+            {isMergingPdfs ? "Adobeで資料を結合中..." : "すべての資料を結合（Adobe）"}
           </button>
           <a
             href={ACROBAT_MERGE_PDF_URL}

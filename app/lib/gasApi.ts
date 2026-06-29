@@ -8,6 +8,7 @@ const RETRYABLE_ACTIONS = new Set([
   "getReservedPhotoKarteNumbers",
   "getPdfSheetOptions",
   "getInspectionPdfMergeStatus",
+  "getAdobeInspectionPdfMergeStatus",
   "findCompletedInspectionPdf",
   "findCompletedInspectionPdfFile",
   "getMaps",

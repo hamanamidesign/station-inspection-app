@@ -296,6 +296,12 @@ case "startInspectionPdfMerge":
 case "getInspectionPdfMergeStatus":
   return createJsonResponse(getInspectionPdfMergeStatus(body));
 
+case "startAdobeInspectionPdfMerge":
+  return createJsonResponse(startAdobeInspectionPdfMerge(body));
+
+case "getAdobeInspectionPdfMergeStatus":
+  return createJsonResponse(getAdobeInspectionPdfMergeStatus(body));
+
       // --- 既存データ取得 ---
       case "getExistingData":
         return getExistingData(body.routeFolderId);
