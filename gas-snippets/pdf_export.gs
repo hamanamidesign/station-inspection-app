@@ -296,9 +296,6 @@ function findCompletedInspectionPdf(data) {
   const stationName = String(data.stationName || "").trim();
   const year = String(data.year || "").trim();
   const startedAt = String(data.startedAt || "").trim();
-  const previousOutputFileIds = Array.isArray(data.previousOutputFileIds)
-    ? data.previousOutputFileIds.map(id => String(id || ""))
-    : [];
 
   if (!spreadsheetId || !stationName || !year) {
     throw new Error("完成PDFの確認条件が不足しています");
@@ -315,7 +312,6 @@ function findCompletedInspectionPdf(data) {
   while (files.hasNext()) {
     const file = files.next();
     if (file.getMimeType() !== MimeType.PDF) continue;
-    if (previousOutputFileIds.indexOf(file.getId()) !== -1) continue;
     if (startedTime && file.getLastUpdated().getTime() < startedTime - 5000) continue;
 
     return {
@@ -388,12 +384,8 @@ function reconcileInspectionPdfMergeJob_(job) {
   while (files.hasNext()) {
     const candidate = files.next();
     if (candidate.getMimeType() !== MimeType.PDF) continue;
-    if (
-      Array.isArray(job.previousOutputFileIds) &&
-      job.previousOutputFileIds.indexOf(candidate.getId()) !== -1
-    ) {
-      continue;
-    }
+    const startedTime = job.createdAt ? new Date(job.createdAt).getTime() : 0;
+    if (startedTime && candidate.getLastUpdated().getTime() < startedTime - 5000) continue;
     file = candidate;
     break;
   }
@@ -437,8 +429,10 @@ function runPendingInspectionPdfMerges() {
     return PDFApp.mergePDFs(pdfBlobs)
       .then(mergedBlob => {
         const folder = DriveApp.getFolderById(job.folderId);
-        trashExistingFilesByName_(folder, job.outputFileName);
-        const file = folder.createFile(mergedBlob.setName(job.outputFileName));
+        const file = overwriteOrCreatePdfFile_(
+          folder,
+          mergedBlob.setName(job.outputFileName)
+        );
 
         job.status = "completed";
         job.message = "すべての資料を結合しました";
@@ -944,31 +938,56 @@ function exportSheetPdfBlob_(spreadsheetId, sheetId, fileName, options) {
 }
 
 function savePdfBlob_(spreadsheetId, blob, folderId) {
-  const fileName = blob.getName();
   const folder = getInspectionPdfFolder_(spreadsheetId, folderId);
-  trashExistingFilesByName_(folder, fileName);
-  return folder.createFile(blob);
+  return overwriteOrCreatePdfFile_(folder, blob);
 }
 
-function trashExistingFilesByName_(folder, fileName) {
+function overwriteOrCreatePdfFile_(folder, blob) {
+  const fileName = blob.getName();
   const files = folder.getFilesByName(fileName);
+  let existingFile = null;
 
   while (files.hasNext()) {
-    files.next().setTrashed(true);
-  }
-}
-
-function trashExistingRootFilesByName_(fileName) {
-  const files = DriveApp.getFilesByName(fileName);
-
-  while (files.hasNext()) {
-    const file = files.next();
-    const parents = file.getParents();
-
-    if (!parents.hasNext()) {
-      file.setTrashed(true);
+    const candidate = files.next();
+    if (candidate.getMimeType() !== MimeType.PDF) continue;
+    if (
+      !existingFile ||
+      candidate.getLastUpdated().getTime() > existingFile.getLastUpdated().getTime()
+    ) {
+      existingFile = candidate;
     }
   }
+
+  if (!existingFile) {
+    return folder.createFile(blob);
+  }
+
+  const response = UrlFetchApp.fetch(
+    "https://www.googleapis.com/upload/drive/v3/files/" +
+      encodeURIComponent(existingFile.getId()) +
+      "?uploadType=media&supportsAllDrives=true",
+    {
+      method: "patch",
+      contentType: blob.getContentType() || MimeType.PDF,
+      payload: blob.getBytes(),
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken(),
+      },
+      muteHttpExceptions: true,
+    }
+  );
+  const statusCode = response.getResponseCode();
+
+  if (statusCode < 200 || statusCode >= 300) {
+    throw new Error(
+      "既存PDFの上書きに失敗しました: HTTP " +
+        statusCode +
+        " " +
+        response.getContentText().slice(0, 300)
+    );
+  }
+
+  return DriveApp.getFileById(existingFile.getId());
 }
 
 function buildInspectionPdfFileName_(data, suffix) {

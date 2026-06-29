@@ -2243,12 +2243,7 @@ function createInspectionPdf(data) {
       }
 
       const blob = response.getBlob().setName(pdfName);
-      const existingFiles = folder.getFilesByName(pdfName);
-      while (existingFiles.hasNext()) {
-        existingFiles.next().setTrashed(true);
-      }
-
-      const file = folder.createFile(blob);
+      const file = overwriteOrCreateLegacyPdfFile_(folder, blob);
 
       files.push({
         fileId: file.getId(),
@@ -2408,6 +2403,54 @@ function getSpreadsheetParentFolder_(spreadsheetId, folderId) {
     throw new Error("PDF保存先フォルダが見つかりません。駅を選び直してからPDF作成を実行してください。");
   }
   return parents.next();
+}
+
+function overwriteOrCreateLegacyPdfFile_(folder, blob) {
+  const fileName = blob.getName();
+  const files = folder.getFilesByName(fileName);
+  let existingFile = null;
+
+  while (files.hasNext()) {
+    const candidate = files.next();
+    if (candidate.getMimeType() !== MimeType.PDF) continue;
+    if (
+      !existingFile ||
+      candidate.getLastUpdated().getTime() > existingFile.getLastUpdated().getTime()
+    ) {
+      existingFile = candidate;
+    }
+  }
+
+  if (!existingFile) {
+    return folder.createFile(blob);
+  }
+
+  const response = UrlFetchApp.fetch(
+    "https://www.googleapis.com/upload/drive/v3/files/" +
+      encodeURIComponent(existingFile.getId()) +
+      "?uploadType=media&supportsAllDrives=true",
+    {
+      method: "patch",
+      contentType: blob.getContentType() || MimeType.PDF,
+      payload: blob.getBytes(),
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken(),
+      },
+      muteHttpExceptions: true,
+    }
+  );
+  const statusCode = response.getResponseCode();
+
+  if (statusCode < 200 || statusCode >= 300) {
+    throw new Error(
+      "既存PDFの上書きに失敗しました: HTTP " +
+        statusCode +
+        " " +
+        response.getContentText().slice(0, 300)
+    );
+  }
+
+  return DriveApp.getFileById(existingFile.getId());
 }
 
 function toSheetDate(value) {
