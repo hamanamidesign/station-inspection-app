@@ -3788,9 +3788,6 @@ if (mode === 'pdf_export') {
             Acrobatで資料を結合（手動）
           </button>
         </div>
-        <p className="mt-3 text-center text-xs font-bold text-slate-500">
-          Acrobatは外部サイトで開きます。番号付きPDFを選ぶと資料順に並べやすくなります。
-        </p>
       </div>
 
       {isManualPdfGuideOpen && (
