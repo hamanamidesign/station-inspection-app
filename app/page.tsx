@@ -3674,7 +3674,7 @@ if (mode === 'pdf_export') {
   const inspectionFolderUrl = stationFolderId
     ? `https://drive.google.com/drive/folders/${encodeURIComponent(stationFolderId)}`
     : "";
-  const manualMergedPdfFileName = `${stationName || "駅名"}_${selectedYear ? `${selectedYear}年度` : "年度"}_報告書.pdf`;
+  const manualMergedPdfFileName = `${stationName || "駅名"}_${selectedYear ? `${selectedYear}年度` : "年度"}_報告書`;
   const copyManualMergedPdfFileName = async () => {
     try {
       await navigator.clipboard.writeText(manualMergedPdfFileName);
@@ -3855,7 +3855,9 @@ if (mode === 'pdf_export') {
 
               <li className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <div className="font-black text-amber-900">3. 完成PDFを指定名でダウンロード</div>
-                <p className="mt-2 text-sm font-bold text-slate-700">次のファイル名を使用してください。</p>
+                <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
+                  Acrobatのダウンロードを選択し、結合したファイルをダウンロードしてください。次のファイル名を使用してください。
+                </p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <input
                     readOnly
