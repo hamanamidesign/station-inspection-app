@@ -3772,7 +3772,7 @@ if (mode === 'pdf_export') {
             rel="noreferrer"
             className="flex w-full items-center justify-center rounded-xl bg-red-600 px-3 py-4 text-center text-lg font-black text-white shadow active:scale-95"
           >
-            Acrobatで高速結合（推奨）
+            Acrobatで高速結合（手動）
           </a>
         </div>
         <p className="mt-3 text-center text-xs font-bold text-slate-500">
