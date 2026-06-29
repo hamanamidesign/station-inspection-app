@@ -274,6 +274,9 @@ const DEFAULT_ROUTE_LIST: RouteItem[] = [
   },
 ];
 const PHOTO_PDF_CHUNK_SIZE = 10;
+const ACROBAT_MERGE_PDF_URL = "https://www.adobe.com/acrobat/online/merge-pdf.html";
+const PDF_MERGE_POLL_INTERVAL_MS = 5000;
+const PDF_MERGE_MAX_POLL_ATTEMPTS = 72;
 
 const createEmptySlopeRows = (count = 10): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -3003,14 +3006,13 @@ const mergeAllPdfs = async () => {
       ],
     });
     const jobId = String(startResult.jobId || "");
-    const mergeStartedAt = String(startResult.createdAt || new Date().toISOString());
 
     if (!jobId) {
       throw new Error("PDF結合の処理を開始できませんでした");
     }
 
-    for (let attempt = 0; attempt < 120; attempt += 1) {
-      await waitForPdfMerge(3000);
+    for (let attempt = 0; attempt < PDF_MERGE_MAX_POLL_ATTEMPTS; attempt += 1) {
+      await waitForPdfMerge(PDF_MERGE_POLL_INTERVAL_MS);
 
       const statusResult = await gasApi("getInspectionPdfMergeStatus", { jobId });
       const status = String(statusResult.status || "");
@@ -3023,31 +3025,14 @@ const mergeAllPdfs = async () => {
         return;
       }
 
-      const completedFile = await gasApi("findCompletedInspectionPdf", {
-        spreadsheetId,
-        folderId: stationFolderId,
-        stationName,
-        year: selectedYear,
-        startedAt: mergeStartedAt,
-        previousOutputFileIds: Array.isArray(startResult.previousOutputFileIds)
-          ? startResult.previousOutputFileIds
-          : [],
-      });
-
-      if (completedFile.completed) {
-        setIsMergingPdfs(false);
-        alert(
-          `すべての資料を結合しました。\n${completedFile.fileName || ""}\n${completedFile.url || ""}`
-        );
-        return;
-      }
-
       if (status === "failed") {
         throw new Error(statusResult.message || "PDFの結合に失敗しました");
       }
     }
 
-    throw new Error("PDF結合に時間がかかっています。しばらく待ってから再度お試しください");
+    throw new Error(
+      "アプリ内のPDF結合が6分以内に完了しませんでした。大きなPDFはAcrobatの高速結合をご利用ください"
+    );
   } catch (e) {
     console.error(e);
     setIsMergingPdfs(false);
@@ -3745,7 +3730,7 @@ if (mode === 'pdf_export') {
           })}
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2">
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
           <button
             type="button"
             onClick={createPdf}
@@ -3762,7 +3747,18 @@ if (mode === 'pdf_export') {
           >
             {isMergingPdfs ? "資料を結合中..." : "すべての資料を結合"}
           </button>
+          <a
+            href={ACROBAT_MERGE_PDF_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="flex w-full items-center justify-center rounded-xl bg-red-600 px-3 py-4 text-center text-lg font-black text-white shadow active:scale-95"
+          >
+            Acrobatで高速結合（推奨）
+          </a>
         </div>
+        <p className="mt-3 text-center text-xs font-bold text-slate-500">
+          Acrobatは外部サイトで開きます。番号付きPDFを選ぶと資料順に並べやすくなります。
+        </p>
       </div>
     </div>
   );
