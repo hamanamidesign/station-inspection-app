@@ -955,6 +955,7 @@ export default function InspectorApp() {
   const [existingData, setExistingData] = useState<ExistingStation[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isMergingPdfs, setIsMergingPdfs] = useState(false);
+  const [isManualPdfGuideOpen, setIsManualPdfGuideOpen] = useState(false);
   const [activePlaceRowId, setActivePlaceRowId] = useState<number | null>(null);
   // 長押し判定や移動状態を保持するRef
   const dragRef = useRef<{
@@ -3670,6 +3671,18 @@ if (mode === 'pdf_export') {
     { key: 'slope', title: '傾斜表' },
     { key: 'inclination', title: '傾斜測定カルテ' },
   ];
+  const inspectionFolderUrl = stationFolderId
+    ? `https://drive.google.com/drive/folders/${encodeURIComponent(stationFolderId)}`
+    : "";
+  const manualMergedPdfFileName = `${stationName || "駅名"}_${selectedYear ? `${selectedYear}年度` : "年度"}_報告書.pdf`;
+  const copyManualMergedPdfFileName = async () => {
+    try {
+      await navigator.clipboard.writeText(manualMergedPdfFileName);
+      alert(`ファイル名をコピーしました。\n${manualMergedPdfFileName}`);
+    } catch {
+      alert(`コピーできませんでした。次の名前を使用してください。\n${manualMergedPdfFileName}`);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-slate-50 p-6 text-black" style={routePageStyle}>
@@ -3766,19 +3779,121 @@ if (mode === 'pdf_export') {
           >
             {isMergingPdfs ? "Adobeで資料を結合中..." : "すべての資料を結合（Adobe）"}
           </button>
-          <a
-            href={ACROBAT_MERGE_PDF_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="flex w-full items-center justify-center rounded-xl bg-red-600 px-3 py-4 text-center text-lg font-black text-white shadow active:scale-95"
+          <button
+            type="button"
+            onClick={() => setIsManualPdfGuideOpen(true)}
+            disabled={!stationFolderId}
+            className="flex w-full items-center justify-center rounded-xl bg-red-600 px-3 py-4 text-center text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
           >
             Acrobatで高速結合（手動）
-          </a>
+          </button>
         </div>
         <p className="mt-3 text-center text-xs font-bold text-slate-500">
           Acrobatは外部サイトで開きます。番号付きPDFを選ぶと資料順に並べやすくなります。
         </p>
       </div>
+
+      {isManualPdfGuideOpen && (
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manual-pdf-guide-title"
+            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl md:p-8"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 id="manual-pdf-guide-title" className="text-2xl font-black text-red-700">
+                  Acrobat手動結合ガイド
+                </h3>
+                <p className="mt-1 text-sm font-bold text-slate-500">
+                  {stationName || "---"} / {selectedYear || "---"}年度
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsManualPdfGuideOpen(false)}
+                className="rounded-xl bg-slate-100 px-4 py-2 font-black text-slate-700 active:scale-95"
+              >
+                閉じる
+              </button>
+            </div>
+
+            <ol className="mt-6 space-y-5">
+              <li className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                <div className="font-black text-blue-900">1. 点検資料フォルダを開いてPDFをダウンロード</div>
+                <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
+                  名前が <code>00.</code>、<code>01.</code>、<code>03.</code>、<code>03-1.</code>、<code>04.</code>、<code>04-1.</code>
+                  で始まるPDFを選択してダウンロードします。複数選択するとZIPになる場合は、端末上で展開してください。
+                </p>
+                <a
+                  href={inspectionFolderUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3 font-black text-white shadow active:scale-95"
+                >
+                  選択中の点検資料フォルダを開く
+                </a>
+              </li>
+
+              <li className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                <div className="font-black text-red-900">2. Acrobatを開いて結合</div>
+                <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
+                  「Select files」で展開したPDFを選択し、並び順が
+                  <code> 00 → 01 → 03 → 03-1 → 04 → 04-1 </code>
+                  になっていることを確認して結合します。
+                </p>
+                <a
+                  href={ACROBAT_MERGE_PDF_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-3 font-black text-white shadow active:scale-95"
+                >
+                  AcrobatのPDF結合を開く
+                </a>
+              </li>
+
+              <li className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="font-black text-amber-900">3. 完成PDFを指定名でダウンロード</div>
+                <p className="mt-2 text-sm font-bold text-slate-700">次のファイル名を使用してください。</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    readOnly
+                    value={manualMergedPdfFileName}
+                    className="min-w-0 flex-1 rounded-xl border border-amber-300 bg-white px-3 py-3 font-mono text-sm font-black text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyManualMergedPdfFileName}
+                    className="rounded-xl bg-amber-500 px-5 py-3 font-black text-white active:scale-95"
+                  >
+                    名前をコピー
+                  </button>
+                </div>
+              </li>
+
+              <li className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="font-black text-emerald-900">4. 点検資料フォルダへアップロード</div>
+                <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
+                  Google Driveのフォルダを再度開き、完成PDFをドラッグ＆ドロップするか、
+                  「新規」→「ファイルのアップロード」で保存します。同名ファイルがある場合は置き換えを選択してください。
+                </p>
+                <a
+                  href={inspectionFolderUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 font-black text-white shadow active:scale-95"
+                >
+                  完成PDFの保存先フォルダを開く
+                </a>
+                <p className="mt-2 text-xs font-bold text-slate-500">
+                  アップロードには共有ドライブの投稿者またはコンテンツ管理者以上の権限が必要です。
+                </p>
+              </li>
+            </ol>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
