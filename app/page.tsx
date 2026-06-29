@@ -3051,7 +3051,7 @@ const mergeAllPdfs = async () => {
     }
 
     throw new Error(
-      "Adobe PDF結合が6分以内に完了しませんでした。Acrobatで高速結合をご利用ください"
+      "Adobe PDF結合が6分以内に完了しませんでした。Acrobatで資料を結合（手動）をご利用ください"
     );
   } catch (e) {
     console.error(e);
@@ -3777,7 +3777,7 @@ if (mode === 'pdf_export') {
             disabled={isSending || isMergingPdfs || !spreadsheetId}
             className="w-full rounded-xl bg-emerald-600 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
           >
-            {isMergingPdfs ? "Adobeで資料を結合中..." : "すべての資料を結合（Adobe）"}
+            {isMergingPdfs ? "Adobeで資料を結合中..." : "すべての資料を結合（自動）"}
           </button>
           <button
             type="button"
@@ -3785,7 +3785,7 @@ if (mode === 'pdf_export') {
             disabled={!stationFolderId}
             className="flex w-full items-center justify-center rounded-xl bg-red-600 px-3 py-4 text-center text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
           >
-            Acrobatで高速結合（手動）
+            Acrobatで資料を結合（手動）
           </button>
         </div>
         <p className="mt-3 text-center text-xs font-bold text-slate-500">
