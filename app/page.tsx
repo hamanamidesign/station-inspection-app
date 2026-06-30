@@ -8505,9 +8505,10 @@ if (mode === 'inclination_menu') {
       mapTexts.forEach(item => {
         const x = (item.x / 100) * canvas.width;
         const y = (item.y / 100) * canvas.height;
+        const previousFontSize = Math.max(12, Math.round(16 * outputSize.scale));
         const fontSize = Math.max(
           8,
-          Math.round(Math.max(12, 16 * outputSize.scale) * (mapTextSize / DEFAULT_MAP_TEXT_SIZE))
+          Math.round(previousFontSize * 0.88 * (mapTextSize / DEFAULT_MAP_TEXT_SIZE))
         );
 
         ctx.fillStyle = item.color;
