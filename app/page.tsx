@@ -277,6 +277,23 @@ const PHOTO_PDF_CHUNK_SIZE = 10;
 const ACROBAT_MERGE_PDF_URL = "https://www.adobe.com/acrobat/online/merge-pdf.html";
 const PDF_MERGE_POLL_INTERVAL_MS = 5000;
 const PDF_MERGE_MAX_POLL_ATTEMPTS = 72;
+const MAP_EDITOR_SIZE_STORAGE_KEY = 'station-check:map-editor-sizes';
+const DEFAULT_MAP_MARKER_SIZE = 24;
+const MIN_MAP_MARKER_SIZE = 16;
+const MAX_MAP_MARKER_SIZE = 48;
+const DEFAULT_MAP_TEXT_SIZE = 10;
+const MIN_MAP_TEXT_SIZE = 8;
+const MAX_MAP_TEXT_SIZE = 28;
+
+const normalizeMapEditorSize = (
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number
+) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(min, Math.min(max, Math.round(number))) : fallback;
+};
 
 const createEmptySlopeRows = (count = 10): SlopeTableRow[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -1058,6 +1075,9 @@ useEffect(() => {
     isMoved: false,
   });
   const [mapDisplaySize, setMapDisplaySize] = useState({ width: 0, height: 0 });
+  const [mapMarkerSize, setMapMarkerSize] = useState(DEFAULT_MAP_MARKER_SIZE);
+  const [mapTextSize, setMapTextSize] = useState(DEFAULT_MAP_TEXT_SIZE);
+  const [mapSizeSettingsReady, setMapSizeSettingsReady] = useState(false);
 
   // --- カルテ・傾斜共通入力用ステート ---
   const [karteNo, setKarteNo] = useState('1');
@@ -1144,6 +1164,39 @@ useEffect(() => {
     window.removeEventListener('resize', updateMapDisplaySize);
   };
 }, [finalImage, updateMapDisplaySize]);
+
+useEffect(() => {
+  try {
+    const saved = window.localStorage.getItem(MAP_EDITOR_SIZE_STORAGE_KEY);
+    const settings = saved ? JSON.parse(saved) : {};
+    setMapMarkerSize(normalizeMapEditorSize(
+      settings.markerSize,
+      MIN_MAP_MARKER_SIZE,
+      MAX_MAP_MARKER_SIZE,
+      DEFAULT_MAP_MARKER_SIZE
+    ));
+    setMapTextSize(normalizeMapEditorSize(
+      settings.textSize,
+      MIN_MAP_TEXT_SIZE,
+      MAX_MAP_TEXT_SIZE,
+      DEFAULT_MAP_TEXT_SIZE
+    ));
+  } catch {
+    setMapMarkerSize(DEFAULT_MAP_MARKER_SIZE);
+    setMapTextSize(DEFAULT_MAP_TEXT_SIZE);
+  } finally {
+    setMapSizeSettingsReady(true);
+  }
+}, []);
+
+useEffect(() => {
+  if (!mapSizeSettingsReady) return;
+
+  window.localStorage.setItem(MAP_EDITOR_SIZE_STORAGE_KEY, JSON.stringify({
+    markerSize: mapMarkerSize,
+    textSize: mapTextSize,
+  }));
+}, [mapMarkerSize, mapTextSize, mapSizeSettingsReady]);
 
 const getInspectionReportEvalClass = (
   field: keyof Omit<InspectionReportRow, 'id'>,
@@ -8452,7 +8505,10 @@ if (mode === 'inclination_menu') {
       mapTexts.forEach(item => {
         const x = (item.x / 100) * canvas.width;
         const y = (item.y / 100) * canvas.height;
-        const fontSize = Math.max(12, Math.round(16 * outputSize.scale));
+        const fontSize = Math.max(
+          8,
+          Math.round(Math.max(12, 16 * outputSize.scale) * (mapTextSize / DEFAULT_MAP_TEXT_SIZE))
+        );
 
         ctx.fillStyle = item.color;
         ctx.font = `${fontSize}px "MS Gothic", "ＭＳ ゴシック", monospace`;
@@ -8471,11 +8527,15 @@ if (mode === 'inclination_menu') {
       markers.forEach(m => {
         const x = (m.x / 100) * canvas.width;
         const y = (m.y / 100) * canvas.height;
-        const baseSize = Math.max(28, Math.round(34 * outputSize.scale));
+        const previousBaseSize = Math.max(28, Math.round(34 * outputSize.scale));
+        const baseSize = Math.max(
+          16,
+          Math.round(previousBaseSize * 0.88 * (mapMarkerSize / DEFAULT_MAP_MARKER_SIZE))
+        );
         const size = m.color === '#0070c0' && m.shape === 'square'
-          ? Math.max(22, Math.round(baseSize * 0.82))
+          ? Math.max(14, Math.round(baseSize * 0.82))
           : m.shape === 'circle' && (m.color === 'red' || m.color === 'black')
-            ? Math.max(24, Math.round(baseSize * 0.9))
+            ? Math.max(15, Math.round(baseSize * 0.9))
           : baseSize;
         ctx.beginPath();
         ctx.lineWidth = 2.5;
@@ -8606,6 +8666,81 @@ if (mode === 'editor') {
       </>
     )}
   </div>
+        {finalImage && (
+          <div className="mb-2 flex w-full shrink-0 flex-wrap items-center justify-center gap-3 rounded-lg bg-white p-2 shadow-sm">
+            <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-1.5">
+              <span className="px-1 text-xs font-black text-slate-600">マーカーサイズ</span>
+              <button
+                type="button"
+                aria-label="マーカーを小さく"
+                onClick={() => setMapMarkerSize(size => Math.max(MIN_MAP_MARKER_SIZE, size - 2))}
+                disabled={mapMarkerSize <= MIN_MAP_MARKER_SIZE}
+                className="h-9 w-9 rounded-md bg-white text-lg font-black text-slate-700 shadow-sm disabled:opacity-40"
+              >
+                －
+              </button>
+              <input
+                type="number"
+                min={MIN_MAP_MARKER_SIZE}
+                max={MAX_MAP_MARKER_SIZE}
+                step={2}
+                value={mapMarkerSize}
+                onChange={event => setMapMarkerSize(normalizeMapEditorSize(
+                  event.target.value,
+                  MIN_MAP_MARKER_SIZE,
+                  MAX_MAP_MARKER_SIZE,
+                  DEFAULT_MAP_MARKER_SIZE
+                ))}
+                className="h-9 w-14 rounded-md border border-slate-300 bg-white text-center font-black outline-none"
+              />
+              <button
+                type="button"
+                aria-label="マーカーを大きく"
+                onClick={() => setMapMarkerSize(size => Math.min(MAX_MAP_MARKER_SIZE, size + 2))}
+                disabled={mapMarkerSize >= MAX_MAP_MARKER_SIZE}
+                className="h-9 w-9 rounded-md bg-white text-lg font-black text-slate-700 shadow-sm disabled:opacity-40"
+              >
+                ＋
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-1.5">
+              <span className="px-1 text-xs font-black text-slate-600">文字サイズ</span>
+              <button
+                type="button"
+                aria-label="文字を小さく"
+                onClick={() => setMapTextSize(size => Math.max(MIN_MAP_TEXT_SIZE, size - 1))}
+                disabled={mapTextSize <= MIN_MAP_TEXT_SIZE}
+                className="h-9 w-9 rounded-md bg-white text-lg font-black text-slate-700 shadow-sm disabled:opacity-40"
+              >
+                －
+              </button>
+              <input
+                type="number"
+                min={MIN_MAP_TEXT_SIZE}
+                max={MAX_MAP_TEXT_SIZE}
+                step={1}
+                value={mapTextSize}
+                onChange={event => setMapTextSize(normalizeMapEditorSize(
+                  event.target.value,
+                  MIN_MAP_TEXT_SIZE,
+                  MAX_MAP_TEXT_SIZE,
+                  DEFAULT_MAP_TEXT_SIZE
+                ))}
+                className="h-9 w-14 rounded-md border border-slate-300 bg-white text-center font-black outline-none"
+              />
+              <button
+                type="button"
+                aria-label="文字を大きく"
+                onClick={() => setMapTextSize(size => Math.min(MAX_MAP_TEXT_SIZE, size + 1))}
+                disabled={mapTextSize >= MAX_MAP_TEXT_SIZE}
+                className="h-9 w-9 rounded-md bg-white text-lg font-black text-slate-700 shadow-sm disabled:opacity-40"
+              >
+                ＋
+              </button>
+            </div>
+          </div>
+        )}
         {/* メイン編集エリア */}
         <div ref={mapStageRef} className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-lg border border-white bg-slate-200" 
           style={{ touchAction: 'none' }}
@@ -8813,12 +8948,13 @@ if (mode === 'editor') {
                 {mapTexts.map(item => (
                   <div
                     key={item.id}
-                    className="map-text absolute z-30 -translate-y-1/2 cursor-move whitespace-pre rounded-sm bg-white/70 px-0.5 font-mono text-[10px] leading-none pointer-events-auto touch-none"
+                    className="map-text absolute z-30 -translate-y-1/2 cursor-move whitespace-pre rounded-sm bg-white/70 px-0.5 font-mono leading-none pointer-events-auto touch-none"
                     style={{
                       left: `${item.x}%`,
                       top: `${item.y}%`,
                       color: item.color,
                       fontFamily: '"MS Gothic", "ＭＳ ゴシック", monospace',
+                      fontSize: `${mapTextSize}px`,
                       zIndex: draggingTextId === item.id ? 100 : 30,
                     }}
                     onPointerDown={(e) => {
@@ -8881,10 +9017,12 @@ if (mode === 'editor') {
       left: `${m.x}%`, 
       top: `${m.y}%`, 
       transform: 'translate(-50%,-50%)', 
-      width: '24px', 
-      height: '24px', 
-      border: `2px solid ${m.color}`, 
-      color: m.color, 
+       width: `${mapMarkerSize}px`,
+       height: `${mapMarkerSize}px`,
+       border: `2px solid ${m.color}`,
+       color: m.color,
+       fontSize: `${Math.max(9, Math.round(mapMarkerSize * 0.55))}px`,
+       lineHeight: 1,
       borderRadius: m.shape === 'circle' ? '50%' : '6px',
       zIndex: draggingMarkerId === m.id ? 100 : 30,
     }}
