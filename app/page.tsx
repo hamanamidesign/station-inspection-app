@@ -326,6 +326,13 @@ const normalizeDateForDateInput = (value: unknown) => {
   return text;
 };
 
+const areSameInspectionDates = (firstDate: unknown, annualDate: unknown) => {
+  const normalizedFirstDate = normalizeDateForDateInput(formatSheetDateText(firstDate));
+  const normalizedAnnualDate = normalizeDateForDateInput(formatSheetDateText(annualDate));
+
+  return Boolean(normalizedFirstDate) && normalizedFirstDate === normalizedAnnualDate;
+};
+
 const toDisplayText = (value: unknown) =>
   value === null || value === undefined ? '' : String(value);
 
@@ -4382,6 +4389,8 @@ async function loadInspectionReportLegacy(loadId: number) {
 }
 const loadSlopeTable = async () => {
   setIsLoading(true);
+  setSlopeFirstContractor('');
+  setSlopeFirstInspector('');
 
   try {
 const result = await gasApi("getSlopeTableData", {
@@ -4870,6 +4879,13 @@ const sendInclinationKarte = async () => {
   setIsSending(true);
 
   try {
+    const isFirstInspection = areSameInspectionDates(firstDate, inspectDate);
+    const savedFirstContractor = isFirstInspection
+      ? slopeFirstContractor || contractor
+      : slopeFirstContractor;
+    const savedFirstInspector = isFirstInspection
+      ? slopeFirstInspector || inspector
+      : slopeFirstInspector;
     const inclinationGroups = chunkSlopeRows(slopeRows);
     const rows = filledRows.map(row => {
       const { photo1, photo2, ...rowWithoutPhotos } = row;
@@ -4891,11 +4907,11 @@ const sendInclinationKarte = async () => {
       rangeLabel: getSlopeRangeLabel(inclinationGroups[inclinationPageIndex] || []),
       evalType,
       firstDate: formatSheetDateText(firstDate),
-      firstContractor: slopeFirstContractor,
-      firstInspector: slopeFirstInspector,
-      inspectDate: formatSheetDateText(inspectDate),
-      contractor,
-      inspector,
+      firstContractor: savedFirstContractor,
+      firstInspector: savedFirstInspector,
+      inspectDate: isFirstInspection ? '' : formatSheetDateText(inspectDate),
+      contractor: isFirstInspection ? '' : contractor,
+      inspector: isFirstInspection ? '' : inspector,
       rows,
     });
 
@@ -5527,6 +5543,16 @@ if (mode === 'inclination_menu') {
   const inclinationGroups = chunkSlopeRows(slopeRows);
   const selectedInclinationRows = inclinationGroups[inclinationPageIndex] || [];
   const currentInclinationRange = getSlopeRangeLabel(selectedInclinationRows);
+  const isFirstInspection = areSameInspectionDates(firstDate, inspectDate);
+  const displayedFirstContractor = isFirstInspection
+    ? slopeFirstContractor || contractor
+    : slopeFirstContractor;
+  const displayedFirstInspector = isFirstInspection
+    ? slopeFirstInspector || inspector
+    : slopeFirstInspector;
+  const displayedLatestDate = isFirstInspection ? '' : inspectDate;
+  const displayedLatestContractor = isFirstInspection ? '' : contractor;
+  const displayedLatestInspector = isFirstInspection ? '' : inspector;
   const inclinationScale = Math.min(
     1,
     Math.max(0.3, (viewportWidth - 32) / INCLINATION_CARD_WIDTH)
@@ -6137,7 +6163,7 @@ if (mode === 'inclination_menu') {
   <input
     type="text"
     className="w-full h-12 text-center text-sm outline-none"
-    value={slopeFirstContractor}
+    value={displayedFirstContractor}
     onChange={(e) => setSlopeFirstContractor(e.target.value)}
     placeholder="受注者"
   />
@@ -6148,7 +6174,7 @@ if (mode === 'inclination_menu') {
   <input
     type="text"
     className="w-full h-12 text-center text-sm outline-none"
-    value={slopeFirstInspector}
+    value={displayedFirstInspector}
     onChange={(e) => setSlopeFirstInspector(e.target.value)}
     placeholder="点検者"
   />
@@ -6161,17 +6187,18 @@ if (mode === 'inclination_menu') {
 
     {/* 最新 日付反映 */}
     <div className="border-r border-slate-800 p-2 flex items-center justify-center">
-      {inspectDate}
+      {displayedLatestDate}
     </div>
 
     {/* 最新 受注者（入力） */}
 <div className="border-r border-slate-800 p-2 flex items-center">
   <textarea
     className="w-full text-center text-sm outline-none resize-none overflow-hidden"
-    value={contractor}
+    value={displayedLatestContractor}
     onChange={(e) => setContractor(e.target.value)}
     rows={2}
-    placeholder="受注者"
+    placeholder={isFirstInspection ? '' : '受注者'}
+    disabled={isFirstInspection}
   />
 </div>
 
@@ -6179,10 +6206,11 @@ if (mode === 'inclination_menu') {
 <div className="p-2 flex items-center">
   <textarea
     className="w-full text-center text-sm outline-none resize-none overflow-hidden"
-    value={inspector}
+    value={displayedLatestInspector}
     onChange={(e) => setInspector(e.target.value)}
     rows={2}
-    placeholder="点検者"
+    placeholder={isFirstInspection ? '' : '点検者'}
+    disabled={isFirstInspection}
   />
 </div>
 
@@ -6264,7 +6292,7 @@ if (mode === 'inclination_menu') {
     </div>
 
     <div className="p-2 text-center">
-      {inspectDate}
+      {displayedLatestDate}
     </div>
   </div>
 
