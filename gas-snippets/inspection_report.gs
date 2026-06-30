@@ -19,17 +19,18 @@ function getInspectionReportData(data) {
   const limit = Math.min(Math.max(Number(data.limit) || 25, 1), 50);
   const pageSheets = karteSheets.slice(offset, offset + limit);
 
-  const baseSheet = offset === 0 ? (ss.getSheetByName("1") || karteSheets[0] || null) : null;
-  const baseValues = baseSheet ? baseSheet.getRange("A1:V16").getDisplayValues() : null;
-  const pageHeader = {
-    inspectDates: [],
-    inspectors: [],
-  };
+  const masterHeader = offset === 0
+    ? getInspectionReportMasterHeader_(data)
+    : {
+        stationNo: "",
+        inspectDate: "",
+        contractor: "",
+        inspector: "",
+      };
 
   const rows = pageSheets.map(sheet => {
     const values = sheet.getRange("A1:V16").getDisplayValues();
     const firstDate = getInspectionReportCell_(values, 5, 6);
-    const latestDate = getInspectionReportCell_(values, 5, 18);
     const firstSituation = joinInspectionReportText_(
       getInspectionReportCell_(values, 13, 10),
       getInspectionReportCell_(values, 16, 10)
@@ -40,9 +41,6 @@ function getInspectionReportData(data) {
     );
     const useFirstSituationAsCurrent =
       isInspectionReportCurrentYearFirstInspection_(firstDate, data.year);
-
-    addInspectionReportUnique_(pageHeader.inspectDates, latestDate);
-    addInspectionReportUnique_(pageHeader.inspectors, getInspectionReportCell_(values, 6, 18));
 
     return {
     buildingName: getInspectionReportCell_(values, 1, 12),
@@ -65,11 +63,11 @@ function getInspectionReportData(data) {
   });
 
   const header = {
-    stationNo: data.stationNo || "",
+    stationNo: masterHeader.stationNo || data.stationNo || "",
     stationName: data.station || "",
-    inspectDate: pageHeader.inspectDates.join(",　") || (baseValues ? getInspectionReportCell_(baseValues, 5, 18) : ""),
-    contractor: baseValues ? getInspectionReportCell_(baseValues, 3, 22) : "",
-    inspector: pageHeader.inspectors.join(",　") || (baseValues ? getInspectionReportCell_(baseValues, 6, 18) : ""),
+    inspectDate: masterHeader.inspectDate,
+    contractor: masterHeader.contractor,
+    inspector: masterHeader.inspector,
   };
 
   const nextOffset = offset + rows.length;
@@ -92,9 +90,39 @@ function getInspectionReportCell_(values, row, column) {
     : "";
 }
 
-function addInspectionReportUnique_(items, value) {
-  const text = String(value || "").trim();
-  if (text && items.indexOf(text) === -1) items.push(text);
+function getInspectionReportMasterHeader_(data) {
+  const dateResult = getInspectionListDates({
+    masterSpreadsheetId: data.masterSpreadsheetId || CONFIG.INSPECTION_LIST_MASTER_ID,
+    routeName: data.routeName,
+    station: data.station,
+    year: data.year,
+  });
+  const registrations = readInspectorRegistrations(
+    SpreadsheetApp.openById(CONFIG.PULLDOWN_SS_ID)
+  );
+  const routeKey = inspectionReportMasterKey_(data.routeName);
+  const yearKey = inspectionReportYearKey_(data.year);
+  const registration = registrations.find(item =>
+    inspectionReportMasterKey_(item.routeName) === routeKey &&
+    inspectionReportYearKey_(item.year) === yearKey
+  );
+
+  return {
+    stationNo: String(dateResult.stationNo || "").trim(),
+    inspectDate: String(dateResult.latestDate || "").trim(),
+    contractor: registration ? String(registration.contractor || "").trim() : "",
+    inspector: registration && Array.isArray(registration.inspectors)
+      ? registration.inspectors.map(value => String(value || "").trim()).filter(Boolean).join(",　")
+      : "",
+  };
+}
+
+function inspectionReportMasterKey_(value) {
+  return String(value || "").replace(/\s+/g, "").trim();
+}
+
+function inspectionReportYearKey_(value) {
+  return String(value || "").replace(/\s+/g, "").replace(/年度?$/, "").trim();
 }
 
 function buildInspectionReportPlace_(place, detail) {

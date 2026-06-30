@@ -23,7 +23,7 @@ const RETRYABLE_ACTIONS = new Set([
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const isRetryableGasError = (message: string) =>
-  /タイムアウト|一時的|HTTP 429|HTTP 5\d\d|Gateway Timeout|FUNCTION_INVOCATION_TIMEOUT/i.test(message);
+  /タイムアウト|一時的|HTTP 404|HTTP 429|HTTP 5\d\d|Gateway Timeout|FUNCTION_INVOCATION_TIMEOUT/i.test(message);
 
 async function gasApiOnce(action: string, data: any = {}) {
 

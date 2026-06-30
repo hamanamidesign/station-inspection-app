@@ -29,7 +29,8 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const getGasTimeoutMs = (action?: string | null) => {
   switch (action) {
     case "getRouteList":
-      return 20000;
+      // GAS再デプロイ直後はキャッシュが空になり、Driveの路線フォルダ走査に時間がかかる。
+      return 90000;
     case "getExistingData":
     case "getPulldownLists":
     case "getInspectionListDates":
