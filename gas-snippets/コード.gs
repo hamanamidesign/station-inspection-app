@@ -1020,7 +1020,7 @@ const photoFolderId = photoFolder.getId();
 
         const newSheet = masterSheet.copyTo(ss);
 
-        newSheet.setName(sheetMapping[masterName]);
+        newSheet.setName(sheetMapping[masterName]).showSheet();
 
       }
 
@@ -1090,6 +1090,10 @@ function getPhotoNumberSheet(ss) {
   if (!sheet) {
     sheet = ss.insertSheet("写真カルテ番号");
     sheet.getRange("A1").setValue("使用できない写真カルテ番号");
+  }
+
+  if (sheet.isSheetHidden()) {
+    sheet.showSheet();
   }
 
   if (!sheet.getRange("B1").getValue()) {
@@ -1390,6 +1394,15 @@ function getKarteHeaderTextStyle_(length) {
   return { fontSize: 11, wrap: false };
 }
 
+function showPhotoKarteSheets_(ss) {
+  ss.getSheets().forEach(sheet => {
+    const sheetName = String(sheet.getName() || "").trim();
+    if (/^\d+$/.test(sheetName) && sheet.isSheetHidden()) {
+      sheet.showSheet();
+    }
+  });
+}
+
 function uploadKarte(data, templateName) {
   const ss = SpreadsheetApp.openById(data.spreadsheetId);
   const templateSheet = ss.getSheetByName(templateName);
@@ -1402,6 +1415,9 @@ function uploadKarte(data, templateName) {
   let sheet = ss.getSheetByName(newSheetName);
 
   if (sheet) {
+    if (sheet.isSheetHidden()) {
+      sheet.showSheet();
+    }
     sheet.getImages().forEach(img => img.remove());
   } else {
     sheet = templateSheet.copyTo(ss).setName(newSheetName).showSheet();
@@ -1769,6 +1785,10 @@ if (lowerPhotos.length === 1) {
     fontRange
       .setFontFamily("MS Mincho")
       .setFontSize(8);
+  }
+
+  if (templateName === "写真カルテ_マスタ") {
+    showPhotoKarteSheets_(ss);
   }
 
   SpreadsheetApp.flush();

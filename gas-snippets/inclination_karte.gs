@@ -70,6 +70,10 @@ function uploadInclinationKartePhoto(data) {
     throw new Error(`傾斜測定カルテシートが見つかりません: ${data.sheetName}`);
   }
 
+  if (sheet.isSheetHidden()) {
+    sheet.showSheet();
+  }
+
   const block = findInclinationBlockByPoint_(sheet, data.point);
   if (!block) {
     throw new Error(`測点が見つかりません: ${data.point}`);

@@ -14,6 +14,10 @@ function uploadPhotos(data) {
   if (!sheet) throw new Error("貼り付け先シートが見つかりません");
   if (!data.imageData) throw new Error("位置図画像データがありません");
 
+  if (sheet.isSheetHidden()) {
+    sheet.showSheet();
+  }
+
   const stationNo = getMapStationNo_(data);
   if (stationNo) {
     sheet.getRange("D2").setValue(stationNo);

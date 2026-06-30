@@ -131,6 +131,10 @@ function uploadInspectionReport(data) {
     throw new Error("施設点検報告書 シートが見つかりません");
   }
 
+  if (sheet.isSheetHidden()) {
+    sheet.showSheet();
+  }
+
   sheet.setHiddenGridlines(true);
 
   const rows = Array.isArray(data.rows)

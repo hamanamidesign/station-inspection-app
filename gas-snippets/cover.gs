@@ -11,6 +11,10 @@ function uploadCover(data) {
     throw new Error("表紙 シートが見つかりません");
   }
 
+  if (sheet.isSheetHidden()) {
+    sheet.showSheet();
+  }
+
   sheet.getRange("B3").setNumberFormat("@").setValue(buildCoverStationNo_(data.stationNo));
   sheet.getRange("B6").setNumberFormat("@").setValue(buildCoverStationName_(data.stationName));
   sheet.getRange("K13").setNumberFormat("@").setValue(coverText_(data.inspectDate));
