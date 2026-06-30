@@ -4803,13 +4803,14 @@ const sendSlopeTable = async () => {
   setIsSending(true);
 
   try {
+    const isFirstInspection = areSameInspectionDates(firstDate, inspectDate);
     const result = await gasApi("uploadSlopeTable", {
       spreadsheetId,
       stationNo,
       station: stationName,
       year: selectedYear,
       firstDate: formatSheetDateText(firstDate),
-      inspectDate: formatSheetDateText(inspectDate),
+      inspectDate: isFirstInspection ? '' : formatSheetDateText(inspectDate),
       rows,
     });
 
@@ -5030,6 +5031,8 @@ const formatSizeDetailValue = (value: string) => {
 
 if (mode === 'slope_table') {
   const slopeGridColumns = '78px 64px 58px 170px 54px 82px 54px 82px 54px 82px 54px 82px 90px';
+  const isFirstInspection = areSameInspectionDates(firstDate, inspectDate);
+  const displayedInspectDate = isFirstInspection ? '' : inspectDate;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-300 text-black" style={routePageStyle}>
@@ -5081,9 +5084,10 @@ if (mode === 'slope_table') {
 
   <input
     className="w-full border border-slate-300 bg-white px-2 py-1 text-center font-normal outline-none"
-    value={inspectDate}
+    value={displayedInspectDate}
     onChange={e => setInspectDate(e.target.value)}
-    placeholder="日付"
+    placeholder={isFirstInspection ? '' : '日付'}
+    disabled={isFirstInspection}
   />
 </div>
             <div className="row-span-3 flex items-center justify-center">
