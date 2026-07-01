@@ -23,14 +23,19 @@ function getInspectionReportData(data) {
     ? getInspectionReportMasterHeader_(data)
     : {
         stationNo: "",
-        inspectDate: "",
         contractor: "",
-        inspector: "",
       };
+  const pageHeader = {
+    inspectDates: [],
+    inspectors: [],
+  };
 
   const rows = pageSheets.map(sheet => {
     const values = sheet.getRange("A1:V16").getDisplayValues();
     const firstDate = getInspectionReportCell_(values, 5, 6);
+    const inspectDate = getInspectionReportCell_(values, 5, 18) || firstDate;
+    const firstInspector = getInspectionReportCell_(values, 6, 6);
+    const inspector = getInspectionReportCell_(values, 6, 18) || firstInspector;
     const firstSituation = joinInspectionReportText_(
       getInspectionReportCell_(values, 13, 10),
       getInspectionReportCell_(values, 16, 10)
@@ -41,6 +46,9 @@ function getInspectionReportData(data) {
     );
     const useFirstSituationAsCurrent =
       isInspectionReportCurrentYearFirstInspection_(firstDate, data.year);
+
+    addInspectionReportUnique_(pageHeader.inspectDates, inspectDate);
+    addInspectionReportUnique_(pageHeader.inspectors, inspector);
 
     return {
     buildingName: getInspectionReportCell_(values, 1, 12),
@@ -65,9 +73,9 @@ function getInspectionReportData(data) {
   const header = {
     stationNo: masterHeader.stationNo || data.stationNo || "",
     stationName: data.station || "",
-    inspectDate: masterHeader.inspectDate,
+    inspectDate: pageHeader.inspectDates.join(",　"),
     contractor: masterHeader.contractor,
-    inspector: masterHeader.inspector,
+    inspector: pageHeader.inspectors.join(",　"),
   };
 
   const nextOffset = offset + rows.length;
@@ -109,11 +117,7 @@ function getInspectionReportMasterHeader_(data) {
 
   return {
     stationNo: String(dateResult.stationNo || "").trim(),
-    inspectDate: String(dateResult.latestDate || "").trim(),
     contractor: registration ? String(registration.contractor || "").trim() : "",
-    inspector: registration && Array.isArray(registration.inspectors)
-      ? registration.inspectors.map(value => String(value || "").trim()).filter(Boolean).join(",　")
-      : "",
   };
 }
 
@@ -123,6 +127,11 @@ function inspectionReportMasterKey_(value) {
 
 function inspectionReportYearKey_(value) {
   return String(value || "").replace(/\s+/g, "").replace(/年度?$/, "").trim();
+}
+
+function addInspectionReportUnique_(items, value) {
+  const text = String(value || "").trim();
+  if (text && items.indexOf(text) === -1) items.push(text);
 }
 
 function buildInspectionReportPlace_(place, detail) {

@@ -923,6 +923,7 @@ type AppMode =
   | 'exist_select' 
   | 'task_select' 
   | 'cover'
+  | 'inspection_summary'
   | 'inspection_report' 
   | 'slope_table'
   | 'karte_menu' 
@@ -3597,6 +3598,147 @@ if (mode === 'exist_select') return (
               className="w-full max-w-xs rounded-xl bg-blue-600 py-4 text-lg font-black text-white shadow-sm active:scale-95 disabled:bg-slate-400"
             >
               {isSending ? "反映中..." : "表紙作成"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (mode === 'inspection_summary') {
+    const SummaryEmptyRow = ({ columns }: { columns: string[] }) => (
+      <div
+        className="grid min-h-14 border-t border-slate-400 bg-white"
+        style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(145px, 1fr))` }}
+      >
+        {columns.map((column, index) => (
+          <div key={column} className="flex items-center justify-center border-r border-slate-300 px-3 py-2 text-center text-slate-400 last:border-r-0">
+            {index === 0 ? '抽出後に表示されます' : '—'}
+          </div>
+        ))}
+      </div>
+    );
+
+    const SummarySection = ({
+      roman,
+      title,
+      description,
+      badge,
+      columns,
+      note,
+      tone = 'indigo',
+    }: {
+      roman: string;
+      title: string;
+      description: string;
+      badge: string;
+      columns: string[];
+      note: string;
+      tone?: 'indigo' | 'amber' | 'emerald';
+    }) => {
+      const tones = {
+        indigo: 'border-indigo-600 bg-indigo-50 text-indigo-900',
+        amber: 'border-amber-500 bg-amber-50 text-amber-900',
+        emerald: 'border-emerald-600 bg-emerald-50 text-emerald-900',
+      };
+
+      return (
+        <section className="overflow-hidden rounded-2xl border-2 border-slate-800 bg-white shadow-sm">
+          <div className={`flex flex-wrap items-center justify-between gap-3 border-b-2 px-4 py-3 ${tones[tone]}`}>
+            <div>
+              <h2 className="text-lg font-black">{roman}. {title}</h2>
+              <p className="mt-0.5 text-xs font-bold opacity-70">{description}</p>
+            </div>
+            <span className="rounded-full border border-current bg-white/80 px-3 py-1 text-xs font-black">{badge}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-max">
+              <div
+                className="grid bg-slate-100 text-center text-xs font-black"
+                style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(145px, 1fr))` }}
+              >
+                {columns.map(column => (
+                  <div key={column} className="flex min-h-12 items-center justify-center border-r border-slate-500 px-3 py-2 last:border-r-0 whitespace-pre-line">
+                    {column}
+                  </div>
+                ))}
+              </div>
+              <SummaryEmptyRow columns={columns} />
+            </div>
+          </div>
+          <div className="border-t border-slate-300 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">・{note}</div>
+        </section>
+      );
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-200 p-4 text-black" style={routePageStyle}>
+        <Nav />
+        <LoadingOverlay />
+
+        <div className="mx-auto w-full max-w-6xl pb-12">
+          <div className="mb-4 rounded-2xl border-2 border-slate-800 bg-white px-5 py-5 shadow-sm">
+            <div className="text-center text-xl font-black tracking-[0.28em] text-slate-900 sm:text-2xl">
+              〈 点 検 結 果 総 括 表 〉
+            </div>
+            <div className="mt-4 grid overflow-hidden rounded-xl border-2 border-slate-800 text-sm sm:grid-cols-2">
+              <div className="grid grid-cols-[90px_70px_1fr] border-b-2 border-slate-800 sm:border-b-0 sm:border-r-2">
+                <div className="flex items-center justify-center border-r border-slate-800 bg-slate-200 p-2 font-black">駅No.</div>
+                <div className="flex items-center justify-center border-r border-slate-800 p-2 font-bold">{stationNo || '—'}</div>
+                <div className="flex items-center justify-center p-2 text-base font-black">{stationName || '駅名未選択'}</div>
+              </div>
+              <div className="grid grid-cols-[90px_1fr]">
+                <div className="flex items-center justify-center border-r border-slate-800 bg-slate-200 p-2 font-black">点検年度</div>
+                <div className="flex items-center justify-center p-2 font-bold">{selectedYear ? `${selectedYear}年度` : '—'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-300 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="font-black text-slate-800">総括対象データ</div>
+              <div className="mt-1 text-xs font-bold text-slate-500">施設点検報告書（本年度）・傾斜表（本年度）</div>
+            </div>
+            <button type="button" className="rounded-xl bg-indigo-600 px-6 py-3 font-black text-white shadow-sm active:scale-95">
+              総括内容を取得
+            </button>
+          </div>
+
+          <div className="space-y-5">
+            <SummarySection
+              roman="Ⅰ"
+              title="形状判定"
+              description="施設点検報告書の総合評価 AA・A1・A2・B"
+              badge="対象 0箇所"
+              columns={['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明']}
+              note="Bランク以上の損傷箇所を総括します。"
+            />
+            <SummarySection
+              roman="Ⅱ"
+              title="申し入れ等（改修済み、補修済み）"
+              description="施設点検報告書の総合評価 C・S"
+              badge="対象 0箇所"
+              columns={['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明']}
+              note="改修済み・補修済み等の点検内容を総括します。"
+              tone="amber"
+            />
+            <SummarySection
+              roman="Ⅲ"
+              title="傾斜測定"
+              description="傾斜表の本年度測定値が 10.00mm を超える箇所"
+              badge="対象 0箇所"
+              columns={['測点', '建物名\n点検場所', '東西方向', '南北方向', '現況説明']}
+              note="10.00mmを超える測定値を総括します。"
+              tone="emerald"
+            />
+          </div>
+
+          <div className="mt-7 flex justify-center">
+            <button
+              type="button"
+              disabled={!spreadsheetId}
+              className="w-full max-w-md rounded-xl bg-blue-700 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
+            >
+              点検結果総括表を作成
             </button>
           </div>
         </div>
