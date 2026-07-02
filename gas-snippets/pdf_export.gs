@@ -1210,6 +1210,7 @@ function getGenericPdfSettings_(data, sheetNames) {
     return {
       fileSuffix: "点検結果総括表",
       portrait: false,
+      horizontalAlignment: "CENTER",
       scale: 4,
       top_margin: INSPECTION_PDF_MARGIN_TOP_INCHES_,
       bottom_margin: INSPECTION_PDF_MARGIN_BOTTOM_INCHES_,
