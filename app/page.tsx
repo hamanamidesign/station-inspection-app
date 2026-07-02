@@ -3784,11 +3784,11 @@ if (mode === 'exist_select') return (
         <LoadingOverlay />
 
         <div className="mx-auto w-full max-w-6xl pb-12">
-          <div className="mb-4 rounded-2xl bg-white px-5 py-5 shadow-sm">
+          <div className="mb-4 px-5 py-5">
             <div className="text-center text-xl font-black tracking-[0.28em] text-slate-900 sm:text-2xl">
               〈 点 検 結 果 総 括 表 〉
             </div>
-            <div className="mt-4 grid overflow-hidden rounded-xl border-2 border-slate-800 text-sm sm:grid-cols-2">
+            <div className="mt-4 grid overflow-hidden rounded-xl border-2 border-slate-800 bg-white text-sm sm:grid-cols-2">
               <div className="grid grid-cols-[90px_70px_1fr] border-b-2 border-slate-800 sm:border-b-0 sm:border-r-2">
                 <div className="flex items-center justify-center border-r border-slate-800 bg-slate-200 p-2 font-black">駅No.</div>
                 <div className="flex items-center justify-center border-r border-slate-800 p-2 font-bold">{stationNo || '—'}</div>
