@@ -364,7 +364,8 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
       row = renderInspectionSummaryPdfItem_(pageSheet, row, item);
     });
 
-    var footerRow = pageIndex === 0 ? 27 : 26;
+    var minimumFooterRow = pageIndex === 0 ? 24 : 22;
+    var footerRow = Math.max(row + 1, minimumFooterRow);
     ensureInspectionSummaryRows_(pageSheet, footerRow);
     var footerRange = mergeInspectionSummaryRange_(pageSheet, footerRow, 2, 29);
     setInspectionSummaryValue_(
@@ -388,7 +389,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   }
 
   function capacity_() {
-    return pages.length === 1 ? 15 : 17;
+    return pages.length === 1 ? 14 : 17;
   }
 
   function remaining_() {
@@ -624,7 +625,8 @@ function resetInspectionSummaryPdfPage_(sheet) {
 
 function copyInspectionSummaryColumnWidths_(source, target) {
   for (var column = 1; column <= 29; column += 1) {
-    target.setColumnWidth(column, source.getColumnWidth(column));
+    var width = source.getColumnWidth(column);
+    target.setColumnWidth(column, column >= 2 ? Math.round(width * 1.3) : width);
   }
 }
 
