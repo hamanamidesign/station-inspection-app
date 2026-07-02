@@ -213,8 +213,8 @@ function writeInspectionSummarySlopeHeader_(sheet, row) {
 
 function writeInspectionSummarySlopeRow_(sheet, row, item) {
   var place = [item.place, item.placeSide].filter(Boolean).join("\n");
-  var ew = [item.currentEwDirection, item.currentEwValue ? item.currentEwValue + "mm" : ""].filter(Boolean).join(" ");
-  var ns = [item.currentNsDirection, item.currentNsValue ? item.currentNsValue + "mm" : ""].filter(Boolean).join(" ");
+  var ew = formatInspectionSummarySlopeValue_(item.currentEwDirection, item.currentEwValue);
+  var ns = formatInspectionSummarySlopeValue_(item.currentNsDirection, item.currentNsValue);
   var cells = [
     [2, 3, item.point || "", 10, "center"],
     [4, 9, place, 8, "center"],
@@ -235,6 +235,14 @@ function writeInspectionSummarySlopeRow_(sheet, row, item) {
     }
     setInspectionSummaryTableBorder_(range);
   });
+}
+
+function formatInspectionSummarySlopeValue_(direction, value) {
+  var directionText = String(direction || "").trim();
+  var valueText = String(value || "").trim();
+  if (directionText && valueText) return directionText + "　　" + valueText + " (mm)";
+  if (valueText) return valueText + " (mm)";
+  return directionText;
 }
 
 function isInspectionSummarySameSlope_(currentDirection, currentValue, previousDirection, previousValue) {

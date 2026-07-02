@@ -3640,8 +3640,13 @@ if (mode === 'exist_select') return (
         (Number.isFinite(northSouth) && Math.abs(northSouth) > 10);
     });
     const totalInspectionCount = reportRows.length + annualSlopeRows.length;
-    const formatSlopeValue = (direction: string, value: string) =>
-      [direction, value && `${value}mm`].filter(Boolean).join(' ');
+    const formatSlopeValue = (direction: string, value: string) => {
+      const directionText = String(direction || '').trim();
+      const valueText = String(value || '').trim();
+      if (directionText && valueText) return `${directionText}　　${valueText} (mm)`;
+      if (valueText) return `${valueText} (mm)`;
+      return directionText;
+    };
     const isSameSlopeMeasurement = (currentDirection: string, currentValue: string, previousDirection: string, previousValue: string) => {
       const currentText = String(currentValue || '').trim();
       const previousText = String(previousValue || '').trim();
