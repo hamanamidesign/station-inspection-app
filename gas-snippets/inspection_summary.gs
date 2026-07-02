@@ -73,8 +73,9 @@ function writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slo
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "F3"), data.stationName || "", 12, "center", true);
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "U3"), data.inspectDate || "", 10, "left", false);
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "U4"), inspectors.join(",\n"), 10, "left", false);
+  // マスタやコピー元に旧結合 E4:I4 が残っていても、I4まで確実に解除する。
+  sheet.getRange("E4:I4").breakApart();
   var totalCountRange = sheet.getRange("E4:H4");
-  totalCountRange.getMergedRanges().forEach(function(range) { range.breakApart(); });
   totalCountRange.clearContent().merge();
   setInspectionSummaryValue_(totalCountRange, "－" + totalCount + "箇所", 12, "left", true);
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "D5"), "（" + reportCount + "箇所 + 傾斜 " + slopeCount + "箇所）", 10, "left", true);
