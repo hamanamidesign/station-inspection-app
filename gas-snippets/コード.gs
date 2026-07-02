@@ -284,6 +284,9 @@ case "getInspectionReportData":
 case "uploadInspectionReport":
   return createJsonResponse(uploadInspectionReport(body));
 
+case "uploadInspectionSummary":
+  return createJsonResponse(uploadInspectionSummary(body));
+
 case "uploadCover":
   return createJsonResponse(uploadCover(body));
 

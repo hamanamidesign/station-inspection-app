@@ -3818,10 +3818,11 @@ if (mode === 'exist_select') return (
           <div className="mt-7 flex justify-center">
             <button
               type="button"
-              disabled={!spreadsheetId}
+              onClick={sendInspectionSummary}
+              disabled={!spreadsheetId || isSending || isSummaryLoading}
               className="w-full max-w-md rounded-xl bg-blue-700 py-4 text-lg font-black text-white shadow active:scale-95 disabled:bg-slate-400"
             >
-              点検結果総括表を作成
+              {isSending ? '反映中...' : '点検結果総括表を作成'}
             </button>
           </div>
         </div>
@@ -4519,6 +4520,51 @@ async function sendInspectionReport() {
   }
 }
 
+
+async function sendInspectionSummary() {
+  if (!spreadsheetId) return alert("スプレッドシートIDがありません");
+  if (isSending) return;
+
+  const reportRows = inspectionReportRows.filter(row =>
+    [row.buildingName, row.inspectionPlace, row.photoNo, row.finishType, row.currentSituation, row.totalEval]
+      .some(value => String(value || '').trim())
+  );
+  const annualSlopeRows = slopeRows.filter(row => String(row.point || '').trim());
+  const overLimitSlopeRows = annualSlopeRows.filter(row => {
+    const eastWest = Number.parseFloat(String(row.currentEwValue || '').replace(/[^\d.-]/g, ''));
+    const northSouth = Number.parseFloat(String(row.currentNsValue || '').replace(/[^\d.-]/g, ''));
+    return (Number.isFinite(eastWest) && Math.abs(eastWest) > 10) ||
+      (Number.isFinite(northSouth) && Math.abs(northSouth) > 10);
+  });
+
+  setIsSending(true);
+
+  try {
+    const result = await gasApi("uploadInspectionSummary", {
+      spreadsheetId,
+      year: selectedYear,
+      stationNo,
+      stationName,
+      inspectDate,
+      inspector,
+      reportInspectionCount: reportRows.length,
+      slopeInspectionCount: annualSlopeRows.length,
+      reportRows,
+      slopeRows: overLimitSlopeRows,
+    });
+
+    if (result.success) {
+      alert("点検結果総括表をスプレッドシートへ反映しました");
+    } else {
+      alert("点検結果総括表の反映に失敗しました: " + (result.error || "不明なエラー"));
+    }
+  } catch (e) {
+    console.error(e);
+    alert(`点検結果総括表の反映に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+  } finally {
+    setIsSending(false);
+  }
+}
 
 async function loadInspectionReport() {
   if (!spreadsheetId) return;
