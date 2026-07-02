@@ -349,6 +349,9 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
   deleteInspectionSummaryPdfSheets_(ss);
   var pages = buildInspectionSummaryPdfPages_(reportRows, slopeRows);
   var totalPages = pages.length;
+  var reportCount = Math.max(0, Number(data.reportInspectionCount) || 0);
+  var slopeCount = Math.max(0, Number(data.slopeInspectionCount) || 0);
+  var totalCount = reportCount + slopeCount;
 
   pages.forEach(function(items, pageIndex) {
     var pageSheet = source.copyTo(ss).setName("点検結果総括表_" + (pageIndex + 1));
@@ -357,6 +360,8 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
 
     if (pageIndex === 0) {
       clearInspectionSummaryBody_(pageSheet);
+      // コピー元の結合状態に依存させず、PDF用1ページ目にも最新ヘッダーを適用する。
+      writeInspectionSummaryHeader_(pageSheet, data, totalCount, reportCount, slopeCount);
     } else {
       resetInspectionSummaryPdfPage_(pageSheet);
     }
