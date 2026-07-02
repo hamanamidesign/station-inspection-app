@@ -390,8 +390,8 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   }
 
   function capacity_() {
-    // A4横の印刷可能高さからフッター1行と下余白を先に確保する。
-    return pages.length === 1 ? 12 : 15;
+    // 1ページ目は帳票ヘッダー分を抑え、続きページは空いた高さを本文に使う。
+    return pages.length === 1 ? 12 : 17;
   }
 
   function remaining_() {
