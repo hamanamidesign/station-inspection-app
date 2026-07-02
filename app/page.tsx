@@ -3697,14 +3697,14 @@ if (mode === 'exist_select') return (
       return (
         <section className="overflow-hidden rounded-2xl border-2 border-slate-800 bg-white shadow-sm">
           <div className={`flex flex-wrap items-center justify-between gap-3 border-b-2 px-4 py-3 ${tones[tone]}`}>
-            <div>
-              <h2 className="text-lg font-black">{roman}. {title}</h2>
-              <p className="mt-0.5 text-xs font-bold opacity-70">{description}</p>
-            </div>
+            <h2 className="text-lg font-black">{roman}. {title}</h2>
             {badge && <span className="rounded-full border border-current bg-white/80 px-3 py-1 text-xs font-black">{badge}</span>}
           </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-max">
+          <div className="p-4">
+            <div className="mb-2 text-base font-black text-slate-900">{description}</div>
+            {rows.length > 0 ? (
+              <div className="overflow-x-auto rounded-xl border-2 border-slate-700">
+                <div className="min-w-max">
               <div
                 className="grid bg-slate-100 text-center text-xs font-black"
                 style={{ gridTemplateColumns: widths }}
@@ -3715,7 +3715,7 @@ if (mode === 'exist_select') return (
                   </div>
                 ))}
               </div>
-              {rows.length > 0 ? rows.map((row, rowIndex) => (
+              {rows.map((row, rowIndex) => (
                 <div key={rowIndex} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: widths }}>
                   {row.map((value, columnIndex) => (
                     <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'}`}>
@@ -3723,13 +3723,13 @@ if (mode === 'exist_select') return (
                     </div>
                   ))}
                 </div>
-              )) : (
-                <div className="flex min-h-14 items-center justify-center border-t border-slate-400 bg-white px-4 text-slate-400">
-                  ・今回　10.0mmを超える測定値は確認されませんでした。
+              ))}
                 </div>
-              )}
+              </div>
+            ) : (
+              <div className="py-2 text-sm font-bold text-slate-600">・今回　10.0mmを超える測定値は確認されませんでした。</div>
+            )}
             </div>
-          </div>
           {rows.length > 0 && <div className="border-t border-slate-300 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">・{note}</div>}
         </section>
       );
