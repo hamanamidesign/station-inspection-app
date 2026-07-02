@@ -4160,7 +4160,7 @@ if (mode === 'pdf_export') {
                 <div className="font-black text-red-900">2. Acrobatを開いて結合</div>
                 <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
                   「Select files」で展開したPDFを選択し、並び順が
-                  <code> 00 → 01 → 03 → 03-1 → 04 → 04-1 </code>
+                  <code> 00 → 01 → 02 → 03 → 03-1 → 04 → 04-1 </code>
                   になっていることを確認して結合します。
                 </p>
                 <a
