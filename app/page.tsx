@@ -3784,7 +3784,7 @@ if (mode === 'exist_select') return (
             <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-3 py-3 font-black sm:border-b-0 sm:border-r">点検日</div>
             <div className="flex items-center justify-center border-b border-slate-400 px-4 py-3 sm:border-b-0 sm:border-r">{inspectDate || '—'}</div>
             <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-3 py-3 font-black sm:border-b-0 sm:border-r">点検者</div>
-            <div className="flex items-center justify-center px-4 py-3 text-center whitespace-pre-wrap">{[contractor, inspector].filter(Boolean).join(' / ') || '—'}</div>
+            <div className="flex items-center justify-center px-4 py-3 text-center whitespace-pre-wrap">{inspector || '—'}</div>
           </div>
 
           <div className="space-y-5">
