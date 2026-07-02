@@ -366,7 +366,7 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
 
     // 本文の直後にフッターを置く。固定の下端行にすると、横幅に合わせた
     // PDF出力時にフッターだけが次の物理ページへ押し出されるため。
-    var minimumFooterRow = pageIndex === 0 ? 21 : 19;
+    var minimumFooterRow = pageIndex === 0 ? 19 : 17;
     var footerRow = Math.max(row, minimumFooterRow);
     ensureInspectionSummaryRows_(pageSheet, footerRow);
     var footerRange = mergeInspectionSummaryRange_(pageSheet, footerRow, 2, 29);
@@ -391,7 +391,8 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   }
 
   function capacity_() {
-    return pages.length === 1 ? 14 : 17;
+    // A4横の印刷可能高さからフッター1行と下余白を先に確保する。
+    return pages.length === 1 ? 12 : 15;
   }
 
   function remaining_() {
