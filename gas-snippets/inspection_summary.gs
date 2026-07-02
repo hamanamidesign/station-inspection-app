@@ -369,7 +369,7 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
     var footerRange = mergeInspectionSummaryRange_(pageSheet, footerRow, 2, 29);
     setInspectionSummaryValue_(
       footerRange,
-      "－" + String(data.stationName || "") + " " + (pageIndex + 1) + " / " + totalPages,
+      "－ " + String(data.stationName || "") + " " + (pageIndex + 1) + " / " + totalPages + " －",
       9,
       "center",
       false
