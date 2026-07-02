@@ -3643,8 +3643,13 @@ if (mode === 'exist_select') return (
     const formatSlopeValue = (direction: string, value: string) =>
       [direction, value && `${value}mm`].filter(Boolean).join(' ');
 
-    const evaluationColumns = ['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明'];
+    const evaluationColumns = ['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明（■は前回と同じ）'];
     const evaluationWidths = '72px 72px 150px 170px 140px minmax(320px, 1fr)';
+    const renderSummaryHeader = (column: string) => {
+      const markerIndex = column.indexOf('■');
+      if (markerIndex < 0) return column;
+      return <>{column.slice(0, markerIndex)}<span className="text-[#9dc3e6]">■</span>{column.slice(markerIndex + 1)}</>;
+    };
     const EvaluationTable = ({ evaluation, red = false }: { evaluation: string; red?: boolean }) => {
       const rows = rowsByEvaluation(evaluation);
 
@@ -3658,13 +3663,13 @@ if (mode === 'exist_select') return (
               <div className="min-w-max">
                 <div className="grid bg-slate-100 text-center text-xs font-black" style={{ gridTemplateColumns: evaluationWidths }}>
                   {evaluationColumns.map(column => (
-                    <div key={column} className="flex min-h-12 items-center justify-center border-r border-slate-500 px-3 py-2 last:border-r-0 whitespace-pre-line">{column}</div>
+                    <div key={column} className="flex min-h-12 items-center justify-center border-r border-slate-500 px-3 py-2 last:border-r-0 whitespace-pre-line">{renderSummaryHeader(column)}</div>
                   ))}
                 </div>
                 {rows.map((row, rowIndex) => (
                   <div key={`${evaluation}-${row.id}-${rowIndex}`} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: evaluationWidths }}>
                     {[row.photoNo, '', row.buildingName, row.inspectionPlace, row.finishType, row.currentSituation].map((value, columnIndex) => (
-                      <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'justify-start text-left' : 'justify-center text-center'}`}>{value}</div>
+                      <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'justify-start text-left' : 'justify-center text-center'} ${columnIndex === 5 && value.includes('前回と同じ') ? 'bg-[#d9eaf7]' : ''}`}>{value}</div>
                     ))}
                   </div>
                 ))}
@@ -3731,14 +3736,14 @@ if (mode === 'exist_select') return (
               >
                 {columns.map(column => (
                   <div key={column} className="flex min-h-12 items-center justify-center border-r border-slate-500 px-3 py-2 last:border-r-0 whitespace-pre-line">
-                    {column}
+                    {renderSummaryHeader(column)}
                   </div>
                 ))}
               </div>
               {rows.map((row, rowIndex) => (
                 <div key={rowIndex} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: widths }}>
                   {row.map((value, columnIndex) => (
-                    <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'}`}>
+                    <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'} ${columnIndex === row.length - 1 && value.includes('前回と同じ') ? 'bg-[#d9eaf7]' : ''}`}>
                       {value}
                     </div>
                   ))}

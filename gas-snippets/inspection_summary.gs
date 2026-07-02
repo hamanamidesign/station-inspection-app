@@ -9,6 +9,7 @@ var INSPECTION_SUMMARY_START_ROW_ = 7;
 var INSPECTION_SUMMARY_START_COLUMN_ = 2; // B
 var INSPECTION_SUMMARY_COLUMN_COUNT_ = 28; // B:AC
 var INSPECTION_SUMMARY_BLUE_ = "#9dc3e6";
+var INSPECTION_SUMMARY_SAME_FILL_ = "#d9eaf7";
 
 function uploadInspectionSummary(data) {
   var ss = SpreadsheetApp.openById(data.spreadsheetId);
@@ -36,6 +37,7 @@ function uploadInspectionSummary(data) {
     true,
     "・上記のBランク以上の損傷個所を確認しました。"
   );
+  row += 1;
   row = writeInspectionSummaryEvaluationSection_(
     sheet,
     row,
@@ -45,6 +47,7 @@ function uploadInspectionSummary(data) {
     false,
     "・上記の点検を実施しました。"
   );
+  row += 1;
   row = writeInspectionSummarySlopeSection_(sheet, row, slopeRows);
 
   ensureInspectionSummaryRows_(sheet, row);
@@ -92,7 +95,7 @@ function writeInspectionSummaryEvaluationSection_(sheet, row, title, evaluations
   ensureInspectionSummaryRows_(sheet, row + 2);
   var titleEndColumn = title.indexOf("Ⅱ.") === 0 ? 12 : 5;
   var titleRange = mergeInspectionSummaryRange_(sheet, row, 2, titleEndColumn);
-  setInspectionSummaryValue_(titleRange, title, 10, "left", false);
+  setInspectionSummaryValue_(titleRange, title, 10, "left", true);
   row += 1;
 
   evaluations.forEach(function(evaluation) {
@@ -131,7 +134,7 @@ function writeInspectionSummaryEvaluationSection_(sheet, row, title, evaluations
 function writeInspectionSummarySlopeSection_(sheet, row, rows) {
   ensureInspectionSummaryRows_(sheet, row + rows.length + 4);
   var titleRange = mergeInspectionSummaryRange_(sheet, row, 2, 5);
-  setInspectionSummaryValue_(titleRange, "Ⅲ.傾斜測定", 10, "left", false);
+  setInspectionSummaryValue_(titleRange, "Ⅲ.傾斜測定", 10, "left", true);
   row += 1;
 
   if (!rows.length) {
@@ -159,7 +162,7 @@ function writeInspectionSummarySlopeSection_(sheet, row, rows) {
 function writeInspectionSummaryReportHeader_(sheet, row) {
   var cells = [
     [2, 3, "写真No.", 10],
-    [4, 5, "点検\n箇所数", 10],
+    [4, 5, "点検\n箇所数", 8],
     [6, 9, "建物名", 10],
     [10, 14, "点検場所", 10],
     [15, 19, "仕上げ", 10],
@@ -185,6 +188,9 @@ function writeInspectionSummaryReportRow_(sheet, row, item) {
   cells.forEach(function(cell, index) {
     var range = mergeInspectionSummaryRange_(sheet, row, cell[0], cell[1]);
     setInspectionSummaryValue_(range, cell[2], 10, index === 5 ? "left" : "center", false);
+    if (index === 5 && String(cell[2]).indexOf("前回と同じ") >= 0) {
+      range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
+    }
     setInspectionSummaryTableBorder_(range);
   });
 }
@@ -219,6 +225,9 @@ function writeInspectionSummarySlopeRow_(sheet, row, item) {
   cells.forEach(function(cell) {
     var range = mergeInspectionSummaryRange_(sheet, row, cell[0], cell[1]);
     setInspectionSummaryValue_(range, cell[2], cell[3], cell[4], false);
+    if (cell[0] === 20 && String(cell[2]).indexOf("前回と同じ") >= 0) {
+      range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
+    }
     setInspectionSummaryTableBorder_(range);
   });
 }
