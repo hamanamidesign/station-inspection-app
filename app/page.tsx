@@ -1599,7 +1599,7 @@ useEffect(() => {
 }, [mode, loadCoverInspectionDate]);
 
 useEffect(() => {
-  if (mode === 'inspection_report' && spreadsheetId) {
+  if ((mode === 'inspection_report' || mode === 'inspection_summary') && spreadsheetId) {
     loadInspectionReport().catch(e => console.error(e));
   }
 }, [mode, spreadsheetId, selectedRoute, stationName, selectedYear]);
@@ -1614,7 +1614,7 @@ useEffect(() => {
     return;
   }
 
-  if (mode === 'slope_table' || mode === 'inclination_menu') {
+  if (mode === 'slope_table' || mode === 'inclination_menu' || mode === 'inspection_summary') {
     loadInspectionListDates();
   }
 }, [mode, loadInspectionListDates, loadPhotoKarteMasterDates]);
@@ -1643,7 +1643,7 @@ useEffect(() => {
 
 useEffect(() => {
 
-  if (mode !== 'slope_table' && mode !== 'inclination_menu') return;
+  if (mode !== 'slope_table' && mode !== 'inclination_menu' && mode !== 'inspection_summary') return;
   if (!spreadsheetId) return;
 
   loadSlopeTable();
@@ -3605,18 +3605,22 @@ if (mode === 'exist_select') return (
     );
   }
   if (mode === 'inspection_summary') {
-    const SummaryEmptyRow = ({ columns }: { columns: string[] }) => (
-      <div
-        className="grid min-h-14 border-t border-slate-400 bg-white"
-        style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(145px, 1fr))` }}
-      >
-        {columns.map((column, index) => (
-          <div key={column} className="flex items-center justify-center border-r border-slate-300 px-3 py-2 text-center text-slate-400 last:border-r-0">
-            {index === 0 ? '抽出後に表示されます' : '—'}
-          </div>
-        ))}
-      </div>
+    const reportRows = inspectionReportRows.filter(row =>
+      [row.buildingName, row.inspectionPlace, row.photoNo, row.finishType, row.currentSituation, row.totalEval]
+        .some(value => String(value || '').trim())
     );
+    const annualSlopeRows = slopeRows.filter(row => String(row.point || '').trim());
+    const shapeRows = reportRows.filter(row => ['AA', 'A1', 'A2', 'B'].includes(String(row.totalEval || '').trim().toUpperCase()));
+    const requestRows = reportRows.filter(row => ['C', 'S'].includes(String(row.totalEval || '').trim().toUpperCase()));
+    const overLimitSlopeRows = annualSlopeRows.filter(row => {
+      const eastWest = Number.parseFloat(String(row.currentEwValue || '').replace(/[^\d.-]/g, ''));
+      const northSouth = Number.parseFloat(String(row.currentNsValue || '').replace(/[^\d.-]/g, ''));
+      return (Number.isFinite(eastWest) && Math.abs(eastWest) > 10) ||
+        (Number.isFinite(northSouth) && Math.abs(northSouth) > 10);
+    });
+    const totalInspectionCount = reportRows.length + annualSlopeRows.length;
+    const formatSlopeValue = (direction: string, value: string) =>
+      [direction, value && `${value}mm`].filter(Boolean).join(' ');
 
     const SummarySection = ({
       roman,
@@ -3624,6 +3628,8 @@ if (mode === 'exist_select') return (
       description,
       badge,
       columns,
+      widths,
+      rows,
       note,
       tone = 'indigo',
     }: {
@@ -3632,6 +3638,8 @@ if (mode === 'exist_select') return (
       description: string;
       badge: string;
       columns: string[];
+      widths: string;
+      rows: string[][];
       note: string;
       tone?: 'indigo' | 'amber' | 'emerald';
     }) => {
@@ -3654,7 +3662,7 @@ if (mode === 'exist_select') return (
             <div className="min-w-max">
               <div
                 className="grid bg-slate-100 text-center text-xs font-black"
-                style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(145px, 1fr))` }}
+                style={{ gridTemplateColumns: widths }}
               >
                 {columns.map(column => (
                   <div key={column} className="flex min-h-12 items-center justify-center border-r border-slate-500 px-3 py-2 last:border-r-0 whitespace-pre-line">
@@ -3662,7 +3670,19 @@ if (mode === 'exist_select') return (
                   </div>
                 ))}
               </div>
-              <SummaryEmptyRow columns={columns} />
+              {rows.length > 0 ? rows.map((row, rowIndex) => (
+                <div key={rowIndex} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: widths }}>
+                  {row.map((value, columnIndex) => (
+                    <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'}`}>
+                      {value || '—'}
+                    </div>
+                  ))}
+                </div>
+              )) : (
+                <div className="flex min-h-14 items-center justify-center border-t border-slate-400 bg-white px-4 text-slate-400">
+                  対象となるデータはありません
+                </div>
+              )}
             </div>
           </div>
           <div className="border-t border-slate-300 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">・{note}</div>
@@ -3693,14 +3713,11 @@ if (mode === 'exist_select') return (
             </div>
           </div>
 
-          <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-300 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="font-black text-slate-800">総括対象データ</div>
-              <div className="mt-1 text-xs font-bold text-slate-500">施設点検報告書（本年度）・傾斜表（本年度）</div>
-            </div>
-            <button type="button" className="rounded-xl bg-indigo-600 px-6 py-3 font-black text-white shadow-sm active:scale-95">
-              総括内容を取得
-            </button>
+          <div className="mb-4 grid overflow-hidden rounded-2xl border-2 border-slate-800 bg-white text-sm font-bold shadow-sm sm:grid-cols-[1.25fr_1.4fr_1fr_1.2fr]">
+            <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-4 py-3 text-base font-black sm:border-b-0 sm:border-r">総点検数－{totalInspectionCount}箇所</div>
+            <div className="flex items-center justify-center border-b border-slate-400 px-4 py-3 sm:border-b-0 sm:border-r">（{reportRows.length}箇所 + 傾斜 {annualSlopeRows.length}箇所）</div>
+            <div className="flex items-center justify-center border-b border-slate-400 px-4 py-3 sm:border-b-0 sm:border-r">点検日　{inspectDate || '—'}</div>
+            <div className="flex items-center justify-center px-4 py-3 whitespace-pre-wrap">点検者　{inspector || '—'}</div>
           </div>
 
           <div className="space-y-5">
@@ -3708,16 +3725,20 @@ if (mode === 'exist_select') return (
               roman="Ⅰ"
               title="形状判定"
               description="施設点検報告書の総合評価 AA・A1・A2・B"
-              badge="対象 0箇所"
+              badge={`対象 ${shapeRows.length}箇所`}
               columns={['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明']}
+              widths="72px 72px 150px 170px 140px minmax(320px, 1fr)"
+              rows={shapeRows.map((row, index) => [row.photoNo, String(index + 1), row.buildingName, row.inspectionPlace, row.finishType, row.currentSituation])}
               note="Bランク以上の損傷箇所を総括します。"
             />
             <SummarySection
               roman="Ⅱ"
               title="申し入れ等（改修済み、補修済み）"
               description="施設点検報告書の総合評価 C・S"
-              badge="対象 0箇所"
+              badge={`対象 ${requestRows.length}箇所`}
               columns={['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明']}
+              widths="72px 72px 150px 170px 140px minmax(320px, 1fr)"
+              rows={requestRows.map((row, index) => [row.photoNo, String(index + 1), row.buildingName, row.inspectionPlace, row.finishType, row.currentSituation])}
               note="改修済み・補修済み等の点検内容を総括します。"
               tone="amber"
             />
@@ -3725,8 +3746,10 @@ if (mode === 'exist_select') return (
               roman="Ⅲ"
               title="傾斜測定"
               description="傾斜表の本年度測定値が 10.00mm を超える箇所"
-              badge="対象 0箇所"
+              badge={`対象 ${overLimitSlopeRows.length}箇所`}
               columns={['測点', '建物名\n点検場所', '東西方向', '南北方向', '現況説明']}
+              widths="72px 220px 150px 150px minmax(360px, 1fr)"
+              rows={overLimitSlopeRows.map(row => [row.point, [row.place, row.placeSide].filter(Boolean).join('\n'), formatSlopeValue(row.currentEwDirection, row.currentEwValue), formatSlopeValue(row.currentNsDirection, row.currentNsValue), row.note])}
               note="10.00mmを超える測定値を総括します。"
               tone="emerald"
             />
