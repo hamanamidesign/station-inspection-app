@@ -3610,8 +3610,9 @@ if (mode === 'exist_select') return (
         .some(value => String(value || '').trim())
     );
     const annualSlopeRows = slopeRows.filter(row => String(row.point || '').trim());
-    const shapeRows = reportRows.filter(row => ['AA', 'A1', 'A2', 'B'].includes(String(row.totalEval || '').trim().toUpperCase()));
-    const requestRows = reportRows.filter(row => ['C', 'S'].includes(String(row.totalEval || '').trim().toUpperCase()));
+    const rowsByEvaluation = (evaluation: string) => reportRows.filter(
+      row => String(row.totalEval || '').trim().toUpperCase() === evaluation
+    );
     const overLimitSlopeRows = annualSlopeRows.filter(row => {
       const eastWest = Number.parseFloat(String(row.currentEwValue || '').replace(/[^\d.-]/g, ''));
       const northSouth = Number.parseFloat(String(row.currentNsValue || '').replace(/[^\d.-]/g, ''));
@@ -3621,6 +3622,50 @@ if (mode === 'exist_select') return (
     const totalInspectionCount = reportRows.length + annualSlopeRows.length;
     const formatSlopeValue = (direction: string, value: string) =>
       [direction, value && `${value}mm`].filter(Boolean).join(' ');
+
+    const evaluationColumns = ['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明'];
+    const evaluationWidths = '72px 72px 150px 170px 140px minmax(320px, 1fr)';
+    const EvaluationTable = ({ evaluation, red = false }: { evaluation: string; red?: boolean }) => {
+      const rows = rowsByEvaluation(evaluation);
+
+      return (
+        <div>
+          <div className={`mb-2 text-base font-black ${red ? 'text-red-600' : 'text-slate-900'}`}>
+            【{evaluation}】－{rows.length > 0 ? `${rows.length}箇所` : '今回　該当なし'}
+          </div>
+          {rows.length > 0 && (
+            <div className="overflow-x-auto rounded-xl border-2 border-slate-700">
+              <div className="min-w-max">
+                <div className="grid bg-slate-100 text-center text-xs font-black" style={{ gridTemplateColumns: evaluationWidths }}>
+                  {evaluationColumns.map(column => (
+                    <div key={column} className="flex min-h-12 items-center justify-center border-r border-slate-500 px-3 py-2 last:border-r-0 whitespace-pre-line">{column}</div>
+                  ))}
+                </div>
+                {rows.map((row, rowIndex) => (
+                  <div key={`${evaluation}-${row.id}-${rowIndex}`} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: evaluationWidths }}>
+                    {[row.photoNo, '', row.buildingName, row.inspectionPlace, row.finishType, row.currentSituation].map((value, columnIndex) => (
+                      <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'justify-start text-left' : 'justify-center text-center'}`}>{value}</div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const EvaluationSection = ({ roman, title, evaluations, note, tone }: { roman: string; title: string; evaluations: string[]; note: string; tone: 'indigo' | 'amber' }) => (
+      <section className="overflow-hidden rounded-2xl border-2 border-slate-800 bg-white shadow-sm">
+        <div className={`border-b-2 px-4 py-3 ${tone === 'indigo' ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-amber-500 bg-amber-50 text-amber-900'}`}>
+          <h2 className="text-lg font-black">{roman}. {title}</h2>
+        </div>
+        <div className="space-y-5 p-4">
+          {evaluations.map(evaluation => <EvaluationTable key={evaluation} evaluation={evaluation} red={['AA', 'A1', 'A2', 'B'].includes(evaluation)} />)}
+        </div>
+        <div className="border-t border-slate-300 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">{note}</div>
+      </section>
+    );
 
     const SummarySection = ({
       roman,
@@ -3656,7 +3701,7 @@ if (mode === 'exist_select') return (
               <h2 className="text-lg font-black">{roman}. {title}</h2>
               <p className="mt-0.5 text-xs font-bold opacity-70">{description}</p>
             </div>
-            <span className="rounded-full border border-current bg-white/80 px-3 py-1 text-xs font-black">{badge}</span>
+            {badge && <span className="rounded-full border border-current bg-white/80 px-3 py-1 text-xs font-black">{badge}</span>}
           </div>
           <div className="overflow-x-auto">
             <div className="min-w-max">
@@ -3674,18 +3719,18 @@ if (mode === 'exist_select') return (
                 <div key={rowIndex} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: widths }}>
                   {row.map((value, columnIndex) => (
                     <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'}`}>
-                      {value || '—'}
+                      {value}
                     </div>
                   ))}
                 </div>
               )) : (
                 <div className="flex min-h-14 items-center justify-center border-t border-slate-400 bg-white px-4 text-slate-400">
-                  対象となるデータはありません
+                  ・今回　10.0mmを超える測定値は確認されませんでした。
                 </div>
               )}
             </div>
           </div>
-          <div className="border-t border-slate-300 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">・{note}</div>
+          {rows.length > 0 && <div className="border-t border-slate-300 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">・{note}</div>}
         </section>
       );
     };
@@ -3721,36 +3766,29 @@ if (mode === 'exist_select') return (
           </div>
 
           <div className="space-y-5">
-            <SummarySection
+            <EvaluationSection
               roman="Ⅰ"
               title="形状判定"
-              description="施設点検報告書の総合評価 AA・A1・A2・B"
-              badge={`対象 ${shapeRows.length}箇所`}
-              columns={['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明']}
-              widths="72px 72px 150px 170px 140px minmax(320px, 1fr)"
-              rows={shapeRows.map((row, index) => [row.photoNo, String(index + 1), row.buildingName, row.inspectionPlace, row.finishType, row.currentSituation])}
-              note="Bランク以上の損傷箇所を総括します。"
+              evaluations={['AA', 'A1', 'A2', 'B']}
+              note="・上記のBランク以上の損傷個所を確認しました。"
+              tone="indigo"
             />
-            <SummarySection
+            <EvaluationSection
               roman="Ⅱ"
               title="申し入れ等（改修済み、補修済み）"
-              description="施設点検報告書の総合評価 C・S"
-              badge={`対象 ${requestRows.length}箇所`}
-              columns={['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明']}
-              widths="72px 72px 150px 170px 140px minmax(320px, 1fr)"
-              rows={requestRows.map((row, index) => [row.photoNo, String(index + 1), row.buildingName, row.inspectionPlace, row.finishType, row.currentSituation])}
-              note="改修済み・補修済み等の点検内容を総括します。"
+              evaluations={['C', 'S']}
+              note="・上記の点検を実施しました。"
               tone="amber"
             />
             <SummarySection
               roman="Ⅲ"
               title="傾斜測定"
-              description="傾斜表の本年度測定値が 10.00mm を超える箇所"
-              badge={`対象 ${overLimitSlopeRows.length}箇所`}
+              description={`・測定値 10.0mm以上－${overLimitSlopeRows.length}箇所`}
+              badge=""
               columns={['測点', '建物名\n点検場所', '東西方向', '南北方向', '現況説明']}
               widths="72px 220px 150px 150px minmax(360px, 1fr)"
               rows={overLimitSlopeRows.map(row => [row.point, [row.place, row.placeSide].filter(Boolean).join('\n'), formatSlopeValue(row.currentEwDirection, row.currentEwValue), formatSlopeValue(row.currentNsDirection, row.currentNsValue), row.note])}
-              note="10.00mmを超える測定値を総括します。"
+              note="上記の10.0mmを超える測定値を確認しました。"
               tone="emerald"
             />
           </div>
