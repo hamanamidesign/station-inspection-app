@@ -4605,7 +4605,7 @@ async function loadInspectionReportLegacy(loadId: number) {
   );
   setInspectionReportRows([...rows, ...minRows]);
 }
-const loadSlopeTable = async () => {
+async function loadSlopeTable() {
   setIsLoading(true);
   setSlopeFirstContractor('');
   setSlopeFirstInspector('');
