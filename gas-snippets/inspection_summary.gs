@@ -23,6 +23,7 @@ function uploadInspectionSummary(data) {
   var reportCount = Math.max(0, Number(data.reportInspectionCount) || 0);
   var slopeCount = Math.max(0, Number(data.slopeInspectionCount) || 0);
   var totalCount = reportCount + slopeCount;
+  var footerTopHeight = null;
 
   writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slopeCount);
   clearInspectionSummaryBody_(sheet);
@@ -373,9 +374,26 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
       row = renderInspectionSummaryPdfItem_(pageSheet, row, item);
     });
 
-    // 本文容量を抑えて確保した領域に、フッターをページ下部固定で置く。
-    var minimumFooterRow = pageIndex === 0 ? 22 : 20;
-    var footerRow = Math.max(row, minimumFooterRow);
+    var footerRow;
+    if (pageIndex === 0) {
+      // 位置が確定している1ページ目を、全ページ共通のフッター上端位置にする。
+      footerRow = Math.max(row, 22);
+      ensureInspectionSummaryRows_(pageSheet, footerRow);
+      footerTopHeight = getInspectionSummaryRowsHeight_(pageSheet, 1, footerRow - 1);
+    } else {
+      var usedHeight = getInspectionSummaryRowsHeight_(pageSheet, 1, row - 1);
+      var spacerHeight = Math.max(0, Math.round(footerTopHeight - usedHeight));
+
+      // Google Sheetsの1行の最大高を考慮し、必要なら複数の空白行で下端まで埋める。
+      while (spacerHeight >= 2) {
+        ensureInspectionSummaryRows_(pageSheet, row);
+        var currentSpacerHeight = Math.min(spacerHeight, 400);
+        pageSheet.setRowHeight(row, currentSpacerHeight);
+        spacerHeight -= currentSpacerHeight;
+        row += 1;
+      }
+      footerRow = row;
+    }
     ensureInspectionSummaryRows_(pageSheet, footerRow);
     var footerRange = mergeInspectionSummaryRange_(pageSheet, footerRow, 2, 29);
     setInspectionSummaryValue_(
@@ -389,6 +407,14 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
     trimInspectionSummaryPdfSheet_(pageSheet, footerRow);
     pageSheet.hideSheet();
   });
+}
+
+function getInspectionSummaryRowsHeight_(sheet, startRow, endRow) {
+  var height = 0;
+  for (var row = startRow; row <= endRow; row += 1) {
+    height += sheet.getRowHeight(row);
+  }
+  return height;
 }
 
 function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
