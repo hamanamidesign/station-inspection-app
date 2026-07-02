@@ -364,7 +364,7 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
       row = renderInspectionSummaryPdfItem_(pageSheet, row, item);
     });
 
-    var footerRow = pageIndex === 0 ? 26 : 24;
+    var footerRow = pageIndex === 0 ? 27 : 26;
     ensureInspectionSummaryRows_(pageSheet, footerRow);
     var footerRange = mergeInspectionSummaryRange_(pageSheet, footerRow, 2, 29);
     setInspectionSummaryValue_(
@@ -388,7 +388,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   }
 
   function capacity_() {
-    return pages.length === 1 ? 18 : 22;
+    return pages.length === 1 ? 13 : 14;
   }
 
   function remaining_() {
