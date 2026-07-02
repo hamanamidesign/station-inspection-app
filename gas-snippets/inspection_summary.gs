@@ -399,12 +399,23 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   }
 
   function capacity_() {
-    // 1ページ目は帳票ヘッダー分を抑え、続きページは空いた高さを本文に使う。
-    return pages.length === 1 ? 12 : 17;
+    // PDFの横幅フィットによる縮小を考慮した、本文の行高合計上限（ポイント）。
+    return pages.length === 1 ? 430 : 560;
+  }
+
+  function itemHeight_(item) {
+    if (!item) return 0;
+    if (item.type === "reportRow" || item.type === "slopeRow") return 38;
+    if (item.type === "reportHeader" || item.type === "slopeHeader") return 32;
+    if (item.type === "title" || item.type === "evaluation") return 22;
+    return 21;
   }
 
   function remaining_() {
-    return capacity_() - currentPage_().length;
+    var usedHeight = currentPage_().reduce(function(total, item) {
+      return total + itemHeight_(item);
+    }, 0);
+    return capacity_() - usedHeight;
   }
 
   function newPage_() {
@@ -412,8 +423,8 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   }
 
   function addSectionTitle_(title, minimumRows) {
-    var requiredRows = Math.max(2, Number(minimumRows) || 2);
-    if (remaining_() < requiredRows && currentPage_().length) newPage_();
+    var requiredHeight = Number(minimumRows) >= 4 ? 114 : 43;
+    if (remaining_() < requiredHeight && currentPage_().length) newPage_();
     currentPage_().push({ type: "title", title: title });
   }
 
@@ -430,7 +441,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
       });
 
       if (!rows.length) {
-        if (remaining_() < 1) {
+        if (remaining_() < 22) {
           newPage_();
           repeatSectionTitle_(title);
         }
@@ -447,7 +458,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
       var needsHeader = true;
       while (index < rows.length) {
         if (needsHeader) {
-          if (remaining_() < 3) {
+          if (remaining_() < 92) {
             newPage_();
             repeatSectionTitle_(title);
           }
@@ -462,7 +473,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
           needsHeader = false;
         }
 
-        var take = Math.min(remaining_(), rows.length - index);
+        var take = Math.min(Math.floor(remaining_() / 38), rows.length - index);
         for (var offset = 0; offset < take; offset += 1) {
           currentPage_().push({ type: "reportRow", row: rows[index + offset] });
         }
@@ -476,7 +487,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
       }
     });
 
-    if (remaining_() < 1) {
+    if (remaining_() < 21) {
       newPage_();
       repeatSectionTitle_(title);
     }
@@ -489,7 +500,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
     ["AA", "A1", "A2", "B"],
     "・上記のBランク以上の損傷個所を確認しました。"
   );
-  if (remaining_() > 0) currentPage_().push({ type: "blank" });
+  if (remaining_() >= 21) currentPage_().push({ type: "blank" });
 
   addEvaluationSection_(
     "Ⅱ.申し入れ等（改修済み、補修済み）",
@@ -497,12 +508,12 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
     [],
     "・上記の点検を実施しました。"
   );
-  if (remaining_() > 0) currentPage_().push({ type: "blank" });
+  if (remaining_() >= 21) currentPage_().push({ type: "blank" });
 
   var slopeTitle = "Ⅲ.傾斜測定";
   addSectionTitle_(slopeTitle, slopeRows.length ? 4 : 2);
   if (!slopeRows.length) {
-    if (remaining_() < 1) {
+    if (remaining_() < 21) {
       newPage_();
       repeatSectionTitle_(slopeTitle);
     }
@@ -512,7 +523,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
     var slopeNeedsHeader = true;
     while (slopeIndex < slopeRows.length) {
       if (slopeNeedsHeader) {
-        if (remaining_() < 3) {
+        if (remaining_() < 91) {
           newPage_();
           repeatSectionTitle_(slopeTitle);
         }
@@ -521,7 +532,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
         slopeNeedsHeader = false;
       }
 
-      var slopeTake = Math.min(remaining_(), slopeRows.length - slopeIndex);
+      var slopeTake = Math.min(Math.floor(remaining_() / 38), slopeRows.length - slopeIndex);
       for (var slopeOffset = 0; slopeOffset < slopeTake; slopeOffset += 1) {
         currentPage_().push({ type: "slopeRow", row: slopeRows[slopeIndex + slopeOffset] });
       }
@@ -534,14 +545,14 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
       }
     }
 
-    if (remaining_() < 1) {
+    if (remaining_() < 21) {
       newPage_();
       repeatSectionTitle_(slopeTitle);
     }
     currentPage_().push({ type: "note", text: "・上記の10.0mmを超える測定値を確認しました。" });
   }
 
-  if (remaining_() < 1) newPage_();
+  if (remaining_() < 21) newPage_();
   currentPage_().push({ type: "end" });
   return pages.filter(function(page) { return page.length > 0; });
 }
