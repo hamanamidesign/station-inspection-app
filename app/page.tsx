@@ -971,6 +971,7 @@ export default function InspectorApp() {
   const [mode, setMode] = useState<AppMode>('menu');
   const [history, setHistory] = useState<AppMode[]>([]);
   const [isLoading, setIsLoading] = useState(false); // ★ これを関数の上に持ってくる
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [stationNo, setStationNo] = useState("");
   const [stationName, setStationName] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
@@ -1599,7 +1600,7 @@ useEffect(() => {
 }, [mode, loadCoverInspectionDate]);
 
 useEffect(() => {
-  if ((mode === 'inspection_report' || mode === 'inspection_summary') && spreadsheetId) {
+  if (mode === 'inspection_report' && spreadsheetId) {
     loadInspectionReport().catch(e => console.error(e));
   }
 }, [mode, spreadsheetId, selectedRoute, stationName, selectedYear]);
@@ -1614,7 +1615,7 @@ useEffect(() => {
     return;
   }
 
-  if (mode === 'slope_table' || mode === 'inclination_menu' || mode === 'inspection_summary') {
+  if (mode === 'slope_table' || mode === 'inclination_menu') {
     loadInspectionListDates();
   }
 }, [mode, loadInspectionListDates, loadPhotoKarteMasterDates]);
@@ -1643,12 +1644,29 @@ useEffect(() => {
 
 useEffect(() => {
 
-  if (mode !== 'slope_table' && mode !== 'inclination_menu' && mode !== 'inspection_summary') return;
+  if (mode !== 'slope_table' && mode !== 'inclination_menu') return;
   if (!spreadsheetId) return;
 
   loadSlopeTable();
 
 }, [mode, spreadsheetId]);
+
+useEffect(() => {
+  if (mode !== 'inspection_summary' || !spreadsheetId) return;
+
+  let active = true;
+  setIsSummaryLoading(true);
+
+  Promise.all([loadInspectionReport(), loadSlopeTable()])
+    .catch(error => console.error(error))
+    .finally(() => {
+      if (active) setIsSummaryLoading(false);
+    });
+
+  return () => {
+    active = false;
+  };
+}, [mode, spreadsheetId, selectedRoute, stationName, selectedYear]);
 
 useEffect(() => {
   setInclinationPageIndex(0);
@@ -3197,7 +3215,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
 
   // --- 送信中のくるくるアニメーション（全画面共通） ---
   const LoadingOverlay = () =>
-  (isSending || isLoading || isMergingPdfs) ? (
+  (isSending || isLoading || isMergingPdfs || isSummaryLoading) ? (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-[99999]">
       <div className="bg-white p-10 rounded-3xl flex flex-col items-center shadow-2xl">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -3207,7 +3225,9 @@ const deleteUnavailableKarteNumber = async (no: string) => {
             ? 'すべての資料を結合しています...'
             : isSending
               ? '保存しています...'
-              : '読み込んでいます...'}
+              : isSummaryLoading
+                ? '点検結果を集計しています...'
+                : '読み込んでいます...'}
         </p>
 
         <p className="text-slate-500 text-sm">
@@ -3758,11 +3778,13 @@ if (mode === 'exist_select') return (
             </div>
           </div>
 
-          <div className="mb-4 grid overflow-hidden rounded-2xl border-2 border-slate-800 bg-white text-sm font-bold shadow-sm sm:grid-cols-[1.25fr_1.4fr_1fr_1.2fr]">
+          <div className="mb-4 grid overflow-hidden rounded-2xl border-2 border-slate-800 bg-white text-sm font-bold shadow-sm sm:grid-cols-[1.25fr_1.4fr_80px_1fr_80px_1.4fr]">
             <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-4 py-3 text-base font-black sm:border-b-0 sm:border-r">総点検数－{totalInspectionCount}箇所</div>
             <div className="flex items-center justify-center border-b border-slate-400 px-4 py-3 sm:border-b-0 sm:border-r">（{reportRows.length}箇所 + 傾斜 {annualSlopeRows.length}箇所）</div>
-            <div className="flex items-center justify-center border-b border-slate-400 px-4 py-3 sm:border-b-0 sm:border-r">点検日　{inspectDate || '—'}</div>
-            <div className="flex items-center justify-center px-4 py-3 whitespace-pre-wrap">点検者　{inspector || '—'}</div>
+            <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-3 py-3 font-black sm:border-b-0 sm:border-r">点検日</div>
+            <div className="flex items-center justify-center border-b border-slate-400 px-4 py-3 sm:border-b-0 sm:border-r">{inspectDate || '—'}</div>
+            <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-3 py-3 font-black sm:border-b-0 sm:border-r">点検者</div>
+            <div className="flex items-center justify-center px-4 py-3 text-center whitespace-pre-wrap">{[contractor, inspector].filter(Boolean).join(' / ') || '—'}</div>
           </div>
 
           <div className="space-y-5">
