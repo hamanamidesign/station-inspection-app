@@ -3630,8 +3630,8 @@ if (mode === 'exist_select') return (
 
       return (
         <div>
-          <div className={`mb-2 text-base font-black ${red ? 'text-red-600' : 'text-slate-900'}`}>
-            【{evaluation}】－{rows.length > 0 ? `${rows.length}箇所` : '今回　該当なし'}
+          <div className="mb-2 text-base font-black text-slate-900">
+            【<span className={red ? 'text-red-600' : undefined}>{evaluation}</span>】－{rows.length > 0 ? `${rows.length}箇所` : '今回　該当なし'}
           </div>
           {rows.length > 0 && (
             <div className="overflow-x-auto rounded-xl border-2 border-slate-700">
