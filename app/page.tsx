@@ -3784,7 +3784,7 @@ if (mode === 'exist_select') return (
         <LoadingOverlay />
 
         <div className="mx-auto w-full max-w-6xl pb-12">
-          <div className="mb-4 rounded-2xl border-2 border-slate-800 bg-white px-5 py-5 shadow-sm">
+          <div className="mb-4 rounded-2xl bg-white px-5 py-5 shadow-sm">
             <div className="text-center text-xl font-black tracking-[0.28em] text-slate-900 sm:text-2xl">
               〈 点 検 結 果 総 括 表 〉
             </div>

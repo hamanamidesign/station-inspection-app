@@ -66,14 +66,20 @@ function writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slo
     .map(function(value) { return String(value || "").trim(); })
     .filter(Boolean);
 
-  setInspectionSummaryValue_(sheet.getRange("C1"), year ? year + "年度" : "", 12, "center", false);
-  setInspectionSummaryValue_(sheet.getRange("D3"), data.stationNo || "", 12, "center", true);
-  setInspectionSummaryValue_(sheet.getRange("F3"), data.stationName || "", 12, "center", true);
-  setInspectionSummaryValue_(sheet.getRange("U3"), data.inspectDate || "", 10, "left", false);
-  setInspectionSummaryValue_(sheet.getRange("U4"), inspectors.join(",\n"), 10, "left", false);
-  setInspectionSummaryValue_(sheet.getRange("F4"), "－" + totalCount + "箇所", 12, "center", true);
-  setInspectionSummaryValue_(sheet.getRange("D5"), "（" + reportCount + "箇所 + 傾斜 " + slopeCount + "箇所）", 10, "left", true);
-  sheet.getRange("U4").setWrap(true);
+  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "C1"), year ? year + "年度" : "", 12, "center", false);
+  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "D3"), data.stationNo || "", 12, "center", true);
+  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "F3"), data.stationName || "", 12, "center", true);
+  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "U3"), data.inspectDate || "", 10, "left", false);
+  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "U4"), inspectors.join(",\n"), 10, "left", false);
+  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "F4"), "－" + totalCount + "箇所", 12, "center", true);
+  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "D5"), "（" + reportCount + "箇所 + 傾斜 " + slopeCount + "箇所）", 10, "left", true);
+  getInspectionSummaryHeaderRange_(sheet, "U4").setWrap(true);
+}
+
+function getInspectionSummaryHeaderRange_(sheet, a1Notation) {
+  var cell = sheet.getRange(a1Notation);
+  var mergedRanges = cell.getMergedRanges();
+  return mergedRanges.length ? mergedRanges[0] : cell;
 }
 
 function clearInspectionSummaryBody_(sheet) {
