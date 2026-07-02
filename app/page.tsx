@@ -3664,7 +3664,7 @@ if (mode === 'exist_select') return (
       return sameValue && String(currentDirection || '').trim() === String(previousDirection || '').trim();
     };
 
-    const evaluationColumns = ['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明（■は前回と同じ）'];
+    const evaluationColumns = ['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '状況説明（■は前回と同じ）'];
     const evaluationWidths = '72px 72px 150px 170px 140px minmax(320px, 1fr)';
     const renderSummaryHeader = (column: string) => {
       const markerIndex = column.indexOf('■');
@@ -3835,7 +3835,7 @@ if (mode === 'exist_select') return (
               title="傾斜測定"
               description={`・測定値 10.0mm以上－${overLimitSlopeRows.length}箇所`}
               badge=""
-              columns={['測点', '建物名\n点検場所', '東西方向', '南北方向', '現況説明（■は前回と同じ）']}
+              columns={['測点', '建物名\n点検場所', '東西方向', '南北方向', '状況説明（■は前回と同じ）']}
               widths="72px 220px 150px 150px minmax(360px, 1fr)"
               rows={overLimitSlopeRows.map(row => [row.point, [row.place, row.placeSide].filter(Boolean).join('\n'), formatSlopeValue(row.currentEwDirection, row.currentEwValue), formatSlopeValue(row.currentNsDirection, row.currentNsValue), row.note])}
               highlightCells={overLimitSlopeRows.map(row => [

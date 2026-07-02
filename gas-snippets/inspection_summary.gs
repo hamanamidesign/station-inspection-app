@@ -179,7 +179,7 @@ function writeInspectionSummaryReportHeader_(sheet, row) {
     [6, 9, "建物名", 10],
     [10, 14, "点検場所", 10],
     [15, 19, "仕上げ", 10],
-    [20, 29, "現況説明（■は前回と同じ）", 10],
+    [20, 29, "状況説明（■は前回と同じ）", 10],
   ];
   cells.forEach(function(cell) {
     var range = mergeInspectionSummaryRange_(sheet, row, cell[0], cell[1]);
@@ -214,7 +214,7 @@ function writeInspectionSummarySlopeHeader_(sheet, row) {
     [4, 9, "建物名\n点検場所", 8],
     [10, 14, "東西方向", 10],
     [15, 19, "南北方向", 10],
-    [20, 29, "現況説明（■は前回と同じ）", 10],
+    [20, 29, "状況説明（■は前回と同じ）", 10],
   ];
   cells.forEach(function(cell) {
     var range = mergeInspectionSummaryRange_(sheet, row, cell[0], cell[1]);
