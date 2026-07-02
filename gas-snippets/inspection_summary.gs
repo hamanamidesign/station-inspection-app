@@ -55,6 +55,8 @@ function uploadInspectionSummary(data) {
   endRange.merge().setValue("以上");
   formatInspectionSummaryRange_(endRange, 10, "center", false);
 
+  createInspectionSummaryPdfSheets_(ss, sheet, data, reportRows, slopeRows);
+
   sheet.setHiddenGridlines(true);
   return { success: true, lastRow: row };
 }
@@ -337,5 +339,294 @@ function setInspectionSummaryTableBorder_(range) {
 function ensureInspectionSummaryRows_(sheet, requiredRow) {
   if (sheet.getMaxRows() < requiredRow) {
     sheet.insertRowsAfter(sheet.getMaxRows(), requiredRow - sheet.getMaxRows());
+  }
+}
+
+function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRows) {
+  deleteInspectionSummaryPdfSheets_(ss);
+  var pages = buildInspectionSummaryPdfPages_(reportRows, slopeRows);
+  var totalPages = pages.length;
+
+  pages.forEach(function(items, pageIndex) {
+    var pageSheet = source.copyTo(ss).setName("点検結果総括表_" + (pageIndex + 1));
+    pageSheet.setHiddenGridlines(true);
+    copyInspectionSummaryColumnWidths_(source, pageSheet);
+
+    if (pageIndex === 0) {
+      clearInspectionSummaryBody_(pageSheet);
+    } else {
+      resetInspectionSummaryPdfPage_(pageSheet);
+    }
+
+    var row = pageIndex === 0 ? 7 : 1;
+    items.forEach(function(item) {
+      ensureInspectionSummaryRows_(pageSheet, row);
+      row = renderInspectionSummaryPdfItem_(pageSheet, row, item);
+    });
+
+    var footerRow = pageIndex === 0 ? 26 : 24;
+    ensureInspectionSummaryRows_(pageSheet, footerRow);
+    var footerRange = mergeInspectionSummaryRange_(pageSheet, footerRow, 2, 29);
+    setInspectionSummaryValue_(
+      footerRange,
+      "－" + String(data.stationName || "") + " " + (pageIndex + 1) + " / " + totalPages,
+      9,
+      "center",
+      false
+    );
+    pageSheet.setRowHeight(footerRow, 20);
+    trimInspectionSummaryPdfSheet_(pageSheet, footerRow);
+    pageSheet.hideSheet();
+  });
+}
+
+function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
+  var pages = [[]];
+
+  function currentPage_() {
+    return pages[pages.length - 1];
+  }
+
+  function capacity_() {
+    return pages.length === 1 ? 18 : 22;
+  }
+
+  function remaining_() {
+    return capacity_() - currentPage_().length;
+  }
+
+  function newPage_() {
+    pages.push([]);
+  }
+
+  function addSectionTitle_(title, minimumRows) {
+    var requiredRows = Math.max(2, Number(minimumRows) || 2);
+    if (remaining_() < requiredRows && currentPage_().length) newPage_();
+    currentPage_().push({ type: "title", title: title });
+  }
+
+  function repeatSectionTitle_(title) {
+    if (currentPage_().length === 0) currentPage_().push({ type: "title", title: title });
+  }
+
+  function addEvaluationSection_(title, evaluations, redEvaluations, note) {
+    addSectionTitle_(title, 4);
+
+    evaluations.forEach(function(evaluation) {
+      var rows = reportRows.filter(function(item) {
+        return String(item.totalEval || "").trim().toUpperCase() === evaluation;
+      });
+
+      if (!rows.length) {
+        if (remaining_() < 1) {
+          newPage_();
+          repeatSectionTitle_(title);
+        }
+        currentPage_().push({
+          type: "evaluation",
+          evaluation: evaluation,
+          count: 0,
+          red: redEvaluations.indexOf(evaluation) !== -1,
+        });
+        return;
+      }
+
+      var index = 0;
+      var needsHeader = true;
+      while (index < rows.length) {
+        if (needsHeader) {
+          if (remaining_() < 3) {
+            newPage_();
+            repeatSectionTitle_(title);
+          }
+          currentPage_().push({
+            type: "evaluation",
+            evaluation: evaluation,
+            count: rows.length,
+            red: redEvaluations.indexOf(evaluation) !== -1,
+          });
+          currentPage_().push({ type: "reportHeader" });
+          needsHeader = false;
+        }
+
+        var take = Math.min(remaining_(), rows.length - index);
+        for (var offset = 0; offset < take; offset += 1) {
+          currentPage_().push({ type: "reportRow", row: rows[index + offset] });
+        }
+        index += take;
+
+        if (index < rows.length) {
+          newPage_();
+          repeatSectionTitle_(title);
+          needsHeader = true;
+        }
+      }
+    });
+
+    if (remaining_() < 1) {
+      newPage_();
+      repeatSectionTitle_(title);
+    }
+    currentPage_().push({ type: "note", text: note });
+  }
+
+  addEvaluationSection_(
+    "Ⅰ.形状判定",
+    ["AA", "A1", "A2", "B"],
+    ["AA", "A1", "A2", "B"],
+    "・上記のBランク以上の損傷個所を確認しました。"
+  );
+  if (remaining_() > 0) currentPage_().push({ type: "blank" });
+
+  addEvaluationSection_(
+    "Ⅱ.申し入れ等（改修済み、補修済み）",
+    ["C", "S"],
+    [],
+    "・上記の点検を実施しました。"
+  );
+  if (remaining_() > 0) currentPage_().push({ type: "blank" });
+
+  var slopeTitle = "Ⅲ.傾斜測定";
+  addSectionTitle_(slopeTitle, slopeRows.length ? 4 : 2);
+  if (!slopeRows.length) {
+    if (remaining_() < 1) {
+      newPage_();
+      repeatSectionTitle_(slopeTitle);
+    }
+    currentPage_().push({ type: "slopeEmpty" });
+  } else {
+    var slopeIndex = 0;
+    var slopeNeedsHeader = true;
+    while (slopeIndex < slopeRows.length) {
+      if (slopeNeedsHeader) {
+        if (remaining_() < 3) {
+          newPage_();
+          repeatSectionTitle_(slopeTitle);
+        }
+        currentPage_().push({ type: "slopeCount", count: slopeRows.length });
+        currentPage_().push({ type: "slopeHeader" });
+        slopeNeedsHeader = false;
+      }
+
+      var slopeTake = Math.min(remaining_(), slopeRows.length - slopeIndex);
+      for (var slopeOffset = 0; slopeOffset < slopeTake; slopeOffset += 1) {
+        currentPage_().push({ type: "slopeRow", row: slopeRows[slopeIndex + slopeOffset] });
+      }
+      slopeIndex += slopeTake;
+
+      if (slopeIndex < slopeRows.length) {
+        newPage_();
+        repeatSectionTitle_(slopeTitle);
+        slopeNeedsHeader = true;
+      }
+    }
+
+    if (remaining_() < 1) {
+      newPage_();
+      repeatSectionTitle_(slopeTitle);
+    }
+    currentPage_().push({ type: "note", text: "・上記の10.0mmを超える測定値を確認しました。" });
+  }
+
+  if (remaining_() < 1) newPage_();
+  currentPage_().push({ type: "end" });
+  return pages.filter(function(page) { return page.length > 0; });
+}
+
+function renderInspectionSummaryPdfItem_(sheet, row, item) {
+  if (item.type === "blank") return row + 1;
+
+  if (item.type === "title") {
+    var titleEndColumn = String(item.title || "").indexOf("Ⅱ.") === 0 ? 12 : 5;
+    var titleRange = mergeInspectionSummaryRange_(sheet, row, 2, titleEndColumn);
+    setInspectionSummaryValue_(titleRange, item.title, 10, "left", true);
+    sheet.setRowHeight(row, 22);
+    return row + 1;
+  }
+
+  if (item.type === "evaluation") {
+    var evaluationRange = mergeInspectionSummaryRange_(sheet, row, 2, 3);
+    setInspectionSummaryEvaluationLabel_(evaluationRange, item.evaluation, item.red);
+    var resultRange = mergeInspectionSummaryRange_(sheet, row, 4, 8);
+    setInspectionSummaryValue_(resultRange, item.count ? "－" + item.count + "箇所" : "－今回　該当なし", 10, "left", false);
+    sheet.setRowHeight(row, 22);
+    return row + 1;
+  }
+
+  if (item.type === "reportHeader") {
+    writeInspectionSummaryReportHeader_(sheet, row);
+    sheet.setRowHeight(row, 32);
+    return row + 1;
+  }
+
+  if (item.type === "reportRow") {
+    writeInspectionSummaryReportRow_(sheet, row, item.row);
+    sheet.setRowHeight(row, 38);
+    return row + 1;
+  }
+
+  if (item.type === "slopeCount") {
+    var countRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
+    setInspectionSummaryValue_(countRange, "・測定値　10.0mm以上－" + item.count + "箇所", 10, "left", false);
+    return row + 1;
+  }
+
+  if (item.type === "slopeHeader") {
+    writeInspectionSummarySlopeHeader_(sheet, row);
+    sheet.setRowHeight(row, 32);
+    return row + 1;
+  }
+
+  if (item.type === "slopeRow") {
+    writeInspectionSummarySlopeRow_(sheet, row, item.row);
+    sheet.setRowHeight(row, 38);
+    return row + 1;
+  }
+
+  if (item.type === "slopeEmpty") {
+    var emptyRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
+    setInspectionSummaryValue_(emptyRange, "・今回　10.0mmを超える測定値は確認されませんでした。", 10, "left", false);
+    return row + 1;
+  }
+
+  if (item.type === "note") {
+    var noteRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
+    setInspectionSummaryValue_(noteRange, item.text, 10, "left", false);
+    return row + 1;
+  }
+
+  if (item.type === "end") {
+    var endRange = mergeInspectionSummaryRange_(sheet, row, 27, 28);
+    setInspectionSummaryValue_(endRange, "以上", 10, "center", false);
+    return row + 1;
+  }
+
+  return row;
+}
+
+function deleteInspectionSummaryPdfSheets_(ss) {
+  ss.getSheets().forEach(function(sheet) {
+    if (/^点検結果総括表_\d+$/.test(sheet.getName())) ss.deleteSheet(sheet);
+  });
+}
+
+function resetInspectionSummaryPdfPage_(sheet) {
+  var range = sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns());
+  range.breakApart().clear();
+  range.setBackground("#ffffff");
+}
+
+function copyInspectionSummaryColumnWidths_(source, target) {
+  for (var column = 1; column <= 29; column += 1) {
+    target.setColumnWidth(column, source.getColumnWidth(column));
+  }
+}
+
+function trimInspectionSummaryPdfSheet_(sheet, lastRow) {
+  if (sheet.getMaxRows() > lastRow) {
+    sheet.deleteRows(lastRow + 1, sheet.getMaxRows() - lastRow);
+  }
+  if (sheet.getMaxColumns() > 29) {
+    sheet.deleteColumns(30, sheet.getMaxColumns() - 29);
   }
 }

@@ -146,13 +146,14 @@ interface InspectorRegistration {
 interface PdfSheetOption {
   name: string;
   label: string;
-  group: 'cover' | 'photo' | 'photoPositionMap' | 'slope' | 'inclination' | 'inspectionReport';
+  group: 'cover' | 'photo' | 'photoPositionMap' | 'inspectionSummary' | 'slope' | 'inclination' | 'inspectionReport';
 }
 
 interface PdfSheetGroups {
   cover: PdfSheetOption[];
   photo: PdfSheetOption[];
   photoPositionMap: PdfSheetOption[];
+  inspectionSummary: PdfSheetOption[];
   slope: PdfSheetOption[];
   inclination: PdfSheetOption[];
   inspectionReport: PdfSheetOption[];
@@ -1101,7 +1102,7 @@ useEffect(() => {
   const [remarks3, setRemarks3] = useState('');
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
-  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ cover: [], photo: [], photoPositionMap: [], slope: [], inclination: [], inspectionReport: [] });
+  const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ cover: [], photo: [], photoPositionMap: [], inspectionSummary: [], slope: [], inclination: [], inspectionReport: [] });
   const [selectedPdfSheets, setSelectedPdfSheets] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
@@ -2877,6 +2878,7 @@ const loadPdfSheetOptions = async () => {
       cover: Array.isArray(result.groups?.cover) ? result.groups.cover : [],
       photo: Array.isArray(result.groups?.photo) ? result.groups.photo : [],
       photoPositionMap: Array.isArray(result.groups?.photoPositionMap) ? result.groups.photoPositionMap : [],
+      inspectionSummary: Array.isArray(result.groups?.inspectionSummary) ? result.groups.inspectionSummary : [],
       slope: Array.isArray(result.groups?.slope) ? result.groups.slope : [],
       inclination: Array.isArray(result.groups?.inclination) ? result.groups.inclination : [],
       inspectionReport: Array.isArray(result.groups?.inspectionReport) ? result.groups.inspectionReport : [],
@@ -2887,6 +2889,7 @@ const loadPdfSheetOptions = async () => {
     const allSheetNames = [
       ...groups.cover,
       ...groups.photoPositionMap,
+      ...groups.inspectionSummary,
       ...groups.inspectionReport,
       ...groups.photo,
       ...groups.slope,
@@ -2943,6 +2946,7 @@ const createPdf = async () => {
     const basePdfJobs = [
       { kind: "cover", suffix: "表紙", sheetNames: pdfSheets.cover.map(sheet => sheet.name) },
       { kind: "photoPositionMap", suffix: "写真カルテ番号位置図", sheetNames: pdfSheets.photoPositionMap.map(sheet => sheet.name) },
+      { kind: "inspectionSummary", suffix: "点検結果総括表", sheetNames: pdfSheets.inspectionSummary.map(sheet => sheet.name) },
       { kind: "inspectionReport", suffix: "施設点検報告書", sheetNames: pdfSheets.inspectionReport.map(sheet => sheet.name) },
       { kind: "photo", suffix: "写真カルテ", sheetNames: pdfSheets.photo.map(sheet => sheet.name) },
       { kind: "slope", suffix: "傾斜表", sheetNames: pdfSheets.slope.map(sheet => sheet.name) },
@@ -3083,6 +3087,7 @@ const mergeAllPdfs = async () => {
       mergeOrder: [
         "表紙",
         "写真カルテ番号位置図",
+        "点検結果総括表",
         "施設点検報告書",
         "写真カルテ",
         "傾斜表",
@@ -3983,6 +3988,7 @@ if (mode === 'pdf_export') {
   const groups: { key: keyof PdfSheetGroups; title: string }[] = [
     { key: 'cover', title: '表紙' },
     { key: 'photoPositionMap', title: '写真カルテ番号位置図' },
+    { key: 'inspectionSummary', title: '点検結果総括表' },
     { key: 'inspectionReport', title: '施設点検報告書' },
     { key: 'photo', title: '写真カルテ' },
     { key: 'slope', title: '傾斜表' },
@@ -4137,7 +4143,7 @@ if (mode === 'pdf_export') {
               <li className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
                 <div className="font-black text-blue-900">1. 点検資料フォルダを開いてPDFをダウンロード</div>
                 <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
-                  名前が <code>00.</code>、<code>01.</code>、<code>03.</code>、<code>03-1.</code>、<code>04.</code>、<code>04-1.</code>
+                  名前が <code>00.</code>、<code>01.</code>、<code>02.</code>、<code>03.</code>、<code>03-1.</code>、<code>04.</code>、<code>04-1.</code>
                   で始まるPDFを選択してダウンロードします。複数選択するとZIPになる場合は、端末上で展開してください。
                 </p>
                 <a

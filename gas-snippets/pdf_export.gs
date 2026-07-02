@@ -36,11 +36,13 @@ function getPdfSheetOptions(data) {
     cover: [],
     photo: [],
     photoPositionMap: [],
+    inspectionSummary: [],
     slope: [],
     inclination: [],
     inspectionReport: [],
   };
   let hasInspectionReportPdfPages = false;
+  let hasInspectionSummaryPdfPages = false;
 
   sheets.forEach(sheet => {
     const name = sheet.getName();
@@ -48,6 +50,11 @@ function getPdfSheetOptions(data) {
 
     if (/^施設点検報告書_\d+$/.test(normalizedName)) {
       hasInspectionReportPdfPages = true;
+      return;
+    }
+
+    if (/^点検結果総括表_\d+$/.test(normalizedName)) {
+      hasInspectionSummaryPdfPages = true;
       return;
     }
 
@@ -83,6 +90,9 @@ function getPdfSheetOptions(data) {
   if (hasInspectionReportPdfPages) {
     groups.inspectionReport.push({ name: "施設点検報告書", label: "施設点検報告書", group: "inspectionReport" });
   }
+  if (hasInspectionSummaryPdfPages) {
+    groups.inspectionSummary.push({ name: "点検結果総括表", label: "点検結果総括表", group: "inspectionSummary" });
+  }
 
   return {
     success: true,
@@ -103,6 +113,10 @@ function createInspectionPdf(data) {
     return createInspectionReportPdf_(data);
   }
 
+  if (data.pdfKind === "inspectionSummary" || (sheetNames.length === 1 && sheetNames[0] === "点検結果総括表")) {
+    return createInspectionSummaryPdf_(data);
+  }
+
   return createGenericInspectionPdf_(data, sheetNames);
 }
 
@@ -111,6 +125,7 @@ const INSPECTION_PDF_MERGE_TRIGGER_HANDLER_ = "runPendingInspectionPdfMerges";
 const INSPECTION_PDF_MERGE_ORDER_ = [
   "表紙",
   "写真カルテ番号位置図",
+  "点検結果総括表",
   "施設点検報告書",
   "写真カルテ",
   "傾斜表",
@@ -898,6 +913,25 @@ function scheduleNextInspectionPdfMerge_() {
   }
 }
 
+function createInspectionSummaryPdf_(data) {
+  const ss = SpreadsheetApp.openById(data.spreadsheetId);
+  const pageSheetNames = ss
+    .getSheets()
+    .map(sheet => sheet.getName())
+    .filter(name => /^点検結果総括表_\d+$/.test(name))
+    .sort((a, b) => Number(a.replace("点検結果総括表_", "")) - Number(b.replace("点検結果総括表_", "")));
+
+  if (pageSheetNames.length === 0) {
+    throw new Error("PDF用の点検結果総括表ページが見つかりません。先に点検結果総括表をスプレッドシートへ反映してください。");
+  }
+
+  return createGenericInspectionPdf_({
+    ...data,
+    pdfKind: "inspectionSummary",
+    fileSuffix: "点検結果総括表",
+  }, pageSheetNames);
+}
+
 function createInspectionReportPdf_(data) {
   const ss = SpreadsheetApp.openById(data.spreadsheetId);
   const pageSheetNames = ss
@@ -1172,6 +1206,18 @@ function getGenericPdfSettings_(data, sheetNames) {
     return settings;
   }
 
+  if (kind === "inspectionSummary" || suffix === "点検結果総括表") {
+    return {
+      fileSuffix: "点検結果総括表",
+      portrait: false,
+      scale: 4,
+      top_margin: INSPECTION_PDF_MARGIN_TOP_INCHES_,
+      bottom_margin: INSPECTION_PDF_MARGIN_BOTTOM_INCHES_,
+      left_margin: INSPECTION_PDF_MARGIN_LEFT_INCHES_,
+      right_margin: INSPECTION_PDF_MARGIN_RIGHT_INCHES_,
+    };
+  }
+
   if (
     kind === "photoPositionMap" ||
     suffix === "写真カルテ番号位置図" ||
@@ -1345,6 +1391,7 @@ function getInspectionPdfNumberPrefix_(suffix) {
 
   if (suffixText === "表紙") return "00.";
   if (suffixText === "写真カルテ番号位置図") return "01.";
+  if (suffixText === "点検結果総括表") return "02.";
   if (suffixText === "施設点検報告書") return "03.";
   if (suffixText === "写真カルテ" || suffixText.indexOf("写真カルテ_") === 0) {
     return "03-1.";
