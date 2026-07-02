@@ -20,6 +20,7 @@ const LONG_RUNNING_SAVE_ACTIONS = new Set([
   "uploadCover",
   "updateInspectionListMasterStation",
   "uploadInspectionReport",
+  "uploadInspectionSummary",
   "uploadPhotos",
   "saveMarkers",
 ]);
@@ -57,6 +58,8 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "uploadPhotos":
     case "saveMarkers":
       return 45000;
+    case "uploadInspectionSummary":
+      return 240000;
     case "uploadKarte":
       // Photo and Drive processing in GAS can take longer than one minute.
       return 240000;
