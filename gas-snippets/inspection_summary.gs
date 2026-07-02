@@ -364,8 +364,10 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
       row = renderInspectionSummaryPdfItem_(pageSheet, row, item);
     });
 
-    var minimumFooterRow = pageIndex === 0 ? 24 : 22;
-    var footerRow = Math.max(row + 1, minimumFooterRow);
+    // 本文の直後にフッターを置く。固定の下端行にすると、横幅に合わせた
+    // PDF出力時にフッターだけが次の物理ページへ押し出されるため。
+    var minimumFooterRow = pageIndex === 0 ? 21 : 19;
+    var footerRow = Math.max(row, minimumFooterRow);
     ensureInspectionSummaryRows_(pageSheet, footerRow);
     var footerRange = mergeInspectionSummaryRange_(pageSheet, footerRow, 2, 29);
     setInspectionSummaryValue_(
