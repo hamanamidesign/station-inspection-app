@@ -388,7 +388,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   }
 
   function capacity_() {
-    return pages.length === 1 ? 13 : 14;
+    return pages.length === 1 ? 15 : 17;
   }
 
   function remaining_() {
