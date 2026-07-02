@@ -537,6 +537,20 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   if (remaining_() >= 21) currentPage_().push({ type: "blank" });
 
   var slopeTitle = "Ⅲ.傾斜測定";
+  var emptySlopeTailHeight = 64; // 表題22 + 該当なし21 + 以上21
+  if (
+    !slopeRows.length &&
+    currentPage_().length &&
+    remaining_() < emptySlopeTailHeight &&
+    remaining_() >= emptySlopeTailHeight - 30
+  ) {
+    // 通常行約1行分以内の不足なら、独立した最終ページを作らず前ページへ収める。
+    currentPage_().push({ type: "title", title: slopeTitle });
+    currentPage_().push({ type: "slopeEmpty" });
+    currentPage_().push({ type: "end" });
+    return pages.filter(function(page) { return page.length > 0; });
+  }
+
   addSectionTitle_(slopeTitle, slopeRows.length ? 4 : 2);
   if (!slopeRows.length) {
     if (remaining_() < 21) {
