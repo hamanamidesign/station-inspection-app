@@ -443,6 +443,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
             type: "evaluation",
             evaluation: evaluation,
             count: rows.length,
+            continued: index > 0,
             red: redEvaluations.indexOf(evaluation) !== -1,
           });
           currentPage_().push({ type: "reportHeader" });
@@ -548,7 +549,12 @@ function renderInspectionSummaryPdfItem_(sheet, row, item) {
     var evaluationRange = mergeInspectionSummaryRange_(sheet, row, 2, 3);
     setInspectionSummaryEvaluationLabel_(evaluationRange, item.evaluation, item.red);
     var resultRange = mergeInspectionSummaryRange_(sheet, row, 4, 8);
-    setInspectionSummaryValue_(resultRange, item.count ? "－" + item.count + "箇所" : "－今回　該当なし", 10, "left", false);
+    var resultText = item.continued
+      ? ""
+      : item.count
+        ? "－" + item.count + "箇所"
+        : "－今回　該当なし";
+    setInspectionSummaryValue_(resultRange, resultText, 10, "left", false);
     sheet.setRowHeight(row, 22);
     return row + 1;
   }
