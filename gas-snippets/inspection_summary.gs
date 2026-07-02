@@ -227,7 +227,7 @@ function writeInspectionSummarySlopeRow_(sheet, row, item) {
   cells.forEach(function(cell) {
     var range = mergeInspectionSummaryRange_(sheet, row, cell[0], cell[1]);
     setInspectionSummaryValue_(range, cell[2], cell[3], cell[4], false);
-    if ((cell[0] === 10 && sameEw) || (cell[0] === 15 && sameNs)) {
+    if (cell[0] === 20 && (sameEw || sameNs)) {
       range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
     }
     if (cell[0] === 20 && String(cell[2]).indexOf("前回と同じ") >= 0) {

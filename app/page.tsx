@@ -3831,9 +3831,10 @@ if (mode === 'exist_select') return (
               highlightCells={overLimitSlopeRows.map(row => [
                 false,
                 false,
-                isSameSlopeMeasurement(row.currentEwDirection, row.currentEwValue, row.firstEwDirection, row.firstEwValue),
-                isSameSlopeMeasurement(row.currentNsDirection, row.currentNsValue, row.firstNsDirection, row.firstNsValue),
                 false,
+                false,
+                isSameSlopeMeasurement(row.currentEwDirection, row.currentEwValue, row.firstEwDirection, row.firstEwValue) ||
+                  isSameSlopeMeasurement(row.currentNsDirection, row.currentNsValue, row.firstNsDirection, row.firstNsValue),
               ])}
               note="上記の10.0mmを超える測定値を確認しました。"
               tone="emerald"
