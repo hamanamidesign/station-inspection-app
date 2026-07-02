@@ -672,9 +672,33 @@ function resetInspectionSummaryPdfPage_(sheet) {
 }
 
 function copyInspectionSummaryColumnWidths_(source, target) {
+  var widths = [];
+  var previousPdfTotalWidth = 0;
+  var fixedLeftWidth = 0;
+  var sourceRightWidth = 0;
+
   for (var column = 1; column <= 29; column += 1) {
     var width = source.getColumnWidth(column);
-    target.setColumnWidth(column, column >= 2 ? Math.round(width * 1.3) : width);
+    widths.push(width);
+    previousPdfTotalWidth += column >= 2 ? Math.round(width * 1.3) : width;
+    if (column <= 8) fixedLeftWidth += width;
+    else sourceRightWidth += width;
+  }
+
+  // A:Hはマスタの幅を維持し、従来のPDF総幅との差をI:ACへ比例配分する。
+  var rightTargetWidth = Math.max(sourceRightWidth, previousPdfTotalWidth - fixedLeftWidth);
+  var rightScale = sourceRightWidth ? rightTargetWidth / sourceRightWidth : 1;
+  var assignedRightWidth = 0;
+
+  for (var index = 0; index < widths.length; index += 1) {
+    var targetWidth = widths[index];
+    if (index >= 8) {
+      targetWidth = index === 28
+        ? Math.max(2, rightTargetWidth - assignedRightWidth)
+        : Math.round(widths[index] * rightScale);
+      assignedRightWidth += targetWidth;
+    }
+    target.setColumnWidth(index + 1, targetWidth);
   }
 }
 
