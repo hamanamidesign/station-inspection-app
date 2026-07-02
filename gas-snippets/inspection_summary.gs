@@ -222,14 +222,31 @@ function writeInspectionSummarySlopeRow_(sheet, row, item) {
     [15, 19, ns, 10, "center"],
     [20, 29, item.note || "", 10, "left"],
   ];
+  var sameEw = isInspectionSummarySameSlope_(item.currentEwDirection, item.currentEwValue, item.firstEwDirection, item.firstEwValue);
+  var sameNs = isInspectionSummarySameSlope_(item.currentNsDirection, item.currentNsValue, item.firstNsDirection, item.firstNsValue);
   cells.forEach(function(cell) {
     var range = mergeInspectionSummaryRange_(sheet, row, cell[0], cell[1]);
     setInspectionSummaryValue_(range, cell[2], cell[3], cell[4], false);
+    if ((cell[0] === 10 && sameEw) || (cell[0] === 15 && sameNs)) {
+      range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
+    }
     if (cell[0] === 20 && String(cell[2]).indexOf("前回と同じ") >= 0) {
       range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
     }
     setInspectionSummaryTableBorder_(range);
   });
+}
+
+function isInspectionSummarySameSlope_(currentDirection, currentValue, previousDirection, previousValue) {
+  var currentText = String(currentValue || "").trim();
+  var previousText = String(previousValue || "").trim();
+  if (!currentText || !previousText) return false;
+  var currentNumber = Number(currentText.replace(/[^\d.-]/g, ""));
+  var previousNumber = Number(previousText.replace(/[^\d.-]/g, ""));
+  var sameValue = isFinite(currentNumber) && isFinite(previousNumber)
+    ? currentNumber === previousNumber
+    : currentText === previousText;
+  return sameValue && String(currentDirection || "").trim() === String(previousDirection || "").trim();
 }
 
 function setInspectionSummaryEvaluationLabel_(range, evaluation, red) {

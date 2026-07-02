@@ -3642,6 +3642,17 @@ if (mode === 'exist_select') return (
     const totalInspectionCount = reportRows.length + annualSlopeRows.length;
     const formatSlopeValue = (direction: string, value: string) =>
       [direction, value && `${value}mm`].filter(Boolean).join(' ');
+    const isSameSlopeMeasurement = (currentDirection: string, currentValue: string, previousDirection: string, previousValue: string) => {
+      const currentText = String(currentValue || '').trim();
+      const previousText = String(previousValue || '').trim();
+      if (!currentText || !previousText) return false;
+      const currentNumber = Number.parseFloat(currentText.replace(/[^\d.-]/g, ''));
+      const previousNumber = Number.parseFloat(previousText.replace(/[^\d.-]/g, ''));
+      const sameValue = Number.isFinite(currentNumber) && Number.isFinite(previousNumber)
+        ? currentNumber === previousNumber
+        : currentText === previousText;
+      return sameValue && String(currentDirection || '').trim() === String(previousDirection || '').trim();
+    };
 
     const evaluationColumns = ['写真No.', '点検\n箇所数', '建物名', '点検場所', '仕上げ', '現況説明（■は前回と同じ）'];
     const evaluationWidths = '72px 72px 150px 170px 140px minmax(320px, 1fr)';
@@ -3700,6 +3711,7 @@ if (mode === 'exist_select') return (
       columns,
       widths,
       rows,
+      highlightCells,
       note,
       tone = 'indigo',
     }: {
@@ -3710,6 +3722,7 @@ if (mode === 'exist_select') return (
       columns: string[];
       widths: string;
       rows: string[][];
+      highlightCells?: boolean[][];
       note: string;
       tone?: 'indigo' | 'amber' | 'emerald';
     }) => {
@@ -3743,7 +3756,7 @@ if (mode === 'exist_select') return (
               {rows.map((row, rowIndex) => (
                 <div key={rowIndex} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: widths }}>
                   {row.map((value, columnIndex) => (
-                    <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'} ${columnIndex === row.length - 1 && value.includes('前回と同じ') ? 'bg-[#d9eaf7]' : ''}`}>
+                    <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'} ${(columnIndex === row.length - 1 && value.includes('前回と同じ')) || highlightCells?.[rowIndex]?.[columnIndex] ? 'bg-[#d9eaf7]' : ''}`}>
                       {value}
                     </div>
                   ))}
@@ -3812,9 +3825,16 @@ if (mode === 'exist_select') return (
               title="傾斜測定"
               description={`・測定値 10.0mm以上－${overLimitSlopeRows.length}箇所`}
               badge=""
-              columns={['測点', '建物名\n点検場所', '東西方向', '南北方向', '現況説明']}
+              columns={['測点', '建物名\n点検場所', '東西方向', '南北方向', '現況説明（■は前回と同じ）']}
               widths="72px 220px 150px 150px minmax(360px, 1fr)"
               rows={overLimitSlopeRows.map(row => [row.point, [row.place, row.placeSide].filter(Boolean).join('\n'), formatSlopeValue(row.currentEwDirection, row.currentEwValue), formatSlopeValue(row.currentNsDirection, row.currentNsValue), row.note])}
+              highlightCells={overLimitSlopeRows.map(row => [
+                false,
+                false,
+                isSameSlopeMeasurement(row.currentEwDirection, row.currentEwValue, row.firstEwDirection, row.firstEwValue),
+                isSameSlopeMeasurement(row.currentNsDirection, row.currentNsValue, row.firstNsDirection, row.firstNsValue),
+                false,
+              ])}
               note="上記の10.0mmを超える測定値を確認しました。"
               tone="emerald"
             />
