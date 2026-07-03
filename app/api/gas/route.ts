@@ -43,12 +43,10 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "getKarteData":
     case "getSlopeTableData":
     case "getInclinationKarteSheets":
+    case "getInspectionReportData":
     case "getMapBase64":
     case "getMapEditorData":
       return 45000;
-    case "getInspectionReportData":
-      // 複数の写真カルテを集約するため、Google側が混雑すると45秒を超えることがある。
-      return 120000;
     case "createNew":
     case "uploadInclination":
     case "uploadSlopeTable":
@@ -56,12 +54,10 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "uploadInclinationKartePhoto":
     case "uploadCover":
     case "updateInspectionListMasterStation":
+    case "uploadInspectionReport":
     case "uploadPhotos":
     case "saveMarkers":
       return 45000;
-    case "uploadInspectionReport":
-      // 行高計算とPDF用ページシート作成まで同期実行するため、件数が多い現場では45秒を超える。
-      return 240000;
     case "uploadInspectionSummary":
       return 240000;
     case "uploadKarte":
