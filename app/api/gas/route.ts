@@ -43,10 +43,12 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "getKarteData":
     case "getSlopeTableData":
     case "getInclinationKarteSheets":
-    case "getInspectionReportData":
     case "getMapBase64":
     case "getMapEditorData":
       return 45000;
+    case "getInspectionReportData":
+      // 複数の写真カルテを集約するため、Google側が混雑すると45秒を超えることがある。
+      return 120000;
     case "createNew":
     case "uploadInclination":
     case "uploadSlopeTable":

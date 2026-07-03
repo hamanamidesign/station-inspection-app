@@ -60,17 +60,24 @@ async function gasApiOnce(action: string, data: any = {}) {
 }
 
 export async function gasApi(action: string, data: any = {}) {
-  try {
-    return await gasApiOnce(action, data);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  const maxAttempts = RETRYABLE_ACTIONS.has(action) ? 3 : 1;
+  let lastError: unknown;
 
-    if (!RETRYABLE_ACTIONS.has(action) || !isRetryableGasError(message)) {
-      throw error;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      return await gasApiOnce(action, data);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (!isRetryableGasError(message) || attempt === maxAttempts - 1) {
+        throw error;
+      }
+
+      await wait(1200 * (attempt + 1));
     }
-
-    await wait(1200);
-    return gasApiOnce(action, data);
   }
+
+  throw lastError;
 }
 
