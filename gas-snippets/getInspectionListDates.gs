@@ -55,7 +55,9 @@ function getInspectionListDates(payload) {
   const firstColumns = findFirstInspectionDateColumns_(headers);
   const latestColumn = findInspectionDateColumn_(headers, year);
   const firstDates = uniqueNonEmptyValues_(
-    firstColumns.map(column => sheet.getRange(targetRow, column).getDisplayValue())
+    firstColumns.map(column => formatInspectionDateText_(
+      sheet.getRange(targetRow, column).getDisplayValue()
+    ))
   );
 
   return {
@@ -63,12 +65,22 @@ function getInspectionListDates(payload) {
     stationNo: sheet.getRange(targetRow, 1).getDisplayValue(),
     firstDate: firstDates[0] || "",
     firstDates: firstDates,
-    latestDate: latestColumn ? sheet.getRange(targetRow, latestColumn).getDisplayValue() : "",
+    latestDate: latestColumn
+      ? formatInspectionDateText_(sheet.getRange(targetRow, latestColumn).getDisplayValue())
+      : "",
     sheetName: sheet.getName(),
     row: targetRow,
     firstHeaders: firstColumns.map(column => headers[column - 1] || ""),
     latestHeader: latestColumn ? headers[latestColumn - 1] : "",
   };
+}
+
+function formatInspectionDateText_(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:T.*)?$/);
+  return match
+    ? match[1] + "/" + Number(match[2]) + "/" + Number(match[3])
+    : text;
 }
 
 function findSheetByName_(spreadsheet, routeName) {

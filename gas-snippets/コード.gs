@@ -67,7 +67,7 @@ function getInspectionListDates(payload) {
   const firstColumns = findFirstInspectionDateColumns_(headers);
   const latestColumn = findInspectionDateColumn_(headers, year);
   const firstDates = uniqueNonEmptyValues_(
-    firstColumns.map(column => sheet.getRange(targetRow, column).getDisplayValue())
+    firstColumns.map(column => formatDate_(sheet.getRange(targetRow, column).getDisplayValue()))
   );
 
   return {
@@ -75,7 +75,9 @@ function getInspectionListDates(payload) {
     stationNo: sheet.getRange(targetRow, 1).getDisplayValue(),
     firstDate: firstDates[0] || "",
     firstDates: firstDates,
-    latestDate: latestColumn ? sheet.getRange(targetRow, latestColumn).getDisplayValue() : "",
+    latestDate: latestColumn
+      ? formatDate_(sheet.getRange(targetRow, latestColumn).getDisplayValue())
+      : "",
     sheetName: sheet.getName(),
     row: targetRow,
     firstHeaders: firstColumns.map(column => headers[column - 1] || ""),
@@ -133,11 +135,15 @@ function formatDate_(value) {
     return Utilities.formatDate(
       value,
       Session.getScriptTimeZone(),
-      "yyyy/MM/dd"
+      "yyyy/M/d"
     );
   }
 
-  return String(value);
+  const text = String(value).trim();
+  const match = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:T.*)?$/);
+  return match
+    ? match[1] + "/" + Number(match[2]) + "/" + Number(match[3])
+    : text;
 }
 
 // 既存の getRouteList() をこの内容に差し替えてください。
@@ -2501,12 +2507,7 @@ function overwriteOrCreateLegacyPdfFile_(folder, blob) {
 function toSheetDate(value) {
   if (!value) return "";
 
-  // Reactの date input から来る yyyy-MM-dd を yyyy/MM/dd に変換
-  if (typeof value === "string" && value.includes("-")) {
-    return value.replace(/-/g, "/");
-  }
-
-  return value;
+  return formatDate_(value);
 }
 
 function deleteUnavailableKarteNumber(data){

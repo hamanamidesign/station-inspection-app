@@ -319,17 +319,20 @@ const formatSheetDateText = (value: unknown) => {
   const text = String(value || '').trim();
   if (!text) return '';
 
-  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})T/);
-  if (iso) return `${iso[1]}/${iso[2]}/${iso[3]}`;
-
-  const ymd = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const ymd = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:T.*)?$/);
   if (ymd) {
     const [, y, m, d] = ymd;
-    return `${y}/${m.padStart(2, '0')}/${d.padStart(2, '0')}`;
+    return `${y}/${Number(m)}/${Number(d)}`;
   }
 
   return text;
 };
+
+const formatSheetDateListText = (value: unknown) =>
+  String(value || '').replace(
+    /(\d{4})[-/](\d{1,2})[-/](\d{1,2})/g,
+    (_match, y, m, d) => `${y}/${Number(m)}/${Number(d)}`
+  );
 
 const normalizeDateForDateInput = (value: unknown) => {
   const text = String(value || '').trim();
@@ -1404,18 +1407,18 @@ const fetchInspectionListDates = useCallback(async () => {
   const firstDates: string[] = Array.isArray(result.firstDates)
     ? Array.from(new Set<string>(
         result.firstDates
-          .map((value: unknown) => String(value || '').trim())
+          .map((value: unknown) => formatSheetDateText(value))
           .filter((value: string) => Boolean(value))
       ))
-    : String(result.firstDate || '').trim()
-      ? [String(result.firstDate).trim()]
+    : formatSheetDateText(result.firstDate)
+      ? [formatSheetDateText(result.firstDate)]
       : [];
 
   return {
     stationNo: String(result.stationNo || '').trim(),
-    firstDate: String(result.firstDate ?? ''),
+    firstDate: formatSheetDateText(result.firstDate),
     firstDates,
-    inspectDate: String(result.latestDate ?? ''),
+    inspectDate: formatSheetDateText(result.latestDate),
     message: String(result.message || ''),
   };
 }, [selectedRoute, stationName, selectedYear]);
@@ -2419,7 +2422,7 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
   setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
   setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
   setFirstDetail(getRecordText(d, ['firstDetail', 'initialDetail', 'firstRemarks3']));
-  setInspectDate(normalizeDateForDateInput(d.inspectDate));
+  setInspectDate(formatSheetDateText(d.inspectDate));
   setContractor(
     String(d.contractor || '').trim()
       ? String(d.contractor)
@@ -2583,12 +2586,12 @@ const firstPhotoDataList = await Promise.all(
   totalEval,
   prevYearEval,
   firstKarteNo,
-  firstDate: payloadFirstDate,
+  firstDate: formatSheetDateText(payloadFirstDate),
   firstInspector: payloadFirstInspector,
   firstFinish,
   firstSituation,
   firstDetail,
-  inspectDate: payloadInspectDate,
+  inspectDate: formatSheetDateText(payloadInspectDate),
   contractor,
   inspector: payloadInspector,
   buildingCategory,
@@ -4533,7 +4536,7 @@ async function sendInspectionReport() {
       stationName,
       year: selectedYear,
       contractor,
-      inspectDate,
+      inspectDate: formatSheetDateListText(inspectDate),
       inspector,
       rows: rows.map(row => ({
         ...row,
@@ -4582,7 +4585,7 @@ async function sendInspectionSummary() {
       year: selectedYear,
       stationNo,
       stationName,
-      inspectDate,
+      inspectDate: formatSheetDateListText(inspectDate),
       inspector,
       reportInspectionCount: reportRows.length,
       slopeInspectionCount: annualSlopeRows.length,
@@ -4652,7 +4655,10 @@ async function loadInspectionReport() {
         if (header.contractor !== undefined) setContractor(String(header.contractor || ''));
       }
 
-      mergedInspectDate = mergeUniqueMultilineText(mergedInspectDate, header.inspectDate);
+      mergedInspectDate = mergeUniqueMultilineText(
+        mergedInspectDate,
+        formatSheetDateListText(header.inspectDate)
+      );
       mergedInspector = mergeUniqueMultilineText(mergedInspector, header.inspector);
 
       setInspectDate(mergedInspectDate);
