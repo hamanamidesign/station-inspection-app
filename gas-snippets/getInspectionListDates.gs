@@ -94,7 +94,7 @@ function findInspectionDateColumn_(headers, year) {
   const yearHeaders = headers.slice(3);
   const index = yearHeaders.findIndex(header => {
     const text = normalizeText_(header);
-    const match = text.match(/^(\d{4})(?:年|年度)_点検日$/);
+    const match = text.match(/^(\d{4})(?:年|年度)?_点検日$/);
     return match && match[1] === targetYear;
   });
 
