@@ -20,20 +20,19 @@ function getInspectionReportData(data) {
   const pageSheets = karteSheets.slice(offset, offset + limit);
 
   const masterHeader = offset === 0
-    ? getInspectionReportMasterHeader_(data)
-    : {
-        stationNo: "",
-        contractor: "",
-      };
+      ? getInspectionReportMasterHeader_(data)
+      : {
+          stationNo: "",
+          contractor: "",
+          inspectDate: "",
+        };
   const pageHeader = {
-    inspectDates: [],
     inspectors: [],
   };
 
   const rows = pageSheets.map(sheet => {
     const values = sheet.getRange("A1:V16").getDisplayValues();
     const firstDate = getInspectionReportCell_(values, 5, 6);
-    const inspectDate = getInspectionReportCell_(values, 5, 18) || firstDate;
     const firstInspector = getInspectionReportCell_(values, 6, 6);
     const inspector = getInspectionReportCell_(values, 6, 18) || firstInspector;
     const firstSituation = joinInspectionReportText_(
@@ -47,7 +46,6 @@ function getInspectionReportData(data) {
     const useFirstSituationAsCurrent =
       isInspectionReportCurrentYearFirstInspection_(firstDate, data.year);
 
-    addInspectionReportUnique_(pageHeader.inspectDates, inspectDate);
     addInspectionReportUnique_(pageHeader.inspectors, inspector);
 
     return {
@@ -73,7 +71,7 @@ function getInspectionReportData(data) {
   const header = {
     stationNo: masterHeader.stationNo || data.stationNo || "",
     stationName: data.station || "",
-    inspectDate: pageHeader.inspectDates.join(",　"),
+    inspectDate: masterHeader.inspectDate,
     contractor: masterHeader.contractor,
     inspector: pageHeader.inspectors.join(",　"),
   };
@@ -118,6 +116,7 @@ function getInspectionReportMasterHeader_(data) {
   return {
     stationNo: String(dateResult.stationNo || "").trim(),
     contractor: registration ? String(registration.contractor || "").trim() : "",
+    inspectDate: String(dateResult.latestDate || dateResult.firstDate || "").trim(),
   };
 }
 

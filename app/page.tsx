@@ -4708,7 +4708,7 @@ async function loadInspectionReportLegacy(loadId: number) {
   if (inspectionReportLoadIdRef.current !== loadId) return;
 
   if (dateResult.stationNo !== undefined) setStationNo(String(dateResult.stationNo || ''));
-  setInspectDate(formatSheetDateText(dateResult.latestDate));
+  setInspectDate(formatSheetDateText(dateResult.latestDate || dateResult.firstDate));
 
   const listResult = await gasApi("getKarteList", {
     spreadsheetId,
@@ -4737,8 +4737,7 @@ async function loadInspectionReportLegacy(loadId: number) {
     if (karteResult.success && karteResult.data) {
       const data = karteResult.data;
       setContractor(String(data.contractor || ''));
-      setInspectDate(formatSheetDateText(data.inspectDate));
-      setInspector(String(data.inspector || ''));
+      setInspector(String(data.inspector || data.firstInspector || ''));
     }
   }
 
