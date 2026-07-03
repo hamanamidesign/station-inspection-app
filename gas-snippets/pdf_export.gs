@@ -1197,6 +1197,7 @@ function getGenericPdfSettings_(data, sheetNames) {
     const settings = {
       fileSuffix: "施設点検報告書",
       portrait: false,
+      scale: 4,
     };
 
     if (shouldUseInspectionReportTightBottomMargin_(data.spreadsheetId)) {
