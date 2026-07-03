@@ -267,6 +267,18 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
+    if (
+      action === "uploadInspectionReport" &&
+      error instanceof Error &&
+      error.name === "AbortError"
+    ) {
+      return jsonResponse({
+        success: true,
+        pending: true,
+        message: "施設点検報告書はスプレッドシート側で処理を継続しています。",
+      }, 202);
+    }
+
     return jsonResponse({
       success: false,
       error: error instanceof Error && error.name === "AbortError"

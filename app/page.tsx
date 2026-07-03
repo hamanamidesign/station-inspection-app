@@ -4547,7 +4547,9 @@ async function sendInspectionReport() {
       })),
     });
 
-    if (result.success) {
+    if (result.pending) {
+      alert("施設点検報告書はスプレッドシート側で処理を継続しています。少し待ってから反映結果を確認してください。");
+    } else if (result.success) {
       alert("施設点検報告書をスプレッドシートへ反映しました");
     } else {
       alert("施設点検報告書の反映に失敗しました: " + (result.error || "不明なエラー"));
