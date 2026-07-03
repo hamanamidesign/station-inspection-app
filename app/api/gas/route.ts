@@ -54,10 +54,12 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "uploadInclinationKartePhoto":
     case "uploadCover":
     case "updateInspectionListMasterStation":
-    case "uploadInspectionReport":
     case "uploadPhotos":
     case "saveMarkers":
       return 45000;
+    case "uploadInspectionReport":
+      // 行高計算とPDF用ページシート作成まで同期実行するため、件数が多い現場では45秒を超える。
+      return 240000;
     case "uploadInspectionSummary":
       return 240000;
     case "uploadKarte":
