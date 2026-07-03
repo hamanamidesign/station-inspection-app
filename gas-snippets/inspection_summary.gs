@@ -79,6 +79,18 @@ function writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slo
   var totalCountRange = sheet.getRange("E4:H4");
   totalCountRange.clearContent().merge();
   setInspectionSummaryValue_(totalCountRange, "－" + totalCount + "箇所", 12, "left", true);
+  sheet
+    .getRange("B4:H4")
+    .setBorder(
+      null,
+      null,
+      true,
+      null,
+      null,
+      null,
+      "#000000",
+      SpreadsheetApp.BorderStyle.SOLID
+    );
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "D5"), "（" + reportCount + "箇所 + 傾斜 " + slopeCount + "箇所）", 10, "left", true);
   getInspectionSummaryHeaderRange_(sheet, "U4").setWrap(true);
 }
