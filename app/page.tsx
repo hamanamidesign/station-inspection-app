@@ -439,6 +439,9 @@ const getScaledImageSize = (width: number, height: number, maxPixels: number) =>
   };
 };
 
+const MAP_OUTPUT_MAX_PIXELS = 2500000;
+const MAP_OUTPUT_MAX_DATA_URL_LENGTH = 3200000;
+
 const getCanvasDataUrlUnderLimit = (
   canvas: HTMLCanvasElement,
   maxBase64Length: number,
@@ -454,6 +457,16 @@ const getCanvasDataUrlUnderLimit = (
 
   return dataUrl;
 };
+
+const getCanvasMapDataUrl = (canvas: HTMLCanvasElement) => {
+  const pngDataUrl = canvas.toDataURL('image/png');
+  if (pngDataUrl.length <= MAP_OUTPUT_MAX_DATA_URL_LENGTH) return pngDataUrl;
+
+  return getCanvasDataUrlUnderLimit(canvas, MAP_OUTPUT_MAX_DATA_URL_LENGTH, 0.92);
+};
+
+const getDataUrlMimeType = (dataUrl: string) =>
+  dataUrl.match(/^data:([^;,]+)/)?.[1] || "";
 
 const getJpegExifOrientation = async (blob: Blob): Promise<number> => {
   const buffer = await blob.arrayBuffer();
@@ -8797,7 +8810,7 @@ if (mode === 'inclination_menu') {
         throw new Error("点検リスト_マスタから駅No.を取得できませんでした");
       }
 
-      const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, 900000);
+      const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, MAP_OUTPUT_MAX_PIXELS);
       canvas.width = outputSize.width;
       canvas.height = outputSize.height;
       const ctx = canvas.getContext('2d');
@@ -8806,6 +8819,8 @@ if (mode === 'inclination_menu') {
       }
       if (!ctx) throw new Error("画像処理を開始できません");
 
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       mapLines.forEach(line => {
@@ -8868,13 +8883,14 @@ if (mode === 'inclination_menu') {
         ctx.fillText(m.label, x, y);
       });
 
-      const outputDataUrl = getCanvasDataUrlUnderLimit(canvas, 1800000);
+      const outputDataUrl = getCanvasMapDataUrl(canvas);
       const combinedBase64 = outputDataUrl.split(',')[1];
+      const imageMimeType = getDataUrlMimeType(outputDataUrl) || 'image/jpeg';
       const payload = {
         spreadsheetId,
         imageData: combinedBase64,
-        imageMimeType: 'image/jpeg',
-        imageFileName: 'marked_map.jpg',
+        imageMimeType,
+        imageFileName: imageMimeType === 'image/png' ? 'marked_map.png' : 'marked_map.jpg',
         stationNo: mapStationNo,
         masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
         routeName: selectedRoute,
@@ -8941,10 +8957,12 @@ if (mode === 'editor') {
               await new Promise((resolve) => { img.onload = resolve; });
               const canvas = document.createElement('canvas');
               const cp = croppedAreaPixels;
-              const cropOutputSize = getScaledImageSize(cp.width, cp.height, 900000);
+              const cropOutputSize = getScaledImageSize(cp.width, cp.height, MAP_OUTPUT_MAX_PIXELS);
               canvas.width = cropOutputSize.width; canvas.height = cropOutputSize.height;
               const ctx = canvas.getContext('2d');
               if (ctx) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = "high";
                 ctx.drawImage(img, cp.x, cp.y, cp.width, cp.height, 0, 0, canvas.width, canvas.height);
                 const idata = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 // モノクロ化 (白黒) 処理
@@ -8953,7 +8971,7 @@ if (mode === 'editor') {
                   idata.data[i] = idata.data[i + 1] = idata.data[i + 2] = g;
                 }
                 ctx.putImageData(idata, 0, 0);
-                setFinalImage(getCanvasDataUrlUnderLimit(canvas, 1800000));
+                setFinalImage(getCanvasMapDataUrl(canvas));
               }
             }} className="transition-all active:scale-95 active:brightness-90 w-full rounded-md bg-amber-500 px-3 py-2 text-sm font-bold text-white shadow">この範囲で確定（モノクロ化）</button>
           ) : (
