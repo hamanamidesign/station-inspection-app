@@ -3809,16 +3809,13 @@ if (mode === 'exist_select') return (
             <div className="text-center text-xl font-black tracking-[0.28em] text-slate-900 sm:text-2xl">
               〈 点 検 結 果 総 括 表 〉
             </div>
-            <div className="mt-4 grid overflow-hidden rounded-xl border-2 border-slate-800 bg-white text-sm sm:grid-cols-2">
-              <div className="grid grid-cols-[90px_70px_1fr] border-b-2 border-slate-800 sm:border-b-0 sm:border-r-2">
-                <div className="flex items-center justify-center border-r border-slate-800 bg-slate-200 p-2 font-black">駅No.</div>
-                <div className="flex items-center justify-center border-r border-slate-800 p-2 font-bold">{stationNo || '—'}</div>
-                <div className="flex items-center justify-center p-2 text-base font-black">{stationName || '駅名未選択'}</div>
-              </div>
-              <div className="grid grid-cols-[90px_1fr]">
-                <div className="flex items-center justify-center border-r border-slate-800 bg-slate-200 p-2 font-black">点検年度</div>
-                <div className="flex items-center justify-center p-2 font-bold">{selectedYear ? `${selectedYear}年度` : '—'}</div>
-              </div>
+            <div className="mt-4 grid overflow-hidden rounded-xl border-2 border-slate-800 bg-white text-sm sm:grid-cols-[90px_70px_90px_1fr_110px_150px]">
+              <div className="flex items-center justify-center border-b border-r border-slate-800 bg-slate-200 p-2 font-black sm:border-b-0">駅No.</div>
+              <div className="flex items-center justify-center border-b border-r border-slate-800 p-2 font-bold sm:border-b-0">{stationNo || '—'}</div>
+              <div className="flex items-center justify-center border-b border-r border-slate-800 bg-slate-200 p-2 font-black sm:border-b-0">駅名</div>
+              <div className="flex items-center justify-center border-b border-r border-slate-800 p-2 text-base font-black sm:border-b-0">{stationName || '駅名未選択'}</div>
+              <div className="flex items-center justify-center border-b border-r border-slate-800 bg-slate-200 p-2 font-black sm:border-b-0">点検年度</div>
+              <div className="flex items-center justify-center p-2 font-bold">{selectedYear ? `${selectedYear}年度` : '—'}</div>
             </div>
           </div>
 
