@@ -3825,7 +3825,7 @@ if (mode === 'exist_select') return (
           <div className="mb-4 grid overflow-hidden rounded-2xl border-2 border-slate-800 bg-white text-sm font-bold shadow-sm sm:grid-cols-[1.25fr_1.4fr_80px_1fr_80px_1.4fr]">
             <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-4 py-3 text-base font-black sm:border-b-0 sm:border-r">総点検数－{totalInspectionCount}箇所</div>
             <div className="flex items-center justify-center border-b border-slate-400 px-4 py-3 sm:border-b-0 sm:border-r">（{reportRows.length}箇所 + 傾斜 {annualSlopeRows.length}箇所）</div>
-            <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-3 py-3 font-black sm:border-b-0 sm:border-r">点検日</div>
+            <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-3 py-3 font-black sm:border-b-0 sm:border-r">最新点検日</div>
             <div className="flex items-center justify-center border-b border-slate-400 px-4 py-3 sm:border-b-0 sm:border-r">{inspectDate || '—'}</div>
             <div className="flex items-center justify-center border-b border-slate-400 bg-slate-100 px-3 py-3 font-black sm:border-b-0 sm:border-r">点検者</div>
             <div className="flex items-center justify-center px-4 py-3 text-center whitespace-pre-wrap">{inspector || '—'}</div>

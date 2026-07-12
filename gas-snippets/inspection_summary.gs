@@ -69,9 +69,7 @@ function writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slo
     .map(function(value) { return String(value || "").trim(); })
     .filter(Boolean);
 
-  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "C1"), year ? year + "年度" : "", 12, "center", false);
-  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "D3"), data.stationNo || "", 12, "center", true);
-  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "F3"), data.stationName || "", 12, "center", true);
+  applyInspectionSummaryHeaderLayout_(sheet, data, year);
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "U3"), data.inspectDate || "", 10, "left", false);
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "U4"), inspectors.join(",\n"), 10, "left", false);
   // マスタやコピー元に旧結合 E4:I4 が残っていても、I4まで確実に解除する。
@@ -93,6 +91,69 @@ function writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slo
     );
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "D5"), "（" + reportCount + "箇所 + 傾斜 " + slopeCount + "箇所）", 10, "left", true);
   getInspectionSummaryHeaderRange_(sheet, "U4").setWrap(true);
+}
+
+function applyInspectionSummaryHeaderLayout_(sheet, data, year) {
+  var titleRange = sheet.getRange("A1:AC1");
+  titleRange.breakApart();
+  titleRange.merge();
+  setInspectionSummaryValue_(
+    titleRange,
+    buildInspectionSummaryTitle_(year),
+    15,
+    "center",
+    true
+  );
+
+  sheet.setRowHeight(3, 27);
+  sheet.setColumnWidth(6, 80);
+  sheet.setColumnWidth(10, 50);
+  sheet.setColumnWidth(11, 50);
+
+  sheet.getRange("B3:K3").breakApart().clearContent();
+  var stationNoLabelRange = sheet.getRange("B3:C3");
+  var stationNoRange = sheet.getRange("D3:E3");
+  var stationNameLabelRange = sheet.getRange("F3");
+  var stationNameRange = sheet.getRange("G3:K3");
+
+  stationNoLabelRange.merge();
+  stationNoRange.merge();
+  stationNameRange.merge();
+
+  setInspectionSummaryValue_(stationNoLabelRange, "駅No.", 12, "center", true);
+  setInspectionSummaryValue_(stationNoRange, data.stationNo || "", 12, "center", true);
+  setInspectionSummaryValue_(stationNameLabelRange, "駅名", 12, "center", true);
+  setInspectionSummaryValue_(stationNameRange, data.stationName || "", 12, "center", true);
+
+  sheet
+    .getRange("B3:K3")
+    .setBorder(
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      "#000000",
+      SpreadsheetApp.BorderStyle.SOLID
+    );
+
+  replaceInspectionSummaryExactText_(sheet.getRange("A1:AC6"), "点検日", "最新点検日");
+}
+
+function buildInspectionSummaryTitle_(year) {
+  var digits = String(year || "").trim() || "〇〇〇〇";
+  return "〈　" + Array.from(digits).join("　") + "　年　度　点　検　結　果　総　括　表　〉";
+}
+
+function replaceInspectionSummaryExactText_(range, fromText, toText) {
+  range
+    .createTextFinder(fromText)
+    .matchEntireCell(true)
+    .findAll()
+    .forEach(function(cell) {
+      cell.setValue(toText);
+    });
 }
 
 function getInspectionSummaryHeaderRange_(sheet, a1Notation) {
