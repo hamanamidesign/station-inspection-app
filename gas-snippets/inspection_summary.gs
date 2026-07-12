@@ -72,24 +72,35 @@ function writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slo
   applyInspectionSummaryHeaderLayout_(sheet, data, year);
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "U3"), data.inspectDate || "", 10, "left", false);
   setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "U4"), inspectors.join(",\n"), 10, "left", false);
-  // マスタやコピー元に旧結合 E4:I4 が残っていても、I4まで確実に解除する。
-  sheet.getRange("E4:I4").breakApart();
-  var totalCountRange = sheet.getRange("E4:H4");
-  totalCountRange.clearContent().merge();
-  setInspectionSummaryValue_(totalCountRange, "－" + totalCount + "箇所", 12, "left", true);
+  sheet.setRowHeight(4, 27);
+  sheet.getRange("B4:I4").breakApart().clearContent();
+  sheet.getRange("B5:K5").breakApart().clearContent();
+  setInspectionSummaryOverflowValue_(
+    sheet.getRange("B4"),
+    " 総点検数　- " + totalCount + "箇所 ",
+    12,
+    true,
+    true
+  );
   sheet
     .getRange("B4:H4")
     .setBorder(
       null,
       null,
-      true,
+      false,
       null,
       null,
       null,
       "#000000",
       SpreadsheetApp.BorderStyle.SOLID
     );
-  setInspectionSummaryValue_(getInspectionSummaryHeaderRange_(sheet, "D5"), "（" + reportCount + "箇所 + 傾斜 " + slopeCount + "箇所）", 10, "left", true);
+  setInspectionSummaryOverflowValue_(
+    sheet.getRange("B5"),
+    "（" + reportCount + "箇所 + 傾斜 " + slopeCount + "箇所）",
+    10,
+    true,
+    false
+  );
   getInspectionSummaryHeaderRange_(sheet, "U4").setWrap(true);
 }
 
@@ -263,22 +274,33 @@ function writeInspectionSummaryReportHeader_(sheet, row) {
 }
 
 function writeInspectionSummaryReportRow_(sheet, row, item) {
+  var currentSituationIsSame = isInspectionSummarySameAsPreviousSituation_(item.currentSituation);
   var cells = [
     [2, 3, item.photoNo || ""],
     [4, 5, ""],
     [6, 9, item.buildingName || ""],
     [10, 14, item.inspectionPlace || ""],
     [15, 19, item.finishType || ""],
-    [20, 29, item.currentSituation || ""],
+    [20, 29, getInspectionSummarySituationText_(item)],
   ];
   cells.forEach(function(cell, index) {
     var range = mergeInspectionSummaryRange_(sheet, row, cell[0], cell[1]);
     setInspectionSummaryValue_(range, cell[2], 10, index === 5 ? "left" : "center", false);
-    if (index === 5 && String(cell[2]).indexOf("前回と同じ") >= 0) {
+    if (index === 5 && currentSituationIsSame) {
       range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
     }
     setInspectionSummaryTableBorder_(range);
   });
+}
+
+function isInspectionSummarySameAsPreviousSituation_(value) {
+  return String(value || "").indexOf("前回と同じ") >= 0;
+}
+
+function getInspectionSummarySituationText_(item) {
+  return isInspectionSummarySameAsPreviousSituation_(item.currentSituation)
+    ? String(item.firstSituation || "")
+    : String(item.currentSituation || "");
 }
 
 function writeInspectionSummarySlopeHeader_(sheet, row) {
@@ -391,6 +413,20 @@ function setInspectionSummaryBlueSquare_(range, text) {
 function setInspectionSummaryValue_(range, value, size, alignment, bold) {
   range.setNumberFormat("@").setValue(String(value === null || value === undefined ? "" : value));
   formatInspectionSummaryRange_(range, size, alignment, bold);
+}
+
+function setInspectionSummaryOverflowValue_(range, value, size, bold, underline) {
+  range
+    .setNumberFormat("@")
+    .setValue(String(value === null || value === undefined ? "" : value))
+    .setFontFamily(INSPECTION_SUMMARY_FONT_)
+    .setFontColor("#000000")
+    .setFontSize(size)
+    .setFontWeight(bold ? "bold" : "normal")
+    .setFontLine(underline ? "underline" : "none")
+    .setHorizontalAlignment("left")
+    .setVerticalAlignment("middle")
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW);
 }
 
 function formatInspectionSummaryRange_(range, size, alignment, bold) {

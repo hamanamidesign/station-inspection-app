@@ -799,6 +799,12 @@ const inspectionReportRowHasValue = (row: InspectionReportRow) =>
     row.totalEval,
   ].some(value => String(value || '').trim());
 
+const isSameAsPreviousSituation = (value: unknown) =>
+  String(value || '').includes('前回と同じ');
+
+const getInspectionSummarySituationText = (row: Pick<InspectionReportRow, 'firstSituation' | 'currentSituation'>) =>
+  isSameAsPreviousSituation(row.currentSituation) ? row.firstSituation : row.currentSituation;
+
 type InspectionReportSortKey = 'buildingName' | 'inspectionPlace' | 'photoNo' | 'totalEval';
 type SortDirection = 'asc' | 'desc';
 
@@ -3705,8 +3711,8 @@ if (mode === 'exist_select') return (
                 </div>
                 {rows.map((row, rowIndex) => (
                   <div key={`${evaluation}-${row.id}-${rowIndex}`} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: evaluationWidths }}>
-                    {[row.photoNo, '', row.buildingName, row.inspectionPlace, row.finishType, row.currentSituation].map((value, columnIndex) => (
-                      <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'justify-start text-left' : 'justify-center text-center'} ${columnIndex === 5 && value.includes('前回と同じ') ? 'bg-[#d9eaf7]' : ''}`}>{value}</div>
+                    {[row.photoNo, '', row.buildingName, row.inspectionPlace, row.finishType, getInspectionSummarySituationText(row)].map((value, columnIndex) => (
+                      <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'justify-start text-left' : 'justify-center text-center'} ${columnIndex === 5 && isSameAsPreviousSituation(row.currentSituation) ? 'bg-[#d9eaf7]' : ''}`}>{value}</div>
                     ))}
                   </div>
                 ))}
