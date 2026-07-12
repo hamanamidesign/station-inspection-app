@@ -248,6 +248,7 @@ function prepareSlopeTablePage_(sheet, template, data) {
   }
 
   sheet.getRange("N1").setValue(data.stationNo || "");
+  setSlopeLatestDateHeaderLabel_(sheet);
   setSlopeDateHeaderValue_(sheet.getRange("G2"), data.firstDate);
   setSlopeDateHeaderValue_(sheet.getRange("K2"), data.inspectDate);
   sheet
@@ -339,6 +340,16 @@ function setSlopeDateHeaderValue_(range, value) {
   if (fontSize) {
     range.setFontSize(fontSize);
   }
+}
+
+function setSlopeLatestDateHeaderLabel_(sheet) {
+  const matches = sheet
+    .getRange(1, 1, 4, SLOPE_TABLE_COLUMN_COUNT_)
+    .createTextFinder("点検日")
+    .matchEntireCell(true)
+    .findAll();
+
+  matches.forEach(range => range.setValue("最新点検日"));
 }
 
 function getSlopeDateHeaderFontSize_(value) {

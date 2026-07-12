@@ -5448,7 +5448,7 @@ if (mode === 'slope_table') {
               />
             </div>
             <div className="col-span-4 border-r-2 border-slate-900 p-1">
-  <div className="mb-1">点検日</div>
+  <div className="mb-1">最新点検日</div>
 
   <input
     className="w-full border border-slate-300 bg-white px-2 py-1 text-center font-normal outline-none"
