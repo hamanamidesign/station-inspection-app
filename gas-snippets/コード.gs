@@ -653,6 +653,19 @@ function getExistingKarteList(spreadsheetId) {
 
 function getExistingData(routeFolderId) {
 
+  const routeKey = String(routeFolderId || "").trim();
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "existing_data_v1_" + (routeKey || "all");
+  const cached = cache.get(cacheKey);
+
+  if (cached) {
+    return createJsonResponse({
+      success: true,
+      list: JSON.parse(cached),
+      cached: true
+    });
+  }
+
   const sheet = SpreadsheetApp
     .openById(CONFIG.TEMPLATE_SS_ID)
     .getSheetByName("現場管理台帳");
@@ -671,7 +684,9 @@ function getExistingData(routeFolderId) {
     .getRange(2, 1, lastRow - 1, 10)
     .getValues();
 
-  let list = values.map(r => ({
+  const list = values
+  .filter(r => !routeKey || String(r[9]) === routeKey)
+  .map(r => ({
     stationNo: r[0],          // A
     stationName: r[1],        // B
     year: String(r[2]),       // C
@@ -682,13 +697,12 @@ function getExistingData(routeFolderId) {
     routeFolderId: r[9]       // J
   }));
 
-  if (routeFolderId) {
-    list = list.filter(r => String(r.routeFolderId) === String(routeFolderId));
-  }
+  cache.put(cacheKey, JSON.stringify(list), 300);
 
   return createJsonResponse({
     success: true,
-    list
+    list,
+    cached: false
   });
 }
 
@@ -1070,6 +1084,10 @@ logSheet.appendRow([
   routeName,            // I：路線名
   routeFolderId         // J：路線フォルダID
 ]);
+
+    const existingDataCache = CacheService.getScriptCache();
+    existingDataCache.remove("existing_data_v1_" + String(routeFolderId || "").trim());
+    existingDataCache.remove("existing_data_v1_all");
 
 
     return createJsonResponse({

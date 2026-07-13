@@ -33,6 +33,8 @@ const getGasTimeoutMs = (action?: string | null) => {
       // GAS再デプロイ直後はキャッシュが空になり、Driveの路線フォルダ走査に時間がかかる。
       return 90000;
     case "getExistingData":
+      // 現場管理台帳の初回読み込みは、GAS側キャッシュ作成まで時間がかかる場合がある。
+      return 90000;
     case "getPulldownLists":
     case "getInspectionListDates":
     case "getKarteList":

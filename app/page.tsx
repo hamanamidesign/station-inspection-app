@@ -1232,6 +1232,8 @@ useEffect(() => {
   const [coverDateStatus, setCoverDateStatus] = useState('');
   const pulldownListsLoadedRef = useRef(false);
   const existingDataLoadedRouteRef = useRef('');
+  const existingDataRef = useRef<ExistingStation[]>([]);
+  const existingDataLoadingRouteRef = useRef('');
   const routesLoadedRef = useRef(false);
   const routesLoadingRef = useRef(false);
   const inspectionReportLoadIdRef = useRef(0);
@@ -1454,7 +1456,8 @@ const loadRoutes = useCallback(async () => {
 // --- 初期化 ---
   const refreshData = useCallback(async (force = false) => {
   if (!routeFolderId) return [];
-  if (!force && existingDataLoadedRouteRef.current === routeFolderId) return existingData;
+  if (!force && existingDataLoadedRouteRef.current === routeFolderId) return existingDataRef.current;
+  if (!force && existingDataLoadingRouteRef.current === routeFolderId) return existingDataRef.current;
 
   const cacheKey = `${EXISTING_DATA_CACHE_PREFIX}${routeFolderId}`;
   let cachedList: ExistingStation[] = [];
@@ -1467,6 +1470,7 @@ const loadRoutes = useCallback(async () => {
         if (Array.isArray(parsed) && parsed.length > 0) {
           cachedList = parsed as ExistingStation[];
           setExistingData(cachedList);
+          existingDataRef.current = cachedList;
           existingDataLoadedRouteRef.current = routeFolderId;
         }
       }
@@ -1480,17 +1484,20 @@ const loadRoutes = useCallback(async () => {
   }
 
   try {
+    existingDataLoadingRouteRef.current = routeFolderId;
     const result = await gasApi("getExistingData", {
       routeFolderId,
     });
 
     if (result.success && Array.isArray(result.list)) {
       setExistingData(result.list);
+      existingDataRef.current = result.list;
       window.localStorage.setItem(cacheKey, JSON.stringify(result.list));
       existingDataLoadedRouteRef.current = routeFolderId;
       return result.list as ExistingStation[];
     } else {
       setExistingData([]);
+      existingDataRef.current = [];
       existingDataLoadedRouteRef.current = routeFolderId;
       return [];
     }
@@ -1500,12 +1507,16 @@ const loadRoutes = useCallback(async () => {
       return cachedList;
     }
     setExistingData([]);
+    existingDataRef.current = [];
     alert(`駅一覧の読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     return [];
   } finally {
+    if (existingDataLoadingRouteRef.current === routeFolderId) {
+      existingDataLoadingRouteRef.current = '';
+    }
     setIsLoading(false);
   }
-}, [existingData, routeFolderId]);
+}, [routeFolderId]);
 
 const fetchInspectionListDates = useCallback(async () => {
   if (!selectedRoute || !stationName || !selectedYear) return null;
@@ -3418,7 +3429,9 @@ if (mode === 'route_select') return (
             setSpreadsheetId('');
             setStationFolderId('');
             setExistingData([]);
+            existingDataRef.current = [];
             existingDataLoadedRouteRef.current = '';
+            existingDataLoadingRouteRef.current = '';
             setExistingKartes([]);
 
             setMode('menu');
