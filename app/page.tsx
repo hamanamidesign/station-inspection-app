@@ -802,6 +802,34 @@ const inspectionReportRowHasValue = (row: InspectionReportRow) =>
 const isSameAsPreviousSituation = (value: unknown) =>
   String(value || '').includes('前回と同じ');
 
+const isCompletedRepairSituation = (value: unknown) =>
+  /(?:補修済み|改修済み)/.test(String(value || ''));
+
+const createCompletionStampBase64 = () => {
+  const scale = 2;
+  const width = 72;
+  const height = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  ctx.scale(scale, scale);
+  ctx.strokeStyle = '#dc2626';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(1, 1, width - 2, height - 2, 7);
+  ctx.stroke();
+  ctx.fillStyle = '#dc2626';
+  ctx.font = 'bold 15px "MS Gothic", "ＭＳ ゴシック", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('完了', width / 2, height / 2 + 1);
+
+  return canvas.toDataURL('image/png').split(',')[1] || '';
+};
+
 const appendObservationNoteToPhotoSituation = (currentValue: unknown, firstValue: unknown) => {
   const currentSituation = String(currentValue || '').trim();
   const firstSituation = String(firstValue || '').trim();
@@ -2622,6 +2650,9 @@ const firstPhotoDataList = await Promise.all(
       const photoSituation = actionType === "uploadKarte"
         ? appendObservationNoteToPhotoSituation(remarks2, firstSituation)
         : remarks2;
+      const completionStampBase64 = actionType === "uploadKarte" && isCompletedRepairSituation(photoSituation)
+        ? createCompletionStampBase64()
+        : '';
 
       const payload = {
   isUpdate: isEditMode,
@@ -2650,6 +2681,7 @@ const firstPhotoDataList = await Promise.all(
   remarks1,
   remarks2: photoSituation,
   remarks3,
+  completionStampBase64,
   photoFiles: validPhotos,
   firstPhotoFiles: validFirstPhotos,
   photoMarks: currentPhotoMarks,
@@ -7763,15 +7795,23 @@ if (mode === 'inclination_menu') {
     </div>
 
     {/* ③ サイズ・詳細 */}
-    <div className="p-2 border border-slate-400 rounded bg-white">
+    <div className="relative p-2 border border-slate-400 rounded bg-white">
       <label className="text-[9px] text-blue-700 block mb-1">サイズ、詳細</label>
       <textarea 
-        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
+        className={`w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400 ${isPhoto && isCompletedRepairSituation(remarks2) ? 'pr-20' : ''}`}
         placeholder="サイズ、詳細入力"
         value={remarks3} 
         onChange={e => setRemarks3(e.target.value)} 
         onBlur={e => setRemarks3(formatSizeDetailValue(e.target.value))}
       />
+      {isPhoto && isCompletedRepairSituation(remarks2) && (
+        <div
+          className="pointer-events-none absolute bottom-3 right-3 rounded-lg border-2 border-red-600 px-3 py-1 text-[15px] font-bold leading-none text-red-600"
+          style={{ fontFamily: '"MS Gothic", "ＭＳ ゴシック", sans-serif' }}
+        >
+          完了
+        </div>
+      )}
     </div>
 
   </div>

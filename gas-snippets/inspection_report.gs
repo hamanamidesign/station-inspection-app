@@ -39,14 +39,19 @@ function getInspectionReportData(data) {
       getInspectionReportCell_(values, 13, 10),
       getInspectionReportCell_(values, 16, 10)
     );
+    const currentSituationText = getInspectionReportCell_(values, 13, 22);
     const currentSituation = joinInspectionReportText_(
-      getInspectionReportCell_(values, 13, 22),
+      currentSituationText,
       getInspectionReportCell_(values, 16, 22)
     );
     const useFirstSituationAsCurrent =
       isInspectionReportCurrentYearFirstInspection_(firstDate, data.year);
 
     addInspectionReportUnique_(pageHeader.inspectors, inspector);
+
+    const reportCurrentSituation = useFirstSituationAsCurrent
+      ? joinInspectionReportText_(currentSituation, firstSituation)
+      : currentSituation;
 
     return {
     buildingName: getInspectionReportCell_(values, 1, 12),
@@ -59,9 +64,7 @@ function getInspectionReportData(data) {
     firstSituation: useFirstSituationAsCurrent ? "" : firstSituation,
     firstEval: extractInspectionReportYear_(firstDate),
     previousYearEval: getInspectionReportCell_(values, 3, 17),
-    currentSituation: useFirstSituationAsCurrent
-      ? joinInspectionReportText_(currentSituation, firstSituation)
-      : currentSituation,
+    currentSituation: appendInspectionReportCompletion_(reportCurrentSituation, currentSituationText),
     structEval: getInspectionReportCell_(values, 3, 6),
     impactEval: getInspectionReportCell_(values, 3, 9),
     totalEval: getInspectionReportCell_(values, 3, 12),
@@ -266,6 +269,14 @@ function inspectionReportRowHasValue_(row) {
 
 function inspectionReportText_(value) {
   return value === null || value === undefined ? "" : String(value);
+}
+
+function appendInspectionReportCompletion_(value, completionSource) {
+  const text = String(value || "").trim();
+  if (!text || !/(?:補修済み|改修済み)/.test(String(completionSource || "")) || /［完了］\s*$/.test(text)) {
+    return text;
+  }
+  return text + "\n［完了］";
 }
 
 function applyInspectionReportBlankCellSparklines_(sheet, startRow, rows) {

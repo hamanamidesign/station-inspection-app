@@ -1492,6 +1492,22 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
   sheet.getRange("V10").setValue(data.remarks1);
   sheet.getRange("V13").setValue(data.remarks2);
   sheet.getRange("V16").setValue(data.remarks3);
+  if (templateName === "写真カルテ_マスタ" && data.completionStampBase64) {
+    const completionStampBlob = Utilities.newBlob(
+      Utilities.base64Decode(data.completionStampBase64),
+      "image/png",
+      "completion_stamp.png"
+    );
+    const completionStampImage = sheet.insertImage(completionStampBlob, 22, 16);
+    completionStampImage
+      .setWidth(72)
+      .setHeight(32)
+      .setAnchorCellXOffset(4)
+      .setAnchorCellYOffset(2);
+    if (typeof completionStampImage.setAltTextTitle === "function") {
+      completionStampImage.setAltTextTitle("完了スタンプ");
+    }
+  }
   if (templateName === "写真カルテ_マスタ") {
     savePhotoKarteEditorData_(ss, newSheetName, {
       photoMarks: data.photoMarks || [[], [], [], []],
