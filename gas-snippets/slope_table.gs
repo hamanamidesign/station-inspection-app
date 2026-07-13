@@ -116,31 +116,18 @@ function writeSlopeTableRows_(sheet, rows) {
     const r = SLOPE_TABLE_DATA_START_ROW_ + index;
 
     const valueCols = [
-      { valueCol: 6, directionCol: 5, value: slopeNumberText_(slopeFallback_(row.firstEwValue, row.firstEw)) },
-      { valueCol: 8, directionCol: 7, value: slopeNumberText_(slopeFallback_(row.firstNsValue, row.firstNs)) },
-      { valueCol: 10, directionCol: 9, value: slopeNumberText_(slopeFallback_(row.currentEwValue, row.currentEw)) },
-      { valueCol: 12, directionCol: 11, value: slopeNumberText_(slopeFallback_(row.currentNsValue, row.currentNs)) },
+      { valueCol: 6, directionCol: 5 },
+      { valueCol: 8, directionCol: 7 },
+      { valueCol: 10, directionCol: 9 },
+      { valueCol: 12, directionCol: 11 },
     ];
 
-    let pointShouldBeRed = false;
     sheet.getRange(r, 2).setFontColor("black").setFontWeight("normal").setFontSize(15);
 
     valueCols.forEach(item => {
-      const num = Number(item.value);
-
       sheet.getRange(r, item.valueCol).setFontColor("black").setFontWeight("normal");
       sheet.getRange(r, item.directionCol).setFontColor("black").setFontWeight("normal");
-
-      if (!isNaN(num) && num >= 10.1) {
-        pointShouldBeRed = true;
-        sheet.getRange(r, item.valueCol).setFontColor("red").setFontWeight("normal");
-        sheet.getRange(r, item.directionCol).setFontColor("red").setFontWeight("normal");
-      }
     });
-
-    if (pointShouldBeRed) {
-      sheet.getRange(r, 2).setFontColor("red").setFontWeight("normal").setFontSize(15);
-    }
 
     const ewChanged = slopeValuesAreDifferent_(
       slopeFallback_(row.firstEwValue, row.firstEw),

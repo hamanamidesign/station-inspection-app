@@ -5072,11 +5072,6 @@ const updateSlopePoint = (rowId: number, value: string) => {
   });
 };
 
-const isSlopeAlertValue = (value: string) => {
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 10.1;
-};
-
 const normalizeSlopeNumber = (value: string) => {
   if (!value.trim()) return '';
   const number = Number(value);
@@ -5101,30 +5096,43 @@ const hasSlopeDiff = (row: SlopeTableRow, direction: 'ew' | 'ns') => {
     : hasSlopeValueDiff(row.firstNsValue, row.currentNsValue);
 };
 
-const getSlopeNoteValue = (row: SlopeTableRow) => {
-  const changed =
-    hasSlopeDiff(row, 'ew') ||
-    hasSlopeDiff(row, 'ns');
+const getSlopeValueDifference = (firstValue: string, currentValue: string) => {
+  if (!firstValue.trim() || !currentValue.trim()) return null;
 
-  if (changed) {
-    return '変化あり';
-  }
+  const firstNumber = Number(firstValue);
+  const currentNumber = Number(currentValue);
+  if (!Number.isFinite(firstNumber) || !Number.isFinite(currentNumber)) return null;
 
-  return row.note === '変化あり'
-    ? ''
-    : row.note;
+  return Number(Math.abs(currentNumber - firstNumber).toFixed(1));
 };
 
-const getSlopePointClass = (row: SlopeTableRow) => {
+const getSlopeNoteValue = (row: SlopeTableRow) => {
+  const comparisons = [
+    {
+      direction: row.currentEwDirection || row.firstEwDirection,
+      difference: getSlopeValueDifference(row.firstEwValue, row.currentEwValue),
+    },
+    {
+      direction: row.currentNsDirection || row.firstNsDirection,
+      difference: getSlopeValueDifference(row.firstNsValue, row.currentNsValue),
+    },
+  ].filter((item): item is { direction: string; difference: number } => item.difference !== null);
 
-  const hasAlert = [
-    row.firstEwValue,
-    row.firstNsValue,
-    row.currentEwValue,
-    row.currentNsValue,
-  ].some(isSlopeAlertValue);
+  const changedComparisons = comparisons.filter(item => item.difference > 2);
+  if (changedComparisons.length > 0) {
+    return [
+      ...changedComparisons.map(item => `（${item.direction}　${item.difference.toFixed(1)}）`),
+      '（変化あり）',
+    ].join('\n');
+  }
 
-  return hasAlert ? 'text-red-600' : 'text-black';
+  if (comparisons.length > 0 && comparisons.every(item => item.difference <= 2)) {
+    return '＊変化なし';
+  }
+
+  return ['変化あり', '＊変化なし'].includes(row.note) || row.note.includes('（変化あり）')
+    ? ''
+    : row.note;
 };
 
 const getSlopeCellStyle = (
@@ -5142,12 +5150,11 @@ const getSlopeCellStyle = (
   };
 };
 
-const getSlopeValueClass = (value: string, isChanged = false) => {
+const getSlopeValueClass = (isChanged = false) => {
   const classes = ['border-r border-slate-500 px-2 py-2 text-center outline-none'];
 
   if (isChanged) classes.push('bg-slate-200');
-  if (isSlopeAlertValue(value)) classes.push('text-red-600');
-  else classes.push('text-black');
+  classes.push('text-black');
 
   return classes.join(' ');
 };
@@ -5596,7 +5603,7 @@ if (mode === 'slope_table') {
   <option value="水平">水平</option>
 </select>
                 <input
-                  className={`border-r border-slate-500 px-2 py-2 text-center outline-none ${getSlopePointClass(row)}`}
+                  className="border-r border-slate-500 px-2 py-2 text-center text-black outline-none"
                   style={getSlopeCellStyle(row, 'point')}
                   value={row.point}
                   onChange={e => updateSlopePoint(row.id, e.target.value)}
@@ -5653,7 +5660,7 @@ if (mode === 'slope_table') {
   )}
 </div>
                 <select
-                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstEwValue) ? 'text-red-600' : 'text-black'}`}
+                  className="border-r border-slate-500 bg-white px-1 py-2 text-center text-black outline-none"
                   style={getSlopeCellStyle(row, 'firstEwDirection')}
                   value={row.firstEwDirection}
                   onChange={e => updateSlopeRow(row.id, 'firstEwDirection', e.target.value)}
@@ -5667,14 +5674,14 @@ if (mode === 'slope_table') {
                   type="number"
                   inputMode="decimal"
                   step="0.1"
-                  className={getSlopeValueClass(row.firstEwValue)}
+                  className={getSlopeValueClass()}
                   style={getSlopeCellStyle(row, 'firstEwValue')}
                   value={row.firstEwValue}
                   onChange={e => updateSlopeRow(row.id, 'firstEwValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'firstEwValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
-                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.firstNsValue) ? 'text-red-600' : 'text-black'}`}
+                  className="border-r border-slate-500 bg-white px-1 py-2 text-center text-black outline-none"
                   style={getSlopeCellStyle(row, 'firstNsDirection')}
                   value={row.firstNsDirection}
                   onChange={e => updateSlopeRow(row.id, 'firstNsDirection', e.target.value)}
@@ -5688,14 +5695,14 @@ if (mode === 'slope_table') {
                   type="number"
                   inputMode="decimal"
                   step="0.1"
-                  className={getSlopeValueClass(row.firstNsValue)}
+                  className={getSlopeValueClass()}
                   style={getSlopeCellStyle(row, 'firstNsValue')}
                   value={row.firstNsValue}
                   onChange={e => updateSlopeRow(row.id, 'firstNsValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'firstNsValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
-                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentEwValue) ? 'text-red-600' : 'text-black'}`}
+                  className="border-r border-slate-500 bg-white px-1 py-2 text-center text-black outline-none"
                   style={getSlopeCellStyle(row, 'currentEwDirection')}
                   value={row.currentEwDirection}
                   onChange={e => updateSlopeRow(row.id, 'currentEwDirection', e.target.value)}
@@ -5709,14 +5716,14 @@ if (mode === 'slope_table') {
                   type="number"
                   inputMode="decimal"
                   step="0.1"
-                  className={getSlopeValueClass(row.currentEwValue, ewChanged)}
+                  className={getSlopeValueClass(ewChanged)}
                   style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#e2e8f0' : '#ffffff')}
                   value={row.currentEwValue}
                   onChange={e => updateSlopeRow(row.id, 'currentEwValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'currentEwValue', normalizeSlopeNumber(e.target.value))}
                 />
                 <select
-                  className={`border-r border-slate-500 bg-white px-1 py-2 text-center outline-none ${isSlopeAlertValue(row.currentNsValue) ? 'text-red-600' : 'text-black'}`}
+                  className="border-r border-slate-500 bg-white px-1 py-2 text-center text-black outline-none"
                   style={getSlopeCellStyle(row, 'currentNsDirection')}
                   value={row.currentNsDirection}
                   onChange={e => updateSlopeRow(row.id, 'currentNsDirection', e.target.value)}
@@ -5730,17 +5737,18 @@ if (mode === 'slope_table') {
                   type="number"
                   inputMode="decimal"
                   step="0.1"
-                  className={getSlopeValueClass(row.currentNsValue, nsChanged)}
+                  className={getSlopeValueClass(nsChanged)}
                   style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#e2e8f0' : '#ffffff')}
                   value={row.currentNsValue}
                   onChange={e => updateSlopeRow(row.id, 'currentNsValue', e.target.value)}
                   onBlur={e => updateSlopeRow(row.id, 'currentNsValue', normalizeSlopeNumber(e.target.value))}
                 />
-                <input
-                  className="px-2 py-2 outline-none"
+                <textarea
+                  className="resize-none px-2 py-2 text-center outline-none"
+                  rows={2}
                   value={noteValue}
                   onChange={e => updateSlopeRow(row.id, 'note', e.target.value)}
-                  readOnly={ewChanged || nsChanged}
+                  readOnly={noteValue === '＊変化なし' || noteValue.includes('（変化あり）')}
                   placeholder="備考"
                 />
               </div>
@@ -6733,7 +6741,7 @@ if (mode === 'inclination_menu') {
             </div>
 
             <div
-              className={`p-2 text-center font-bold text-lg ${getSlopePointClass(row)}`}
+              className="p-2 text-center text-lg font-bold text-black"
               style={getSlopeCellStyle(row, 'point')}
             >
               {row.point}
@@ -6794,35 +6802,19 @@ if (mode === 'inclination_menu') {
             <div className="grid grid-cols-[60px_1fr_60px_1fr] text-center">
 
 
-              <div className={`${
-                isSlopeAlertValue(row.firstEwValue)
-                  ? 'text-red-600'
-                  : ''
-              }`} style={getSlopeCellStyle(row, 'firstEwDirection')}>
+              <div className="text-black" style={getSlopeCellStyle(row, 'firstEwDirection')}>
                 {row.firstEwDirection}
               </div>
 
-              <div className={`${
-                isSlopeAlertValue(row.firstEwValue)
-                  ? 'text-red-600'
-                  : ''
-              }`} style={getSlopeCellStyle(row, 'firstEwValue')}>
+              <div className="text-black" style={getSlopeCellStyle(row, 'firstEwValue')}>
                 {row.firstEwValue}
               </div>
 
-              <div className={`${
-                isSlopeAlertValue(row.firstNsValue)
-                  ? 'text-red-600'
-                  : ''
-              }`} style={getSlopeCellStyle(row, 'firstNsDirection')}>
+              <div className="text-black" style={getSlopeCellStyle(row, 'firstNsDirection')}>
                 {row.firstNsDirection}
               </div>
 
-              <div className={`${
-                isSlopeAlertValue(row.firstNsValue)
-                  ? 'text-red-600'
-                  : ''
-              }`} style={getSlopeCellStyle(row, 'firstNsValue')}>
+              <div className="text-black" style={getSlopeCellStyle(row, 'firstNsValue')}>
                 {row.firstNsValue}
               </div>
 
@@ -6839,43 +6831,19 @@ if (mode === 'inclination_menu') {
 
             <div className="grid grid-cols-[60px_1fr_60px_1fr] text-center">
 
-              <div className={`${
-                isSlopeAlertValue(row.currentEwValue)
-                  ? 'text-red-600'
-                  : ''
-              }`} style={getSlopeCellStyle(row, 'currentEwDirection')}>
+              <div className="text-black" style={getSlopeCellStyle(row, 'currentEwDirection')}>
                 {row.currentEwDirection}
               </div>
 
-              <div className={`${
-                ewChanged
-                  ? 'bg-slate-300'
-                  : ''
-              } ${
-                isSlopeAlertValue(row.currentEwValue)
-                  ? 'text-red-600'
-                  : ''
-              }`} style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#cbd5e1' : '#ffffff',)}>
+              <div className={ewChanged ? 'bg-slate-300 text-black' : 'text-black'} style={getSlopeCellStyle(row, 'currentEwValue', ewChanged ? '#cbd5e1' : '#ffffff',)}>
                 {row.currentEwValue}
               </div>
 
-              <div className={`${
-                isSlopeAlertValue(row.currentNsValue)
-                  ? 'text-red-600'
-                  : ''
-              }`} style={getSlopeCellStyle(row, 'currentNsDirection')}>
+              <div className="text-black" style={getSlopeCellStyle(row, 'currentNsDirection')}>
                 {row.currentNsDirection}
               </div>
 
-              <div className={`${
-                nsChanged
-                  ? 'bg-slate-300'
-                  : ''
-              } ${
-                isSlopeAlertValue(row.currentNsValue)
-                  ? 'text-red-600'
-                  : ''
-              }`} style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#cbd5e1' : '#ffffff')}>
+              <div className={nsChanged ? 'bg-slate-300 text-black' : 'text-black'} style={getSlopeCellStyle(row, 'currentNsValue', nsChanged ? '#cbd5e1' : '#ffffff')}>
                 {row.currentNsValue}
               </div>
 

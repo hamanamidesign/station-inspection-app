@@ -329,19 +329,7 @@ function writePointValue_(sheet, a1, row) {
   range.setValue(inclinationText_(row.point));
   range.setFontSize(10);
   applyInclinationCellStyle_(range, getInclinationCellStyle_(row, "point"));
-  if (!getInclinationCellStyle_(row, "point").color) {
-    range.setFontColor(getPointFontColor_(row));
-  }
-}
-
-function getPointFontColor_(row) {
-  if (row.pointColor) return row.pointColor;
-  return [
-    row.firstEwValue,
-    row.firstNsValue,
-    row.currentEwValue,
-    row.currentNsValue,
-  ].some(isSlopeAlert_) ? "#dc2626" : "#000000";
+  range.setFontColor("#000000");
 }
 
 function writeSlopeValue_(sheet, a1, value, compareValue, style, isNumberCell) {
@@ -354,9 +342,7 @@ function writeSlopeValue_(sheet, a1, value, compareValue, style, isNumberCell) {
     range.setValue(text);
   }
 
-  if (style && style.color) range.setFontColor(style.color);
-  else if (isSlopeAlert_(text)) range.setFontColor("#dc2626");
-  else range.setFontColor("#000000");
+  range.setFontColor("#000000");
 
   if (style && style.backgroundColor) {
     range.setBackground(style.backgroundColor);
@@ -393,7 +379,7 @@ function getInclinationCellStyle_(row, field) {
 
 function applyInclinationCellStyle_(range, style) {
   if (!style) return;
-  if (style.color) range.setFontColor(style.color);
+  range.setFontColor("#000000");
   if (style.backgroundColor) range.setBackground(style.backgroundColor);
 }
 
@@ -608,9 +594,4 @@ function sanitizeSheetName_(name) {
   return String(name || "傾斜")
     .replace(/[\\/?*\[\]:]/g, "_")
     .slice(0, 99);
-}
-
-function isSlopeAlert_(value) {
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 10.1;
 }
