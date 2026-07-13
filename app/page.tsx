@@ -949,6 +949,27 @@ const formatSlopeDisplayNumber = (value: unknown) => {
   return Number.isFinite(number) ? number.toFixed(1) : text;
 };
 
+const getSlopeMeasurementDifference = (firstValue: unknown, currentValue: unknown) => {
+  const parseValue = (value: unknown) => {
+    const text = String(value ?? '').trim();
+    if (!text) return null;
+    const number = Number(text.replace(/[^\d.-]/g, ''));
+    return Number.isFinite(number) ? number : null;
+  };
+
+  const firstNumber = parseValue(firstValue);
+  const currentNumber = parseValue(currentValue);
+  if (firstNumber === null || currentNumber === null) return null;
+
+  return Number(Math.abs(currentNumber - firstNumber).toFixed(1));
+};
+
+const hasSignificantSlopeMeasurementDifference = (row: SlopeTableRow) =>
+  [
+    getSlopeMeasurementDifference(row.firstEwValue, row.currentEwValue),
+    getSlopeMeasurementDifference(row.firstNsValue, row.currentNsValue),
+  ].some(difference => difference !== null && difference >= 2);
+
 const normalizeSlopeRow = (row: Partial<SlopeTableRow>, index: number): SlopeTableRow => ({
   id: Number(row.id) || Date.now() + index,
   slopeType: toDisplayText(row.slopeType),
@@ -3724,12 +3745,7 @@ if (mode === 'exist_select') return (
     const rowsByEvaluation = (evaluation: string) => reportRows.filter(
       row => String(row.totalEval || '').trim().toUpperCase() === evaluation
     );
-    const overLimitSlopeRows = annualSlopeRows.filter(row => {
-      const eastWest = Number.parseFloat(String(row.currentEwValue || '').replace(/[^\d.-]/g, ''));
-      const northSouth = Number.parseFloat(String(row.currentNsValue || '').replace(/[^\d.-]/g, ''));
-      return (Number.isFinite(eastWest) && Math.abs(eastWest) > 10) ||
-        (Number.isFinite(northSouth) && Math.abs(northSouth) > 10);
-    });
+    const overLimitSlopeRows = annualSlopeRows.filter(hasSignificantSlopeMeasurementDifference);
     const totalInspectionCount = reportRows.length + annualSlopeRows.length;
     const formatSlopeValue = (direction: string, value: string) => {
       const directionText = String(direction || '').trim();
@@ -3861,7 +3877,7 @@ if (mode === 'exist_select') return (
                 </div>
               </div>
             ) : (
-              <div className="py-2 text-sm font-bold text-slate-600">・今回　10.0mmを超える測定値は確認されませんでした。</div>
+              <div className="py-2 text-sm font-bold text-slate-600">・今回　初回点検と比較して±2.0mm以上の測定値は確認されませんでした。</div>
             )}
             </div>
           {rows.length > 0 && <div className="border-t border-slate-300 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">・{note}</div>}
@@ -3916,7 +3932,7 @@ if (mode === 'exist_select') return (
             <SummarySection
               roman="Ⅲ"
               title="傾斜測定"
-              description={`・測定値 10.0mm以上－${overLimitSlopeRows.length}箇所`}
+              description={`・測定値が初回点検と比較して ±2.0mm以上－${overLimitSlopeRows.length}箇所`}
               badge=""
               columns={['測点', '建物名\n点検場所', '東西方向', '南北方向', '状況説明（■は前回と同じ）']}
               widths="72px 220px 150px 150px minmax(360px, 1fr)"
@@ -3929,7 +3945,7 @@ if (mode === 'exist_select') return (
                 isSameSlopeMeasurement(row.currentEwDirection, row.currentEwValue, row.firstEwDirection, row.firstEwValue) ||
                   isSameSlopeMeasurement(row.currentNsDirection, row.currentNsValue, row.firstNsDirection, row.firstNsValue),
               ])}
-              note="上記の10.0mmを超える測定値を確認しました。"
+              note="上記の初回点検と比較して±2.0mm以上の測定値を確認しました。"
               tone="emerald"
             />
           </div>
@@ -4669,12 +4685,7 @@ async function sendInspectionSummary() {
       .some(value => String(value || '').trim())
   );
   const annualSlopeRows = slopeRows.filter(row => String(row.point || '').trim());
-  const overLimitSlopeRows = annualSlopeRows.filter(row => {
-    const eastWest = Number.parseFloat(String(row.currentEwValue || '').replace(/[^\d.-]/g, ''));
-    const northSouth = Number.parseFloat(String(row.currentNsValue || '').replace(/[^\d.-]/g, ''));
-    return (Number.isFinite(eastWest) && Math.abs(eastWest) > 10) ||
-      (Number.isFinite(northSouth) && Math.abs(northSouth) > 10);
-  });
+  const overLimitSlopeRows = annualSlopeRows.filter(hasSignificantSlopeMeasurementDifference);
 
   setIsSending(true);
 
@@ -5079,15 +5090,8 @@ const normalizeSlopeNumber = (value: string) => {
 };
 
 const hasSlopeValueDiff = (firstValue: string, currentValue: string) => {
-  if (!firstValue.trim() || !currentValue.trim()) return false;
-
-  const firstNumber = Number(firstValue);
-  const currentNumber = Number(currentValue);
-  if (Number.isFinite(firstNumber) && Number.isFinite(currentNumber)) {
-    return Number(Math.abs(currentNumber - firstNumber).toFixed(1)) >= 2;
-  }
-
-  return false;
+  const difference = getSlopeMeasurementDifference(firstValue, currentValue);
+  return difference !== null && difference >= 2;
 };
 
 const hasSlopeDiff = (row: SlopeTableRow, direction: 'ew' | 'ns') => {
@@ -5096,25 +5100,15 @@ const hasSlopeDiff = (row: SlopeTableRow, direction: 'ew' | 'ns') => {
     : hasSlopeValueDiff(row.firstNsValue, row.currentNsValue);
 };
 
-const getSlopeValueDifference = (firstValue: string, currentValue: string) => {
-  if (!firstValue.trim() || !currentValue.trim()) return null;
-
-  const firstNumber = Number(firstValue);
-  const currentNumber = Number(currentValue);
-  if (!Number.isFinite(firstNumber) || !Number.isFinite(currentNumber)) return null;
-
-  return Number(Math.abs(currentNumber - firstNumber).toFixed(1));
-};
-
 const getSlopeNoteValue = (row: SlopeTableRow) => {
   const comparisons = [
     {
       direction: row.currentEwDirection || row.firstEwDirection,
-      difference: getSlopeValueDifference(row.firstEwValue, row.currentEwValue),
+      difference: getSlopeMeasurementDifference(row.firstEwValue, row.currentEwValue),
     },
     {
       direction: row.currentNsDirection || row.firstNsDirection,
-      difference: getSlopeValueDifference(row.firstNsValue, row.currentNsValue),
+      difference: getSlopeMeasurementDifference(row.firstNsValue, row.currentNsValue),
     },
   ].filter((item): item is { direction: string; difference: number } => item.difference !== null);
 

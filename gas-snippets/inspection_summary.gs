@@ -21,7 +21,8 @@ function uploadInspectionSummary(data) {
   if (sheet.isSheetHidden()) sheet.showSheet();
 
   var reportRows = Array.isArray(data.reportRows) ? data.reportRows : [];
-  var slopeRows = Array.isArray(data.slopeRows) ? data.slopeRows : [];
+  var slopeRows = (Array.isArray(data.slopeRows) ? data.slopeRows : [])
+    .filter(hasInspectionSummarySignificantSlopeDifference_);
   var reportCount = Math.max(0, Number(data.reportInspectionCount) || 0);
   var slopeCount = Math.max(0, Number(data.slopeInspectionCount) || 0);
   var totalCount = reportCount + slopeCount;
@@ -60,6 +61,30 @@ function uploadInspectionSummary(data) {
 
   sheet.setHiddenGridlines(true);
   return { success: true, lastRow: row };
+}
+
+function hasInspectionSummarySignificantSlopeDifference_(row) {
+  return [
+    inspectionSummarySlopeDifference_(row && row.firstEwValue, row && row.currentEwValue),
+    inspectionSummarySlopeDifference_(row && row.firstNsValue, row && row.currentNsValue),
+  ].some(function(difference) {
+    return difference !== null && difference >= 2;
+  });
+}
+
+function inspectionSummarySlopeDifference_(firstValue, currentValue) {
+  function parseValue_(value) {
+    var text = String(value === null || value === undefined ? "" : value).trim();
+    if (!text) return null;
+    var number = Number(text.replace(/[^\d.-]/g, ""));
+    return Number.isFinite(number) ? number : null;
+  }
+
+  var firstNumber = parseValue_(firstValue);
+  var currentNumber = parseValue_(currentValue);
+  if (firstNumber === null || currentNumber === null) return null;
+
+  return Number(Math.abs(currentNumber - firstNumber).toFixed(1));
 }
 
 function writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slopeCount) {
@@ -236,12 +261,12 @@ function writeInspectionSummarySlopeSection_(sheet, row, rows) {
 
   if (!rows.length) {
     var emptyRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
-    setInspectionSummaryValue_(emptyRange, "・今回　10.0mmを超える測定値は確認されませんでした。", 10, "left", false);
+    setInspectionSummaryValue_(emptyRange, "・今回　初回点検と比較して±2.0mm以上の測定値は確認されませんでした。", 10, "left", false);
     return row + 1;
   }
 
   var countRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
-  setInspectionSummaryValue_(countRange, "・測定値　10.0mm以上－" + rows.length + "箇所", 10, "left", false);
+  setInspectionSummaryValue_(countRange, "・測定値が初回点検と比較して ±2.0mm以上－" + rows.length + "箇所", 10, "left", false);
   row += 1;
   writeInspectionSummarySlopeHeader_(sheet, row);
   row += 1;
@@ -252,7 +277,7 @@ function writeInspectionSummarySlopeSection_(sheet, row, rows) {
   });
 
   var noteRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
-  setInspectionSummaryValue_(noteRange, "・上記の10.0mmを超える測定値を確認しました。", 10, "left", false);
+  setInspectionSummaryValue_(noteRange, "・上記の初回点検と比較して±2.0mm以上の測定値を確認しました。", 10, "left", false);
   return row + 1;
 }
 
@@ -713,7 +738,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
       newPage_();
       repeatSectionTitle_(slopeTitle);
     }
-    currentPage_().push({ type: "note", text: "・上記の10.0mmを超える測定値を確認しました。" });
+    currentPage_().push({ type: "note", text: "・上記の初回点検と比較して±2.0mm以上の測定値を確認しました。" });
   }
 
   if (remaining_() < 21) newPage_();
@@ -760,7 +785,7 @@ function renderInspectionSummaryPdfItem_(sheet, row, item) {
 
   if (item.type === "slopeCount") {
     var countRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
-    setInspectionSummaryValue_(countRange, "・測定値　10.0mm以上－" + item.count + "箇所", 10, "left", false);
+    setInspectionSummaryValue_(countRange, "・測定値が初回点検と比較して ±2.0mm以上－" + item.count + "箇所", 10, "left", false);
     return row + 1;
   }
 
@@ -778,7 +803,7 @@ function renderInspectionSummaryPdfItem_(sheet, row, item) {
 
   if (item.type === "slopeEmpty") {
     var emptyRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
-    setInspectionSummaryValue_(emptyRange, "・今回　10.0mmを超える測定値は確認されませんでした。", 10, "left", false);
+    setInspectionSummaryValue_(emptyRange, "・今回　初回点検と比較して±2.0mm以上の測定値は確認されませんでした。", 10, "left", false);
     return row + 1;
   }
 
