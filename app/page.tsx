@@ -5128,9 +5128,11 @@ const getSlopeNoteValue = (row: SlopeTableRow) => {
     ].join('\n');
   }
 
-  if (comparisons.length > 0 && comparisons.every(item => item.difference < 2)) {
+  if (comparisons.some(item => item.difference > 0)) {
     return '＊変化なし';
   }
+
+  if (comparisons.length > 0) return '';
 
   return ['変化あり', '＊変化なし'].includes(row.note) || row.note.includes('（変化あり）')
     ? ''
