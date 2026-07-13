@@ -803,7 +803,13 @@ const isSameAsPreviousSituation = (value: unknown) =>
   String(value || '').includes('前回と同じ');
 
 const isCompletedRepairSituation = (value: unknown) =>
-  /(?:補修済み|改修済み)/.test(String(value || ''));
+  /(?:補修済み?|改修済み?)/.test(String(value || ''));
+
+const appendCompletionLabel = (value: unknown) => {
+  const text = String(value || '').trim();
+  if (!text || !isCompletedRepairSituation(text) || /［完了］\s*$/.test(text)) return text;
+  return `${text}\n［完了］`;
+};
 
 const createCompletionStampBase64 = () => {
   const scale = 2;
@@ -850,7 +856,9 @@ const appendObservationNoteToPhotoSituation = (currentValue: unknown, firstValue
 };
 
 const getInspectionSummarySituationText = (row: Pick<InspectionReportRow, 'firstSituation' | 'currentSituation'>) =>
-  isSameAsPreviousSituation(row.currentSituation) ? row.firstSituation : row.currentSituation;
+  appendCompletionLabel(
+    isSameAsPreviousSituation(row.currentSituation) ? row.firstSituation : row.currentSituation
+  );
 
 type InspectionReportSortKey = 'buildingName' | 'inspectionPlace' | 'photoNo' | 'totalEval';
 type SortDirection = 'asc' | 'desc';
@@ -1325,7 +1333,7 @@ const renderInspectionReportCellValue = (
   field: keyof Omit<InspectionReportRow, 'id'>,
   value: string
 ) => {
-  return value;
+  return field === 'currentSituation' ? appendCompletionLabel(value) : value;
 };
 
 const getEvalFontColor = (field: 'structEval' | 'totalEval', value: unknown) => {

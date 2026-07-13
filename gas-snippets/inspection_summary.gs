@@ -323,9 +323,11 @@ function isInspectionSummarySameAsPreviousSituation_(value) {
 }
 
 function getInspectionSummarySituationText_(item) {
-  return isInspectionSummarySameAsPreviousSituation_(item.currentSituation)
+  var text = isInspectionSummarySameAsPreviousSituation_(item.currentSituation)
     ? String(item.firstSituation || "")
     : String(item.currentSituation || "");
+  if (!text || !/(?:補修済み?|改修済み?)/.test(text) || /［完了］\s*$/.test(text)) return text;
+  return text.trim() + "\n［完了］";
 }
 
 function writeInspectionSummarySlopeHeader_(sheet, row) {
