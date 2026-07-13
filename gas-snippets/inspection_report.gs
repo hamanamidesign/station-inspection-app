@@ -60,7 +60,7 @@ function getInspectionReportData(data) {
       getInspectionReportCell_(values, 1, 17)
     ),
     photoNo: getInspectionReportCell_(values, 1, 4) || sheet.getName(),
-    finishType: getInspectionReportCell_(values, 10, 10),
+    finishType: getInspectionReportCell_(values, 10, 22),
     firstSituation: useFirstSituationAsCurrent ? "" : firstSituation,
     firstEval: extractInspectionReportYear_(firstDate),
     previousYearEval: getInspectionReportCell_(values, 3, 17),
