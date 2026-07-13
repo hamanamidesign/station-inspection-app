@@ -802,12 +802,12 @@ const inspectionReportRowHasValue = (row: InspectionReportRow) =>
 const isSameAsPreviousSituation = (value: unknown) =>
   /前回(?:と(?:同じ|おなじ|同様)|同様)/.test(String(value || ''));
 
-const isCompletedRepairSituation = (value: unknown) =>
-  /(?:補修済み?|改修済み?)/.test(String(value || ''));
+const isCompletedSituation = (value: unknown) =>
+  /済/.test(String(value || ''));
 
 const appendCompletionLabel = (value: unknown) => {
   const text = String(value || '').trim();
-  if (!text || !isCompletedRepairSituation(text) || /［完了］\s*$/.test(text)) return text;
+  if (!text || !isCompletedSituation(text) || /［完了］\s*$/.test(text)) return text;
   return `${text}\n［完了］`;
 };
 
@@ -816,7 +816,7 @@ const stripCompletionLabel = (value: unknown) =>
 
 const hasCompletionLabel = (value: unknown) => {
   const text = String(value || '');
-  return /［完了］\s*$/.test(text) || isCompletedRepairSituation(text);
+  return /［完了］\s*$/.test(text) || isCompletedSituation(text);
 };
 
 const createCompletionStampBase64 = () => {
@@ -2688,7 +2688,7 @@ const firstPhotoDataList = await Promise.all(
       const photoSituation = actionType === "uploadKarte"
         ? appendObservationNoteToPhotoSituation(remarks2, firstSituation)
         : remarks2;
-      const completionStampBase64 = actionType === "uploadKarte" && isCompletedRepairSituation(photoSituation)
+      const completionStampBase64 = actionType === "uploadKarte" && isCompletedSituation(photoSituation)
         ? createCompletionStampBase64()
         : '';
 
@@ -7824,13 +7824,13 @@ if (mode === 'inclination_menu') {
     <div className="relative p-2 border border-slate-400 rounded bg-white">
       <label className="text-[9px] text-blue-700 block mb-1">サイズ、詳細</label>
       <textarea 
-        className={`w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400 ${isPhoto && isCompletedRepairSituation(remarks2) ? 'pr-20' : ''}`}
+        className={`w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400 ${isPhoto && isCompletedSituation(remarks2) ? 'pr-20' : ''}`}
         placeholder="サイズ、詳細入力"
         value={remarks3} 
         onChange={e => setRemarks3(e.target.value)} 
         onBlur={e => setRemarks3(formatSizeDetailValue(e.target.value))}
       />
-      {isPhoto && isCompletedRepairSituation(remarks2) && (
+      {isPhoto && isCompletedSituation(remarks2) && (
         <div
           className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border-2 border-red-600 px-3 py-1 text-[15px] font-bold leading-none text-red-600"
           style={{ fontFamily: '"MS Gothic", "ＭＳ ゴシック", sans-serif' }}

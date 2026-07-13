@@ -276,7 +276,7 @@ function inspectionReportText_(value) {
 
 function appendInspectionReportCompletion_(value, completionSource) {
   const text = String(value || "").trim();
-  if (!text || !/(?:補修済み?|改修済み?)/.test(String(completionSource || "")) || /［完了］\s*$/.test(text)) {
+  if (!text || !/済/.test(String(completionSource || "")) || /［完了］\s*$/.test(text)) {
     return text;
   }
   return text + "\n［完了］";
