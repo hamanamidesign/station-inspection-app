@@ -813,8 +813,8 @@ const appendCompletionLabel = (value: unknown) => {
 
 const createCompletionStampBase64 = () => {
   const scale = 2;
-  const width = 72;
-  const height = 32;
+  const width = 144;
+  const height = 64;
   const canvas = document.createElement('canvas');
   canvas.width = width * scale;
   canvas.height = height * scale;
@@ -823,15 +823,15 @@ const createCompletionStampBase64 = () => {
 
   ctx.scale(scale, scale);
   ctx.strokeStyle = '#dc2626';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.roundRect(1, 1, width - 2, height - 2, 7);
+  ctx.roundRect(2, 2, width - 4, height - 4, 14);
   ctx.stroke();
   ctx.fillStyle = '#dc2626';
-  ctx.font = 'bold 15px "MS Gothic", "ＭＳ ゴシック", sans-serif';
+  ctx.font = 'bold 30px "MS Gothic", "ＭＳ ゴシック", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('完了', width / 2, height / 2 + 1);
+  ctx.fillText('完了', width / 2, height / 2 + 2);
 
   return canvas.toDataURL('image/png').split(',')[1] || '';
 };

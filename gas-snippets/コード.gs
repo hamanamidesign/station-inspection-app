@@ -1500,10 +1500,10 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
     );
     const completionStampImage = sheet.insertImage(completionStampBlob, 22, 16);
     completionStampImage
-      .setWidth(72)
-      .setHeight(32)
-      .setAnchorCellXOffset(50)
-      .setAnchorCellYOffset(55);
+      .setWidth(144)
+      .setHeight(64)
+      .setAnchorCellXOffset(14)
+      .setAnchorCellYOffset(39);
     if (typeof completionStampImage.setAltTextTitle === "function") {
       completionStampImage.setAltTextTitle("完了スタンプ");
     }
