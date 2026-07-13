@@ -7806,7 +7806,7 @@ if (mode === 'inclination_menu') {
       />
       {isPhoto && isCompletedRepairSituation(remarks2) && (
         <div
-          className="pointer-events-none absolute bottom-3 right-3 rounded-lg border-2 border-red-600 px-3 py-1 text-[15px] font-bold leading-none text-red-600"
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border-2 border-red-600 px-3 py-1 text-[15px] font-bold leading-none text-red-600"
           style={{ fontFamily: '"MS Gothic", "ＭＳ ゴシック", sans-serif' }}
         >
           完了
