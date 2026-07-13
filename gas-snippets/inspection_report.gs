@@ -236,6 +236,7 @@ function uploadInspectionReport(data) {
   applyInspectionReportFinishTypeLineBreaks_(sheet, startRow, rows.length);
 
   applyInspectionReportDefaultFontColors_(sheet, startRow, rows.length);
+  applyInspectionReportCompletionStyles_(sheet, startRow, rows.length);
   applyInspectionReportEvalFontColors_(sheet, startRow, rows);
   if (data.blankSlashesEnabled === true) {
     applyInspectionReportBlankCellSparklines_(sheet, startRow, rows);
@@ -279,6 +280,48 @@ function appendInspectionReportCompletion_(value, completionSource) {
     return text;
   }
   return text + "\n［完了］";
+}
+
+function applyInspectionReportCompletionStyles_(sheet, startRow, rowCount) {
+  if (rowCount <= 0) return;
+
+  const completionMarker = "［完了］";
+  const completionPattern = /\n[　 ]*［完了］\s*$/;
+  const mergedCellWidth = [12, 13, 14]
+    .reduce((width, column) => width + sheet.getColumnWidth(column), 0);
+  const completionTextStyle = SpreadsheetApp.newTextStyle()
+    .setForegroundColor("#0000ff")
+    .build();
+
+  for (let offset = 0; offset < rowCount; offset += 1) {
+    const range = sheet.getRange(startRow + offset, 12, 1, 3);
+    const valueCell = sheet.getRange(startRow + offset, 12);
+    const text = inspectionReportText_(valueCell.getDisplayValue());
+    if (!completionPattern.test(text)) continue;
+
+    const body = text.replace(completionPattern, "").trimEnd();
+    const fontSize = Math.max(Number(valueCell.getFontSize()) || 10, 1);
+    const estimatedFullWidthCharacterWidth = fontSize * 1.45;
+    const lineCharacterCount = Math.max(
+      completionMarker.length,
+      Math.floor((mergedCellWidth - 16) / estimatedFullWidthCharacterWidth)
+    );
+    const completionLine =
+      "　".repeat(Math.max(0, lineCharacterCount - completionMarker.length)) +
+      completionMarker;
+    const richText = body + "\n" + completionLine;
+    const markerStart = richText.length - completionMarker.length;
+    const richTextValue = SpreadsheetApp.newRichTextValue()
+      .setText(richText)
+      .setTextStyle(markerStart, richText.length, completionTextStyle)
+      .build();
+
+    valueCell.setRichTextValue(richTextValue);
+    range
+      .setHorizontalAlignment("left")
+      .setVerticalAlignment("middle")
+      .setWrap(true);
+  }
 }
 
 function applyInspectionReportBlankCellSparklines_(sheet, startRow, rows) {
