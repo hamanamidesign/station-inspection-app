@@ -1420,6 +1420,13 @@ function uploadKarte(data, templateName) {
     throw new Error(templateName + "が見つかりません");
   }
 
+  if (templateName === "写真カルテ_マスタ") {
+    templateSheet
+      .createTextFinder("① 構造度評価")
+      .matchEntireCell(true)
+      .replaceAllWith("① 形状評価");
+  }
+
   const newSheetName = (data.karteNo || data.no || "1").toString(); 
   let sheet = ss.getSheetByName(newSheetName);
 
@@ -1430,6 +1437,13 @@ function uploadKarte(data, templateName) {
     sheet.getImages().forEach(img => img.remove());
   } else {
     sheet = templateSheet.copyTo(ss).setName(newSheetName).showSheet();
+  }
+
+  if (templateName === "写真カルテ_マスタ") {
+    sheet
+      .createTextFinder("① 構造度評価")
+      .matchEntireCell(true)
+      .replaceAllWith("① 形状評価");
   }
 
   sheet.getRange("F1").setValue(data.station.replace("駅", ""));

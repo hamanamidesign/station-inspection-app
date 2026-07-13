@@ -1213,10 +1213,10 @@ function getGenericPdfSettings_(data, sheetNames) {
       portrait: false,
       horizontalAlignment: "CENTER",
       scale: 2,
-      top_margin: INSPECTION_PDF_MARGIN_TOP_INCHES_,
+      top_margin: 1.5 / 2.54,
       bottom_margin: 1.2 / 2.54,
-      left_margin: 1.0 / 2.54,
-      right_margin: 1.0 / 2.54,
+      left_margin: 1.7 / 2.54,
+      right_margin: 1.7 / 2.54,
     };
   }
 

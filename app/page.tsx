@@ -968,7 +968,7 @@ export default function InspectorApp() {
   const [viewportWidth, setViewportWidth] = useState(INCLINATION_CARD_WIDTH);
 
   // 追加の入力項目用ステート
-  const [structEval, setStructEval] = useState('');    // ① 構造度評価 (F3)
+  const [structEval, setStructEval] = useState('');    // ① 形状評価 (F3)
   const [impactEval, setImpactEval] = useState('');    // ② 影響評価 (I3)
   const [totalEval, setTotalEval] = useState('');     // 総合評価 (L3)
   const [prevYearEval, setPrevYearEval] = useState(''); // 前年度評価 (Q3)
@@ -3940,7 +3940,7 @@ if (mode === 'exist_select') return (
             <div className="border-r border-b border-slate-900 p-2">初年度</div>
             <div className="border-r border-b border-slate-900 p-2">{previousYearLabel}</div>
             <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">状況説明</div>
-            <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">構造</div>
+            <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">形状</div>
             <div className="border-r border-b border-slate-900 bg-blue-700 p-2 text-white">影響</div>
             <div className="border-b border-slate-900 bg-blue-700 p-2 text-white flex items-center justify-center gap-1">
               <span>総合評価</span>
@@ -7199,10 +7199,10 @@ if (mode === 'inclination_menu') {
     評価区分
   </div>
 
-  {/* ① 構造度評価 */}
+  {/* ① 形状評価 */}
   <div className="col-span-2 border-r border-slate-800 bg-white p-1">
     <div className="text-[9px] text-black mb-1">
-      ① 構造度評価
+      ① 形状評価
     </div>
 
     <select

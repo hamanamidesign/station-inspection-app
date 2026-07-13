@@ -3,7 +3,7 @@
 // applyPhotoKarteEvalFontColors_(sheet, data); を呼び出してください。
 //
 // ルール:
-// - ① 構造度評価(F3): 常に黒
+// - ① 形状評価(F3): 常に黒
 // - 総合評価(L3): AA / A1 / A2 / B のとき赤、それ以外は黒
 // - 初回カルテ番号(D8): MS Mincho（ＭＳ 明朝）、8pt
 

@@ -10,6 +10,8 @@ var INSPECTION_SUMMARY_START_COLUMN_ = 2; // B
 var INSPECTION_SUMMARY_COLUMN_COUNT_ = 28; // B:AC
 var INSPECTION_SUMMARY_BLUE_ = "#9dc3e6";
 var INSPECTION_SUMMARY_SAME_FILL_ = "#d9eaf7";
+var INSPECTION_SUMMARY_FIRST_PAGE_FOOTER_POSITION_RATIO_ = 0.64;
+var INSPECTION_SUMMARY_FOLLOWING_PAGE_FOOTER_POSITION_RATIO_ = 0.66;
 
 function uploadInspectionSummary(data) {
   var ss = SpreadsheetApp.openById(data.spreadsheetId);
@@ -23,8 +25,6 @@ function uploadInspectionSummary(data) {
   var reportCount = Math.max(0, Number(data.reportInspectionCount) || 0);
   var slopeCount = Math.max(0, Number(data.slopeInspectionCount) || 0);
   var totalCount = reportCount + slopeCount;
-  var footerTopHeight = null;
-
   writeInspectionSummaryHeader_(sheet, data, totalCount, reportCount, slopeCount);
   clearInspectionSummaryBody_(sheet);
 
@@ -483,26 +483,32 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
       row = renderInspectionSummaryPdfItem_(pageSheet, row, item);
     });
 
-    var footerRow;
-    if (pageIndex === 0) {
-      // 位置が確定している1ページ目を、全ページ共通のフッター上端位置にする。
-      footerRow = Math.max(row, 22);
-      ensureInspectionSummaryRows_(pageSheet, footerRow);
-      footerTopHeight = getInspectionSummaryRowsHeight_(pageSheet, 1, footerRow - 1);
-    } else {
-      var usedHeight = getInspectionSummaryRowsHeight_(pageSheet, 1, row - 1);
-      var spacerHeight = Math.max(0, Math.round(footerTopHeight - usedHeight));
-
-      // Google Sheetsの1行の最大高を考慮し、必要なら複数の空白行で下端まで埋める。
-      while (spacerHeight >= 2) {
-        ensureInspectionSummaryRows_(pageSheet, row);
-        var currentSpacerHeight = Math.min(spacerHeight, 400);
-        pageSheet.setRowHeight(row, currentSpacerHeight);
-        spacerHeight -= currentSpacerHeight;
-        row += 1;
-      }
-      footerRow = row;
+    // PDFは横幅フィットで縮小されるため、列幅に比例させることで
+    // 現場ごとにマスタの列幅が異なってもPDF上の縦位置を一定にする。
+    var pdfSheetWidth = getInspectionSummaryColumnsWidth_(pageSheet, 1, 29);
+    var footerPositionRatio = pageIndex === 0
+      ? INSPECTION_SUMMARY_FIRST_PAGE_FOOTER_POSITION_RATIO_
+      : INSPECTION_SUMMARY_FOLLOWING_PAGE_FOOTER_POSITION_RATIO_;
+    var footerPositionOffset = pageIndex === 0 ? 30 : 18;
+    var footerTopHeight = Math.round(pdfSheetWidth * footerPositionRatio) + footerPositionOffset;
+    var usedHeight = getInspectionSummaryRowsHeight_(pageSheet, 1, row - 1);
+    var spacerHeight = Math.round(footerTopHeight - usedHeight);
+    if (spacerHeight < 0) {
+      throw new Error(
+        "点検結果総括表の" + (pageIndex + 1) +
+        "ページ目で本文がフッターの固定位置を超えています"
+      );
     }
+
+    // 内容量に関係なく、用紙上端から同じ高さにフッターを固定する。
+    while (spacerHeight >= 2) {
+      ensureInspectionSummaryRows_(pageSheet, row);
+      var currentSpacerHeight = Math.min(spacerHeight, 400);
+      pageSheet.setRowHeight(row, currentSpacerHeight);
+      spacerHeight -= currentSpacerHeight;
+      row += 1;
+    }
+    var footerRow = row;
     ensureInspectionSummaryRows_(pageSheet, footerRow);
     var footerRange = mergeInspectionSummaryRange_(pageSheet, footerRow, 2, 29);
     setInspectionSummaryValue_(
@@ -526,6 +532,14 @@ function getInspectionSummaryRowsHeight_(sheet, startRow, endRow) {
   return height;
 }
 
+function getInspectionSummaryColumnsWidth_(sheet, startColumn, endColumn) {
+  var width = 0;
+  for (var column = startColumn; column <= endColumn; column += 1) {
+    width += sheet.getColumnWidth(column);
+  }
+  return width;
+}
+
 function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   var pages = [[]];
 
@@ -535,7 +549,8 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
 
   function capacity_() {
     // PDFの横幅フィットによる縮小を考慮した、本文の行高合計上限（ポイント）。
-    return pages.length === 1 ? 430 : 560;
+    // リスト行（38ポイント）を従来より約4段多く収める。
+    return pages.length === 1 ? 582 : 712;
   }
 
   function itemHeight_(item) {

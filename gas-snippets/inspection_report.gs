@@ -186,6 +186,7 @@ function uploadInspectionReport(data) {
   sheet.getRange("A1").setNumberFormat("@").setValue(buildInspectionReportTitle_(data.year));
   applyInspectionReportLayoutSettings_(sheet);
   applyInspectionReportCurrentYearHeader_(sheet, data.year);
+  sheet.getRange("O8").setValue("形状");
   applyInspectionReportHeaderWraps_(sheet);
 
   const startRow = 9;
