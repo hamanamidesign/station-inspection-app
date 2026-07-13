@@ -234,6 +234,7 @@ function uploadInspectionReport(data) {
 
   applyInspectionReportDefaultFontColors_(sheet, startRow, rows.length);
   applyInspectionReportEvalFontColors_(sheet, startRow, rows);
+  applyInspectionReportBlankCellSparklines_(sheet, startRow, rows);
 
   SpreadsheetApp.flush();
   applyInspectionReportEstimatedRowHeights_(sheet, startRow, rows.length);
@@ -265,6 +266,31 @@ function inspectionReportRowHasValue_(row) {
 
 function inspectionReportText_(value) {
   return value === null || value === undefined ? "" : String(value);
+}
+
+function applyInspectionReportBlankCellSparklines_(sheet, startRow, rows) {
+  const targets = [
+    { column: 1, field: "buildingName" },
+    { column: 3, field: "inspectionPlace" },
+    { column: 5, field: "photoNo" },
+    { column: 6, field: "finishType" },
+    { column: 7, field: "firstSituation" },
+    { column: 10, field: "firstEval" },
+    { column: 11, field: "previousYearEval" },
+    { column: 12, field: "currentSituation" },
+    { column: 15, field: "structEval" },
+    { column: 16, field: "impactEval" },
+    { column: 17, field: "totalEval" },
+  ];
+  const diagonalFormula = '=SPARKLINE({0,1},{"charttype","line";"linewidth",1;"color","#b7b7b7";"ymin",0;"ymax",1})';
+
+  rows.forEach((row, rowIndex) => {
+    targets.forEach(target => {
+      if (!String(row[target.field] || "").trim()) {
+        sheet.getRange(startRow + rowIndex, target.column).setFormula(diagonalFormula);
+      }
+    });
+  });
 }
 
 function buildInspectionReportYearLabel_(year) {

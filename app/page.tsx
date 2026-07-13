@@ -3999,21 +3999,27 @@ if (mode === 'exist_select') return (
 
               return (
                 <div key={row.id} className="grid min-h-8 grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] border-b border-slate-300 last:border-b-0">
-                  {cells.map(cell =>
-                    cell.editable ? (
+                  {cells.map(cell => {
+                    const isBlank = !String(row[cell.field] || '').trim();
+                    const blankCellStyle = isBlank
+                      ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 0.5px), #b7b7b7 50%, transparent calc(50% + 0.5px))' }
+                      : undefined;
+
+                    return cell.editable ? (
                       <textarea
                         key={cell.field}
                         className="min-h-8 resize-y border-r border-slate-300 bg-white p-1.5 text-left text-[13px] outline-none focus:bg-yellow-50"
+                        style={blankCellStyle}
                         value={row[cell.field]}
                         onChange={e => updateInspectionReportRow(row.id, cell.field, e.target.value)}
                         rows={2}
                       />
                     ) : (
-                      <div key={cell.field} className={`flex items-center justify-center border-r border-slate-300 p-1.5 text-center last:border-r-0 whitespace-pre-wrap break-words ${getInspectionReportEvalClass(cell.field, row[cell.field])}`}>
+                      <div key={cell.field} style={blankCellStyle} className={`flex items-center justify-center border-r border-slate-300 p-1.5 text-center last:border-r-0 whitespace-pre-wrap break-words ${getInspectionReportEvalClass(cell.field, row[cell.field])}`}>
                         {renderInspectionReportCellValue(cell.field, row[cell.field])}
                       </div>
-                    )
-                  )}
+                    );
+                  })}
                 </div>
               );
             })}
