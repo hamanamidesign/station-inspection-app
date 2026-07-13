@@ -811,6 +811,14 @@ const appendCompletionLabel = (value: unknown) => {
   return `${text}\n［完了］`;
 };
 
+const stripCompletionLabel = (value: unknown) =>
+  String(value || '').replace(/\n[　 ]*［完了］\s*$/, '').trimEnd();
+
+const hasCompletionLabel = (value: unknown) => {
+  const text = String(value || '');
+  return /［完了］\s*$/.test(text) || isCompletedRepairSituation(text);
+};
+
 const createCompletionStampBase64 = () => {
   const scale = 2;
   const width = 144;
@@ -4071,6 +4079,35 @@ if (mode === 'exist_select') return (
                     const blankCellStyle = inspectionReportBlankSlashesEnabled && isBlank
                       ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 0.5px), #b7b7b7 50%, transparent calc(50% + 0.5px))' }
                       : undefined;
+
+                    if (cell.field === 'currentSituation') {
+                      const situationBody = stripCompletionLabel(row.currentSituation);
+                      const showCompletionLabel = hasCompletionLabel(row.currentSituation);
+
+                      return (
+                        <div
+                          key={cell.field}
+                          className="flex min-h-8 flex-col border-r border-slate-300 bg-white focus-within:bg-yellow-50"
+                          style={blankCellStyle}
+                        >
+                          <textarea
+                            className="min-h-8 flex-1 resize-y bg-transparent p-1.5 pb-0 text-left text-[13px] outline-none"
+                            value={situationBody}
+                            onChange={e => updateInspectionReportRow(
+                              row.id,
+                              cell.field,
+                              appendCompletionLabel(e.target.value)
+                            )}
+                            rows={2}
+                          />
+                          {showCompletionLabel && (
+                            <div className="px-1.5 pb-1.5 text-right text-[13px] text-blue-600">
+                              ［完了］
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
 
                     return cell.editable ? (
                       <textarea
