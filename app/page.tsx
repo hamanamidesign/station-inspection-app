@@ -802,6 +802,21 @@ const inspectionReportRowHasValue = (row: InspectionReportRow) =>
 const isSameAsPreviousSituation = (value: unknown) =>
   String(value || '').includes('前回と同じ');
 
+const appendObservationNoteToPhotoSituation = (currentValue: unknown, firstValue: unknown) => {
+  const currentSituation = String(currentValue || '').trim();
+  const firstSituation = String(firstValue || '').trim();
+  const observationNote = '（経過観察）';
+
+  if (!currentSituation || currentSituation.endsWith(observationNote)) return currentSituation;
+
+  const matchesFirstSituation = !!firstSituation && currentSituation === firstSituation;
+  if (!matchesFirstSituation && !isSameAsPreviousSituation(currentSituation)) {
+    return currentSituation;
+  }
+
+  return `${currentSituation}${observationNote}`;
+};
+
 const getInspectionSummarySituationText = (row: Pick<InspectionReportRow, 'firstSituation' | 'currentSituation'>) =>
   isSameAsPreviousSituation(row.currentSituation) ? row.firstSituation : row.currentSituation;
 
@@ -2592,6 +2607,10 @@ const firstPhotoDataList = await Promise.all(
 
       const validFirstPhotos = firstPhotoDataList.filter(Boolean);
 
+      const photoSituation = actionType === "uploadKarte"
+        ? appendObservationNoteToPhotoSituation(remarks2, firstSituation)
+        : remarks2;
+
       const payload = {
   isUpdate: isEditMode,
   spreadsheetId,
@@ -2617,7 +2636,7 @@ const firstPhotoDataList = await Promise.all(
   inspectionPlace,
   locationDetail,
   remarks1,
-  remarks2,
+  remarks2: photoSituation,
   remarks3,
   photoFiles: validPhotos,
   firstPhotoFiles: validFirstPhotos,
@@ -7721,7 +7740,8 @@ if (mode === 'inclination_menu') {
         className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
         placeholder="状況入力"
         value={remarks2} 
-        onChange={e => setRemarks2(e.target.value)} 
+        onChange={e => setRemarks2(e.target.value)}
+        onBlur={e => setRemarks2(appendObservationNoteToPhotoSituation(e.target.value, firstSituation))}
       />
     </div>
 
