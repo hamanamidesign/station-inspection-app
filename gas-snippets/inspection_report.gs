@@ -64,10 +64,7 @@ function getInspectionReportData(data) {
     firstSituation: useFirstSituationAsCurrent ? "" : firstSituation,
     firstEval: extractInspectionReportYear_(firstDate),
     previousYearEval: getInspectionReportCell_(values, 3, 17),
-    currentSituation: appendInspectionReportCompletion_(
-      appendInspectionReportObservation_(reportCurrentSituation, firstSituation),
-      currentSituationText
-    ),
+    currentSituation: appendInspectionReportCompletion_(reportCurrentSituation, currentSituationText),
     structEval: getInspectionReportCell_(values, 3, 6),
     impactEval: getInspectionReportCell_(values, 3, 9),
     totalEval: getInspectionReportCell_(values, 3, 12),
@@ -274,24 +271,6 @@ function inspectionReportRowHasValue_(row) {
 
 function inspectionReportText_(value) {
   return value === null || value === undefined ? "" : String(value);
-}
-
-function appendInspectionReportObservation_(currentValue, firstValue) {
-  const currentSituation = String(currentValue || "").trim();
-  const firstSituation = String(firstValue || "").trim();
-  const observationNote = "（経過観察）";
-
-  if (!currentSituation) return currentSituation;
-  if (currentSituation.endsWith(observationNote)) {
-    const situationWithoutNote = currentSituation.slice(0, -observationNote.length).trimEnd();
-    return situationWithoutNote ? situationWithoutNote + "\n" + observationNote : observationNote;
-  }
-
-  const matchesFirstSituation = !!firstSituation && currentSituation === firstSituation;
-  const saysSameAsPrevious = /前回(?:と(?:同じ|おなじ|同様)|同様)/.test(currentSituation);
-  if (!matchesFirstSituation && !saysSameAsPrevious) return currentSituation;
-
-  return currentSituation + "\n" + observationNote;
 }
 
 function appendInspectionReportCompletion_(value, completionSource) {
