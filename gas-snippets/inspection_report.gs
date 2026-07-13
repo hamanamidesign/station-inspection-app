@@ -237,7 +237,9 @@ function uploadInspectionReport(data) {
 
   applyInspectionReportDefaultFontColors_(sheet, startRow, rows.length);
   applyInspectionReportEvalFontColors_(sheet, startRow, rows);
-  applyInspectionReportBlankCellSparklines_(sheet, startRow, rows);
+  if (data.blankSlashesEnabled === true) {
+    applyInspectionReportBlankCellSparklines_(sheet, startRow, rows);
+  }
 
   SpreadsheetApp.flush();
   applyInspectionReportEstimatedRowHeights_(sheet, startRow, rows.length);

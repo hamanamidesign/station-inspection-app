@@ -1502,8 +1502,8 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
     completionStampImage
       .setWidth(72)
       .setHeight(32)
-      .setAnchorCellXOffset(25)
-      .setAnchorCellYOffset(25);
+      .setAnchorCellXOffset(50)
+      .setAnchorCellYOffset(55);
     if (typeof completionStampImage.setAltTextTitle === "function") {
       completionStampImage.setAltTextTitle("完了スタンプ");
     }

@@ -1187,6 +1187,7 @@ useEffect(() => {
   const [inspectList, setInspectList] = useState<string[]>([]);
   const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
   const [inspectionReportRows, setInspectionReportRows] = useState<InspectionReportRow[]>(() => createEmptyInspectionReportRows());
+  const [inspectionReportBlankSlashesEnabled, setInspectionReportBlankSlashesEnabled] = useState(false);
   const [inspectionReportSort, setInspectionReportSort] = useState<{
     key: InspectionReportSortKey | null;
     direction: SortDirection;
@@ -3976,6 +3977,16 @@ if (mode === 'exist_select') return (
             <textarea className="min-h-10 resize-y px-2 py-3 text-center leading-5 outline-none" value={inspector} onChange={e => setInspector(e.target.value)} rows={2} />
           </div>
 
+          <div className="mb-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setInspectionReportBlankSlashesEnabled(enabled => !enabled)}
+              className={`rounded-xl border-2 px-5 py-2.5 text-sm font-black shadow-sm active:scale-95 ${inspectionReportBlankSlashesEnabled ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-700 bg-white text-slate-800'}`}
+            >
+              {inspectionReportBlankSlashesEnabled ? '空欄の斜線を消す' : '空欄に斜線を入れる'}
+            </button>
+          </div>
+
           <div className="overflow-hidden border-2 border-slate-800 bg-white shadow-sm">
           <div className="grid grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] bg-slate-100 text-center font-bold">
             <div className="row-span-2 border-r border-b border-slate-900 p-2 flex items-center justify-center gap-1">
@@ -4033,7 +4044,7 @@ if (mode === 'exist_select') return (
                 <div key={row.id} className="grid min-h-8 grid-cols-[100px_120px_60px_120px_2fr_80px_80px_2fr_72px_72px_88px] border-b border-slate-300 last:border-b-0">
                   {cells.map(cell => {
                     const isBlank = !String(row[cell.field] || '').trim();
-                    const blankCellStyle = isBlank
+                    const blankCellStyle = inspectionReportBlankSlashesEnabled && isBlank
                       ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 0.5px), #b7b7b7 50%, transparent calc(50% + 0.5px))' }
                       : undefined;
 
@@ -4623,6 +4634,7 @@ async function sendInspectionReport() {
       contractor,
       inspectDate: formatSheetDateListText(inspectDate),
       inspector,
+      blankSlashesEnabled: inspectionReportBlankSlashesEnabled,
       rows: rows.map(row => ({
         ...row,
         evalFontColors: {
@@ -4706,6 +4718,7 @@ async function loadInspectionReport() {
   setFirstInspector("");
   setInspector("");
   setInspectionReportRows(createEmptyInspectionReportRows());
+  setInspectionReportBlankSlashesEnabled(false);
   setIsLoading(true);
 
   try {
