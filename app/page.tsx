@@ -5503,7 +5503,7 @@ const formatSizeDetailValue = (value: string) => {
 };
 
 if (mode === 'slope_table') {
-  const slopeGridColumns = '78px 64px 58px 170px 54px 82px 54px 82px 54px 82px 54px 82px 90px';
+  const slopeGridColumns = '78px 64px 58px 170px 54px 82px 54px 82px 54px 82px 54px 82px 180px';
   const isFirstInspection = areSameInspectionDates(firstDate, inspectDate);
   const displayedInspectDate = isFirstInspection ? '' : inspectDate;
 
