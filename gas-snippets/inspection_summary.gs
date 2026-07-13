@@ -319,7 +319,7 @@ function writeInspectionSummaryReportRow_(sheet, row, item) {
 }
 
 function isInspectionSummarySameAsPreviousSituation_(value) {
-  return String(value || "").indexOf("前回と同じ") >= 0;
+  return /前回(?:と(?:同じ|おなじ|同様)|同様)/.test(String(value || ""));
 }
 
 function getInspectionSummarySituationText_(item) {
@@ -365,7 +365,7 @@ function writeInspectionSummarySlopeRow_(sheet, row, item) {
     if (cell[0] === 20 && (sameEw || sameNs)) {
       range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
     }
-    if (cell[0] === 20 && String(cell[2]).indexOf("前回と同じ") >= 0) {
+    if (cell[0] === 20 && isInspectionSummarySameAsPreviousSituation_(cell[2])) {
       range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
     }
     setInspectionSummaryTableBorder_(range);

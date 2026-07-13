@@ -800,7 +800,7 @@ const inspectionReportRowHasValue = (row: InspectionReportRow) =>
   ].some(value => String(value || '').trim());
 
 const isSameAsPreviousSituation = (value: unknown) =>
-  String(value || '').includes('前回と同じ');
+  /前回(?:と(?:同じ|おなじ|同様)|同様)/.test(String(value || ''));
 
 const isCompletedRepairSituation = (value: unknown) =>
   /(?:補修済み?|改修済み?)/.test(String(value || ''));
@@ -3876,7 +3876,7 @@ if (mode === 'exist_select') return (
               {rows.map((row, rowIndex) => (
                 <div key={rowIndex} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: widths }}>
                   {row.map((value, columnIndex) => (
-                    <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'} ${(columnIndex === row.length - 1 && value.includes('前回と同じ')) || highlightCells?.[rowIndex]?.[columnIndex] ? 'bg-[#d9eaf7]' : ''}`}>
+                    <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === row.length - 1 ? 'justify-start text-left' : 'justify-center text-center'} ${(columnIndex === row.length - 1 && isSameAsPreviousSituation(value)) || highlightCells?.[rowIndex]?.[columnIndex] ? 'bg-[#d9eaf7]' : ''}`}>
                       {value}
                     </div>
                   ))}
