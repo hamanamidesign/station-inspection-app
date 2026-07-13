@@ -1141,6 +1141,14 @@ useEffect(() => {
   const [remarks1, setRemarks1] = useState('');
   const [remarks2, setRemarks2] = useState('');
   const [remarks3, setRemarks3] = useState('');
+
+  useEffect(() => {
+    if (mode !== 'karte_edit') return;
+
+    const nextSituation = appendObservationNoteToPhotoSituation(remarks2, firstSituation);
+    if (nextSituation !== remarks2) setRemarks2(nextSituation);
+  }, [mode, remarks2, firstSituation]);
+
   const [photos, setPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [firstPhotos, setFirstPhotos] = useState<(string | null)[]>(Array(4).fill(null));
   const [pdfSheets, setPdfSheets] = useState<PdfSheetGroups>({ cover: [], photo: [], photoPositionMap: [], inspectionSummary: [], slope: [], inclination: [], inspectionReport: [] });
@@ -3274,9 +3282,7 @@ const deleteUnavailableKarteNumber = async (no: string) => {
           {isMergingPdfs
             ? 'すべての資料を結合しています...'
             : isSending
-              ? mode === 'karte_edit' && appendObservationNoteToPhotoSituation(remarks2, firstSituation).endsWith('（経過観察）')
-                ? '（経過観察）を反映しています...'
-                : '保存しています...'
+              ? '保存しています...'
               : isSummaryLoading
                 ? '点検結果を集計しています...'
                 : '読み込んでいます...'}
@@ -7747,7 +7753,6 @@ if (mode === 'inclination_menu') {
         placeholder="状況入力"
         value={remarks2} 
         onChange={e => setRemarks2(e.target.value)}
-        onBlur={e => setRemarks2(appendObservationNoteToPhotoSituation(e.target.value, firstSituation))}
       />
     </div>
 
