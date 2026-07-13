@@ -344,10 +344,12 @@ function writeSlopeValue_(sheet, a1, value, compareValue, style, isNumberCell) {
 
   range.setFontColor("#000000");
 
-  if (style && style.backgroundColor) {
+  if (compareValue !== undefined) {
+    range.setBackground(
+      inclinationValuesHaveSignificantDifference_(compareValue, text) ? "#d1d5db" : "#ffffff"
+    );
+  } else if (style && style.backgroundColor) {
     range.setBackground(style.backgroundColor);
-  } else if (compareValue !== undefined && inclinationText_(compareValue).trim() !== text.trim()) {
-    range.setBackground("#d1d5db");
   } else {
     range.setBackground("#ffffff");
   }
@@ -371,6 +373,18 @@ function inclinationNumberCellValue_(value) {
 
   const number = Number(text);
   return Number.isFinite(number) ? number : text;
+}
+
+function inclinationValuesHaveSignificantDifference_(firstValue, currentValue) {
+  const firstText = inclinationText_(firstValue).trim();
+  const currentText = inclinationText_(currentValue).trim();
+  if (firstText === "" || currentText === "") return false;
+
+  const firstNumber = Number(firstText);
+  const currentNumber = Number(currentText);
+  if (!Number.isFinite(firstNumber) || !Number.isFinite(currentNumber)) return false;
+
+  return Number(Math.abs(currentNumber - firstNumber).toFixed(1)) >= 2;
 }
 
 function getInclinationCellStyle_(row, field) {

@@ -368,10 +368,10 @@ function slopeValuesAreDifferent_(firstValue, currentValue) {
   const firstNumber = Number(firstText);
   const currentNumber = Number(currentText);
   if (Number.isFinite(firstNumber) && Number.isFinite(currentNumber)) {
-    return firstNumber !== currentNumber;
+    return Number(Math.abs(currentNumber - firstNumber).toFixed(1)) >= 2;
   }
 
-  return firstText !== currentText;
+  return false;
 }
 
 function slopeNumberCellValue_(value) {

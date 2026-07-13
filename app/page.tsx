@@ -5084,10 +5084,10 @@ const hasSlopeValueDiff = (firstValue: string, currentValue: string) => {
   const firstNumber = Number(firstValue);
   const currentNumber = Number(currentValue);
   if (Number.isFinite(firstNumber) && Number.isFinite(currentNumber)) {
-    return firstNumber !== currentNumber;
+    return Number(Math.abs(currentNumber - firstNumber).toFixed(1)) >= 2;
   }
 
-  return firstValue.trim() !== currentValue.trim();
+  return false;
 };
 
 const hasSlopeDiff = (row: SlopeTableRow, direction: 'ew' | 'ns') => {
@@ -5118,15 +5118,15 @@ const getSlopeNoteValue = (row: SlopeTableRow) => {
     },
   ].filter((item): item is { direction: string; difference: number } => item.difference !== null);
 
-  const changedComparisons = comparisons.filter(item => item.difference > 2);
+  const changedComparisons = comparisons.filter(item => item.difference >= 2);
   if (changedComparisons.length > 0) {
     return [
       ...changedComparisons.map(item => `（${item.direction}　${item.difference.toFixed(1)}）`),
-      '（変化あり）',
+      '変化あり',
     ].join('\n');
   }
 
-  if (comparisons.length > 0 && comparisons.every(item => item.difference <= 2)) {
+  if (comparisons.length > 0 && comparisons.every(item => item.difference < 2)) {
     return '＊変化なし';
   }
 
@@ -5748,7 +5748,11 @@ if (mode === 'slope_table') {
                   rows={2}
                   value={noteValue}
                   onChange={e => updateSlopeRow(row.id, 'note', e.target.value)}
-                  readOnly={noteValue === '＊変化なし' || noteValue.includes('（変化あり）')}
+                  readOnly={
+                    noteValue === '＊変化なし' ||
+                    noteValue === '変化あり' ||
+                    noteValue.endsWith('\n変化あり')
+                  }
                   placeholder="備考"
                 />
               </div>
