@@ -807,14 +807,18 @@ const appendObservationNoteToPhotoSituation = (currentValue: unknown, firstValue
   const firstSituation = String(firstValue || '').trim();
   const observationNote = '（経過観察）';
 
-  if (!currentSituation || currentSituation.endsWith(observationNote)) return currentSituation;
+  if (!currentSituation) return currentSituation;
+  if (currentSituation.endsWith(observationNote)) {
+    const situationWithoutNote = currentSituation.slice(0, -observationNote.length).trimEnd();
+    return situationWithoutNote ? `${situationWithoutNote}\n${observationNote}` : observationNote;
+  }
 
   const matchesFirstSituation = !!firstSituation && currentSituation === firstSituation;
   if (!matchesFirstSituation && !isSameAsPreviousSituation(currentSituation)) {
     return currentSituation;
   }
 
-  return `${currentSituation}${observationNote}`;
+  return `${currentSituation}\n${observationNote}`;
 };
 
 const getInspectionSummarySituationText = (row: Pick<InspectionReportRow, 'firstSituation' | 'currentSituation'>) =>
@@ -3270,7 +3274,9 @@ const deleteUnavailableKarteNumber = async (no: string) => {
           {isMergingPdfs
             ? 'すべての資料を結合しています...'
             : isSending
-              ? '保存しています...'
+              ? mode === 'karte_edit' && appendObservationNoteToPhotoSituation(remarks2, firstSituation).endsWith('（経過観察）')
+                ? '（経過観察）を反映しています...'
+                : '保存しています...'
               : isSummaryLoading
                 ? '点検結果を集計しています...'
                 : '読み込んでいます...'}
