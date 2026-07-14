@@ -1233,6 +1233,8 @@ useEffect(() => {
   }>({ key: null, direction: 'asc' });
   const [coverDateStatus, setCoverDateStatus] = useState('');
   const pulldownListsLoadedRef = useRef(false);
+  const inspectorRegistrationsRef = useRef<InspectorRegistration[]>([]);
+  const skipNextPhotoKarteMasterDatesLoadRef = useRef(false);
   const existingDataLoadedRouteRef = useRef('');
   const existingDataRef = useRef<ExistingStation[]>([]);
   const existingDataLoadingRouteRef = useRef('');
@@ -1620,12 +1622,26 @@ const loadCoverInspectionDate = useCallback(async () => {
 }, [selectedRoute, stationName, selectedYear, fetchInspectionListDates, applyInspectionListDates]);
 
 const loadPulldownLists = useCallback(async () => {
-  if (pulldownListsLoadedRef.current) return;
+  if (pulldownListsLoadedRef.current) return inspectorRegistrationsRef.current;
 
   try {
     const result = await gasApi("getPulldownLists");
 
     if (result.success) {
+      const registrations: InspectorRegistration[] = Array.isArray(result.inspectorRegistrations)
+        ? result.inspectorRegistrations.map((item: unknown) => {
+            const record = toRecord(item);
+            return {
+              routeName: String(record.routeName || ''),
+              year: String(record.year || ''),
+              contractor: String(record.contractor || ''),
+              inspectors: Array.isArray(record.inspectors)
+                ? record.inspectors.map((name: unknown) => String(name || '').trim()).filter(Boolean)
+                : [],
+            };
+          })
+        : [];
+
       setBuildingCategoryOptions(
         Array.isArray(result.buildingCategories) ? result.buildingCategories : []
       );
@@ -1642,27 +1658,17 @@ const loadPulldownLists = useCallback(async () => {
           ? result.checkItemsByPlace
           : {}
       );
-      setInspectorRegistrations(
-        Array.isArray(result.inspectorRegistrations)
-          ? result.inspectorRegistrations.map((item: unknown) => {
-              const record = toRecord(item);
-              return {
-                routeName: String(record.routeName || ''),
-                year: String(record.year || ''),
-                contractor: String(record.contractor || ''),
-                inspectors: Array.isArray(record.inspectors)
-                  ? record.inspectors.map((name: unknown) => String(name || '').trim()).filter(Boolean)
-                  : [],
-              };
-            })
-          : []
-      );
+      setInspectorRegistrations(registrations);
+      inspectorRegistrationsRef.current = registrations;
 
       pulldownListsLoadedRef.current = true;
+      return registrations;
     }
   } catch (e) {
     console.error(e);
   }
+
+  return inspectorRegistrationsRef.current;
 }, []);
 
 
@@ -1750,6 +1756,10 @@ useEffect(() => {
 
 useEffect(() => {
   if (mode === 'karte_edit') {
+    if (skipNextPhotoKarteMasterDatesLoadRef.current) {
+      skipNextPhotoKarteMasterDatesLoadRef.current = false;
+      return;
+    }
     loadPhotoKarteMasterDates();
     return;
   }
@@ -2601,16 +2611,61 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
 
   setIsLoading(true);
   try {
-const result = await gasApi("getKarteData", {
-  spreadsheetId,
-  karteNo: no,
-  station: stationName,
-  year: selectedYear,
-  routeFolderId,
-});
+    const [result, registrations, masterDates] = await Promise.all([
+      gasApi("getKarteData", {
+        spreadsheetId,
+        karteNo: no,
+        station: stationName,
+        year: selectedYear,
+        routeFolderId,
+      }),
+      loadPulldownLists(),
+      fetchInspectionListDates().catch(error => {
+        console.warn("写真カルテ用の日付取得に失敗しました", error);
+        return null;
+      }),
+    ]);
     
     if (result.success) {
-      applyPhotoKarteData(toRecord(result.data), true);
+      const data = toRecord(result.data);
+      const registration = registrations.find(item =>
+        normalizeMasterKey(item.routeName) === normalizeMasterKey(selectedRoute) &&
+        String(item.year).trim() === String(selectedYear).trim()
+      );
+      const loadedInspector = getRecordText(data, ['inspector']);
+      const resolvedInspector = registration
+        ? registration.inspectors.includes(loadedInspector)
+          ? loadedInspector
+          : registration.inspectors[0] || loadedInspector
+        : loadedInspector;
+      const currentPhotos = normalizePhotoArray(
+        data,
+        ['photos', 'photoUrls', 'currentPhotos', 'currentPhotoUrls', 'latestPhotos', 'latestPhotoUrls', 'photoFiles'],
+        ['photo', 'currentPhoto', 'latestPhoto']
+      );
+      const hasCurrentPhoto = currentPhotos.some(photo => Boolean(photo));
+      const loadedFirstDate = formatSheetDateText(data.firstDate);
+      const completeData: Record<string, unknown> = {
+        ...data,
+        contractor: registration?.contractor || data.contractor || '',
+        inspector: resolvedInspector,
+      };
+
+      if (masterDates) {
+        completeData.firstDate = hasCurrentPhoto
+          ? loadedFirstDate || masterDates.firstDates[0] || ''
+          : masterDates.inspectDate || '';
+        completeData.inspectDate = hasCurrentPhoto ? masterDates.inspectDate || '' : '';
+        setPhotoKarteMasterDates({
+          firstDates: masterDates.firstDates,
+          inspectDate: masterDates.inspectDate || '',
+        });
+        if (masterDates.stationNo) setStationNo(masterDates.stationNo);
+      }
+
+      if (registration) setInspectorOptions(registration.inspectors);
+      skipNextPhotoKarteMasterDatesLoadRef.current = true;
+      applyPhotoKarteData(completeData, true);
     }
   } catch (e) {
     alert("読み込みエラーが発生しました");
