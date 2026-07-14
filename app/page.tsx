@@ -440,7 +440,26 @@ const getScaledImageSize = (width: number, height: number, maxPixels: number) =>
 };
 
 const MAP_OUTPUT_MAX_PIXELS = 2500000;
-const MAP_OUTPUT_MAX_DATA_URL_LENGTH = 3200000;
+const MAP_OUTPUT_MAX_BYTES = 1850000;
+
+const getDataUrlByteSize = (dataUrl: string) => {
+  const base64 = dataUrl.split(',')[1] || '';
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor(base64.length * 3 / 4) - padding);
+};
+
+const createScaledCanvas = (source: HTMLCanvasElement, scale: number) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(source.width * scale));
+  canvas.height = Math.max(1, Math.round(source.height * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('位置図画像を縮小できませんでした');
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
+};
 
 const getCanvasDataUrlUnderLimit = (
   canvas: HTMLCanvasElement,
@@ -458,11 +477,34 @@ const getCanvasDataUrlUnderLimit = (
   return dataUrl;
 };
 
+const getCanvasMapJpegDataUrlUnderLimit = (
+  canvas: HTMLCanvasElement,
+  maxBytes: number
+) => {
+  const qualities = [0.95, 0.92, 0.88, 0.84, 0.8];
+  let workingCanvas = canvas;
+
+  for (let resizeAttempt = 0; resizeAttempt < 12; resizeAttempt += 1) {
+    for (const quality of qualities) {
+      const dataUrl = workingCanvas.toDataURL('image/jpeg', quality);
+      if (getDataUrlByteSize(dataUrl) <= maxBytes) return dataUrl;
+    }
+
+    workingCanvas = createScaledCanvas(workingCanvas, 0.88);
+  }
+
+  const fallbackDataUrl = workingCanvas.toDataURL('image/jpeg', 0.6);
+  if (getDataUrlByteSize(fallbackDataUrl) > maxBytes) {
+    throw new Error('位置図画像を2MB以内に調整できませんでした');
+  }
+  return fallbackDataUrl;
+};
+
 const getCanvasMapDataUrl = (canvas: HTMLCanvasElement) => {
   const pngDataUrl = canvas.toDataURL('image/png');
-  if (pngDataUrl.length <= MAP_OUTPUT_MAX_DATA_URL_LENGTH) return pngDataUrl;
+  if (getDataUrlByteSize(pngDataUrl) <= MAP_OUTPUT_MAX_BYTES) return pngDataUrl;
 
-  return getCanvasDataUrlUnderLimit(canvas, MAP_OUTPUT_MAX_DATA_URL_LENGTH, 0.92);
+  return getCanvasMapJpegDataUrlUnderLimit(canvas, MAP_OUTPUT_MAX_BYTES);
 };
 
 const getDataUrlMimeType = (dataUrl: string) =>

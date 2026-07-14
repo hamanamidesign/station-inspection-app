@@ -34,6 +34,9 @@ function uploadPhotos(data) {
     mimeType,
     fileName
   );
+  if (mapBlob.getBytes().length > 2000000) {
+    throw new Error("位置図画像が2MBを超えています。アプリを最新版に更新して再保存してください");
+  }
 
   const mapStartColumn = 4; // D列
   const mapStartRow = 3;
