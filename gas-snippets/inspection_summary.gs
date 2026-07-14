@@ -326,7 +326,7 @@ function getInspectionSummarySituationText_(item) {
   var text = isInspectionSummarySameAsPreviousSituation_(item.currentSituation)
     ? String(item.firstSituation || "")
     : String(item.currentSituation || "");
-  if (!text || !/済/.test(text) || /［完了］\s*$/.test(text)) return text;
+  if (!text || !/済み/.test(text) || /［完了］\s*$/.test(text)) return text;
   return text.trim() + "\n［完了］";
 }
 

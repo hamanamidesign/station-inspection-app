@@ -803,7 +803,7 @@ const isSameAsPreviousSituation = (value: unknown) =>
   /前回(?:と(?:同じ|おなじ|同様)|同様)/.test(String(value || ''));
 
 const isCompletedSituation = (value: unknown) =>
-  /済/.test(String(value || ''));
+  /済み/.test(String(value || ''));
 
 const appendCompletionLabel = (value: unknown) => {
   const text = String(value || '').trim();
