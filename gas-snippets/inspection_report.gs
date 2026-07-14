@@ -35,6 +35,8 @@ function getInspectionReportData(data) {
     const firstDate = getInspectionReportCell_(values, 5, 6);
     const firstInspector = getInspectionReportCell_(values, 6, 6);
     const inspector = getInspectionReportCell_(values, 6, 18) || firstInspector;
+    const firstFinish = getInspectionReportCell_(values, 10, 10);
+    const currentFinish = getInspectionReportCell_(values, 10, 22);
     const firstSituation = joinInspectionReportText_(
       getInspectionReportCell_(values, 13, 10),
       getInspectionReportCell_(values, 16, 10)
@@ -60,7 +62,7 @@ function getInspectionReportData(data) {
       getInspectionReportCell_(values, 1, 17)
     ),
     photoNo: getInspectionReportCell_(values, 1, 4) || sheet.getName(),
-    finishType: getInspectionReportCell_(values, 10, 22),
+    finishType: currentFinish || firstFinish,
     firstSituation: useFirstSituationAsCurrent ? "" : firstSituation,
     firstEval: extractInspectionReportYear_(firstDate),
     previousYearEval: getInspectionReportCell_(values, 3, 17),
