@@ -1206,6 +1206,7 @@ useEffect(() => {
   const [remarks1, setRemarks1] = useState('');
   const [remarks2, setRemarks2] = useState('');
   const [remarks3, setRemarks3] = useState('');
+  const [completionStampRemoved, setCompletionStampRemoved] = useState(false);
 
   useEffect(() => {
     if (mode !== 'karte_edit') return;
@@ -1224,6 +1225,7 @@ useEffect(() => {
   const [inspectList, setInspectList] = useState<string[]>([]);
   const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
   const [inspectionReportRows, setInspectionReportRows] = useState<InspectionReportRow[]>(() => createEmptyInspectionReportRows());
+  const [hiddenInspectionReportCompletionIds, setHiddenInspectionReportCompletionIds] = useState<Set<number>>(() => new Set());
   const [inspectionReportBlankSlashesEnabled, setInspectionReportBlankSlashesEnabled] = useState(false);
   const [inspectionReportSort, setInspectionReportSort] = useState<{
     key: InspectionReportSortKey | null;
@@ -1368,6 +1370,16 @@ const updateInspectionReportRow = (
       row.id === rowId ? { ...row, [field]: value } : row
     )
   );
+};
+const removeInspectionReportCompletionLabel = (rowId: number) => {
+  setInspectionReportRows(rows =>
+    rows.map(row =>
+      row.id === rowId
+        ? { ...row, currentSituation: stripCompletionLabel(row.currentSituation) }
+        : row
+    )
+  );
+  setHiddenInspectionReportCompletionIds(ids => new Set(ids).add(rowId));
 };
 const sortInspectionReportRows = (key: InspectionReportSortKey) => {
   const direction: SortDirection =
@@ -1895,6 +1907,7 @@ const remainingUnsavedPhotoKarteCount = Math.max(0, UNSAVED_PHOTO_KARTE_LIMIT - 
   setRemarks1('');
   setRemarks2('');
   setRemarks3('');
+  setCompletionStampRemoved(false);
 
   // ★追加ここから
   const matched = existingData.find(
@@ -2558,6 +2571,7 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
   setRemarks1(getRecordText(d, ['remarks1', 'currentFinish', 'latestFinish']));
   setRemarks2(getRecordText(d, ['remarks2', 'currentSituation', 'latestSituation', 'situation']));
   setRemarks3(getRecordText(d, ['remarks3', 'currentDetail', 'latestDetail', 'detail']));
+  setCompletionStampRemoved(d.completionStampRemoved === true);
 
   setPhotos(normalizePhotoArray(
     d,
@@ -2699,7 +2713,7 @@ const firstPhotoDataList = await Promise.all(
       const photoSituation = actionType === "uploadKarte"
         ? appendObservationNoteToPhotoSituation(remarks2, firstSituation)
         : remarks2;
-      const completionStampBase64 = actionType === "uploadKarte" && isCompletedSituation(photoSituation)
+      const completionStampBase64 = actionType === "uploadKarte" && isCompletedSituation(photoSituation) && !completionStampRemoved
         ? createCompletionStampBase64()
         : '';
 
@@ -2730,6 +2744,7 @@ const firstPhotoDataList = await Promise.all(
   remarks1,
   remarks2: photoSituation,
   remarks3,
+  completionStampRemoved,
   completionStampBase64,
   photoFiles: validPhotos,
   firstPhotoFiles: validFirstPhotos,
@@ -4095,7 +4110,9 @@ if (mode === 'exist_select') return (
 
                     if (cell.field === 'currentSituation') {
                       const situationBody = stripCompletionLabel(row.currentSituation);
-                      const showCompletionLabel = hasCompletionLabel(row.currentSituation);
+                      const showCompletionLabel =
+                        !hiddenInspectionReportCompletionIds.has(row.id) &&
+                        hasCompletionLabel(row.currentSituation);
 
                       return (
                         <div
@@ -4106,16 +4123,36 @@ if (mode === 'exist_select') return (
                           <textarea
                             className="min-h-8 flex-1 resize-y bg-transparent p-1.5 pb-0 text-left text-[13px] outline-none"
                             value={situationBody}
-                            onChange={e => updateInspectionReportRow(
-                              row.id,
-                              cell.field,
-                              appendCompletionLabel(e.target.value)
-                            )}
+                            onChange={e => {
+                              const nextValue = e.target.value;
+                              const completionIsHidden = hiddenInspectionReportCompletionIds.has(row.id);
+                              updateInspectionReportRow(
+                                row.id,
+                                cell.field,
+                                completionIsHidden ? nextValue : appendCompletionLabel(nextValue)
+                              );
+                              if (completionIsHidden && !isCompletedSituation(nextValue)) {
+                                setHiddenInspectionReportCompletionIds(ids => {
+                                  const next = new Set(ids);
+                                  next.delete(row.id);
+                                  return next;
+                                });
+                              }
+                            }}
                             rows={2}
                           />
                           {showCompletionLabel && (
-                            <div className="px-1.5 pb-1.5 text-right text-[13px] text-blue-600">
+                            <div className="relative px-7 pb-1.5 pr-1.5 text-right text-[13px] text-blue-600">
                               ［完了］
+                              <button
+                                type="button"
+                                aria-label="完了表示を削除"
+                                title="完了表示を削除"
+                                onClick={() => removeInspectionReportCompletionLabel(row.id)}
+                                className="absolute right-0.5 top-[-8px] flex h-5 w-5 items-center justify-center rounded-full border border-white bg-red-600 text-[12px] font-black leading-none text-white shadow active:scale-90"
+                              >
+                                ×
+                              </button>
                             </div>
                           )}
                         </div>
@@ -4504,6 +4541,7 @@ const resetKarteFields = () => {
   setRemarks1('');
   setRemarks2('');
   setRemarks3('');
+  setCompletionStampRemoved(false);
 
   setFirstFinish('');
   setFirstSituation('');
@@ -4787,6 +4825,7 @@ async function loadInspectionReport() {
   setFirstInspector("");
   setInspector("");
   setInspectionReportRows(createEmptyInspectionReportRows());
+  setHiddenInspectionReportCompletionIds(new Set());
   setInspectionReportBlankSlashesEnabled(false);
   setIsLoading(true);
 
@@ -7829,7 +7868,10 @@ if (mode === 'inclination_menu') {
         className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400" 
         placeholder="状況入力"
         value={remarks2} 
-        onChange={e => setRemarks2(e.target.value)}
+        onChange={e => {
+          setRemarks2(e.target.value);
+          if (!isCompletedSituation(e.target.value)) setCompletionStampRemoved(false);
+        }}
       />
     </div>
 
@@ -7837,18 +7879,27 @@ if (mode === 'inclination_menu') {
     <div className="relative p-2 border border-slate-400 rounded bg-white">
       <label className="text-[9px] text-blue-700 block mb-1">サイズ、詳細</label>
       <textarea 
-        className={`w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400 ${isPhoto && isCompletedSituation(remarks2) ? 'pr-20' : ''}`}
+        className={`w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400 ${isPhoto && isCompletedSituation(remarks2) && !completionStampRemoved ? 'pr-20' : ''}`}
         placeholder="サイズ、詳細入力"
         value={remarks3} 
         onChange={e => setRemarks3(e.target.value)} 
         onBlur={e => setRemarks3(formatSizeDetailValue(e.target.value))}
       />
-      {isPhoto && isCompletedSituation(remarks2) && (
+      {isPhoto && isCompletedSituation(remarks2) && !completionStampRemoved && (
         <div
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border-2 border-red-600 px-3 py-1 text-[15px] font-bold leading-none text-red-600"
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border-2 border-red-600 px-3 py-1 text-[15px] font-bold leading-none text-red-600"
           style={{ fontFamily: '"MS Gothic", "ＭＳ ゴシック", sans-serif' }}
         >
           完了
+          <button
+            type="button"
+            aria-label="完了スタンプを削除"
+            title="完了スタンプを削除"
+            onClick={() => setCompletionStampRemoved(true)}
+            className="absolute -right-2.5 -top-2.5 flex h-5 w-5 items-center justify-center rounded-full border border-white bg-red-600 text-[12px] font-black leading-none text-white shadow active:scale-90"
+          >
+            ×
+          </button>
         </div>
       )}
     </div>

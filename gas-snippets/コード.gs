@@ -847,7 +847,8 @@ try {
       photos: photos,
       firstPhotos: firstPhotos,
       photoMarks: photoKarteEditorData.photoMarks || [[], [], [], []],
-      firstPhotoMarks: photoKarteEditorData.firstPhotoMarks || [[], [], [], []]
+      firstPhotoMarks: photoKarteEditorData.firstPhotoMarks || [[], [], [], []],
+      completionStampRemoved: photoKarteEditorData.completionStampRemoved === true
     };
 
     return createJsonResponse({
@@ -1530,6 +1531,7 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
     savePhotoKarteEditorData_(ss, newSheetName, {
       photoMarks: data.photoMarks || [[], [], [], []],
       firstPhotoMarks: data.firstPhotoMarks || [[], [], [], []],
+      completionStampRemoved: data.completionStampRemoved === true,
       updatedAt: new Date().toISOString(),
     });
   }
