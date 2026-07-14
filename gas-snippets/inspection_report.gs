@@ -338,7 +338,7 @@ function applyInspectionReportBlankCellSparklines_(sheet, startRow, rows) {
     { column: 16, field: "impactEval" },
     { column: 17, field: "totalEval" },
   ];
-  const diagonalFormula = '=SPARKLINE({0,1},{"charttype","line";"linewidth",1;"color","#b7b7b7";"ymin",0;"ymax",1})';
+  const diagonalFormula = '=SPARKLINE({0,1},{"charttype","line";"linewidth",1;"color","#888888";"ymin",0;"ymax",1})';
 
   rows.forEach((row, rowIndex) => {
     targets.forEach(target => {

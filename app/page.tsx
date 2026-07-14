@@ -4160,7 +4160,7 @@ if (mode === 'exist_select') return (
                   {cells.map(cell => {
                     const isBlank = !String(row[cell.field] || '').trim();
                     const blankCellStyle = inspectionReportBlankSlashesEnabled && isBlank
-                      ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 0.5px), #b7b7b7 50%, transparent calc(50% + 0.5px))' }
+                      ? { backgroundImage: 'linear-gradient(to bottom right, transparent calc(50% - 0.5px), #888888 50%, transparent calc(50% + 0.5px))' }
                       : undefined;
 
                     if (cell.field === 'currentSituation') {
