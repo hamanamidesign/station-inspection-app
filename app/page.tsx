@@ -1069,6 +1069,7 @@ export default function InspectorApp() {
   const [firstFinish, setFirstFinish] = useState(''); // 初回 仕上げ材
   const [firstSituation, setFirstSituation] = useState(''); // 初回 状況
   const [firstDetail, setFirstDetail] = useState(''); // 初回 サイズ詳細
+  const [firstCompletionStampRemoved, setFirstCompletionStampRemoved] = useState(false);
   const [slopeFirstContractor, setSlopeFirstContractor] = useState('');
   const [slopeFirstInspector, setSlopeFirstInspector] = useState('');
 
@@ -2568,6 +2569,7 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
   setFirstFinish(getRecordText(d, ['firstFinish', 'initialFinish', 'finishType']));
   setFirstSituation(getRecordText(d, ['firstSituation', 'initialSituation', 'firstRemarks2']));
   setFirstDetail(getRecordText(d, ['firstDetail', 'initialDetail', 'firstRemarks3']));
+  setFirstCompletionStampRemoved(d.firstCompletionStampRemoved === true);
   setInspectDate(formatSheetDateText(d.inspectDate));
   setContractor(
     String(d.contractor || '').trim()
@@ -2771,6 +2773,9 @@ const firstPhotoDataList = await Promise.all(
       const completionStampBase64 = actionType === "uploadKarte" && isCompletedSituation(photoSituation) && !completionStampRemoved
         ? createCompletionStampBase64()
         : '';
+      const firstCompletionStampBase64 = actionType === "uploadKarte" && isCompletedSituation(firstSituation) && !firstCompletionStampRemoved
+        ? createCompletionStampBase64()
+        : '';
 
       const payload = {
   isUpdate: isEditMode,
@@ -2790,6 +2795,8 @@ const firstPhotoDataList = await Promise.all(
   firstFinish,
   firstSituation,
   firstDetail,
+  firstCompletionStampRemoved,
+  firstCompletionStampBase64,
   inspectDate: formatSheetDateText(payloadInspectDate),
   contractor,
   inspector: payloadInspector,
@@ -4601,6 +4608,7 @@ const resetKarteFields = () => {
   setFirstFinish('');
   setFirstSituation('');
   setFirstDetail('');
+  setFirstCompletionStampRemoved(false);
   // ★追加
   setPhotos(Array(4).fill(null));
   setFirstPhotos(Array(4).fill(null));
@@ -7614,23 +7622,43 @@ if (mode === 'inclination_menu') {
         className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400"
         placeholder="状況入力"
         value={firstSituation}
-        onChange={e => setFirstSituation(e.target.value)}
+        onChange={e => {
+          setFirstSituation(e.target.value);
+          if (!isCompletedSituation(e.target.value)) setFirstCompletionStampRemoved(false);
+        }}
       />
     </div>
 
     {/* ③ サイズ・詳細 */}
-    <div className="p-2 border border-slate-400 rounded bg-white">
+    <div className="relative p-2 border border-slate-400 rounded bg-white">
       <label className="text-[9px] text-slate-700 block mb-1">
         サイズ、詳細
       </label>
 
       <textarea
-        className="w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400"
+        className={`w-full h-16 outline-none text-[13px] resize-none leading-tight text-black placeholder-slate-400 ${isPhoto && isCompletedSituation(firstSituation) && !firstCompletionStampRemoved ? 'pr-20' : ''}`}
         placeholder="サイズ、詳細入力"
         value={firstDetail}
         onChange={e => setFirstDetail(e.target.value)}
         onBlur={e => setFirstDetail(formatSizeDetailValue(e.target.value))}
       />
+      {isPhoto && isCompletedSituation(firstSituation) && !firstCompletionStampRemoved && (
+        <div
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border-2 border-red-600 px-3 py-1 text-[15px] font-bold leading-none text-red-600"
+          style={{ fontFamily: '"MS Gothic", "ＭＳ ゴシック", sans-serif' }}
+        >
+          完了
+          <button
+            type="button"
+            aria-label="初回の完了スタンプを削除"
+            title="初回の完了スタンプを削除"
+            onClick={() => setFirstCompletionStampRemoved(true)}
+            className="absolute -right-2.5 -top-2.5 flex h-5 w-5 items-center justify-center rounded-full border border-white bg-red-600 text-[12px] font-black leading-none text-white shadow active:scale-90"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
 
   </div>

@@ -848,7 +848,8 @@ try {
       firstPhotos: firstPhotos,
       photoMarks: photoKarteEditorData.photoMarks || [[], [], [], []],
       firstPhotoMarks: photoKarteEditorData.firstPhotoMarks || [[], [], [], []],
-      completionStampRemoved: photoKarteEditorData.completionStampRemoved === true
+      completionStampRemoved: photoKarteEditorData.completionStampRemoved === true,
+      firstCompletionStampRemoved: photoKarteEditorData.firstCompletionStampRemoved === true
     };
 
     return createJsonResponse({
@@ -1511,6 +1512,22 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
   sheet.getRange("V10").setValue(data.remarks1);
   sheet.getRange("V13").setValue(data.remarks2);
   sheet.getRange("V16").setValue(data.remarks3);
+  if (templateName === "写真カルテ_マスタ" && data.firstCompletionStampBase64) {
+    const firstCompletionStampBlob = Utilities.newBlob(
+      Utilities.base64Decode(data.firstCompletionStampBase64),
+      "image/png",
+      "first_completion_stamp.png"
+    );
+    const firstCompletionStampImage = sheet.insertImage(firstCompletionStampBlob, 10, 16);
+    firstCompletionStampImage
+      .setWidth(144)
+      .setHeight(64)
+      .setAnchorCellXOffset(14)
+      .setAnchorCellYOffset(39);
+    if (typeof firstCompletionStampImage.setAltTextTitle === "function") {
+      firstCompletionStampImage.setAltTextTitle("初回完了スタンプ");
+    }
+  }
   if (templateName === "写真カルテ_マスタ" && data.completionStampBase64) {
     const completionStampBlob = Utilities.newBlob(
       Utilities.base64Decode(data.completionStampBase64),
@@ -1532,6 +1549,7 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
       photoMarks: data.photoMarks || [[], [], [], []],
       firstPhotoMarks: data.firstPhotoMarks || [[], [], [], []],
       completionStampRemoved: data.completionStampRemoved === true,
+      firstCompletionStampRemoved: data.firstCompletionStampRemoved === true,
       updatedAt: new Date().toISOString(),
     });
   }
