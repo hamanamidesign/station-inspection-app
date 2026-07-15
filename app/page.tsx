@@ -3947,7 +3947,9 @@ if (mode === 'exist_select') return (
                 {rows.map((row, rowIndex) => {
                   const situationText = getInspectionSummarySituationText(row);
                   const situationBody = stripCompletionLabel(situationText);
-                  const showCompletionLabel = /［完了］\s*$/.test(situationText);
+                  const showCompletionLabel =
+                    !hiddenInspectionReportCompletionIds.has(row.id) &&
+                    /［完了］\s*$/.test(situationText);
 
                   return (
                     <div key={`${evaluation}-${row.id}-${rowIndex}`} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: evaluationWidths }}>
@@ -3960,7 +3962,18 @@ if (mode === 'exist_select') return (
                             <>
                               <div>{situationBody}</div>
                               {showCompletionLabel && (
-                                <div className="text-right text-blue-600">［完了］</div>
+                                <div className="relative px-7 pr-1.5 text-right text-blue-600">
+                                  ［完了］
+                                  <button
+                                    type="button"
+                                    aria-label="完了表示を削除"
+                                    title="完了表示を削除"
+                                    onClick={() => removeInspectionReportCompletionLabel(row.id)}
+                                    className="absolute right-0.5 top-[-8px] flex h-5 w-5 items-center justify-center rounded-full border border-white bg-red-600 text-[12px] font-black leading-none text-white shadow active:scale-90"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
                               )}
                             </>
                           ) : value}
@@ -4925,7 +4938,10 @@ async function sendInspectionSummary() {
       inspector,
       reportInspectionCount: reportRows.length,
       slopeInspectionCount: annualSlopeRows.length,
-      reportRows,
+      reportRows: reportRows.map(row => ({
+        ...row,
+        suppressCompletionLabel: hiddenInspectionReportCompletionIds.has(row.id),
+      })),
       slopeRows: overLimitSlopeRows,
     });
 

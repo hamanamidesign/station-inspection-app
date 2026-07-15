@@ -330,6 +330,9 @@ function getInspectionSummarySituationText_(item) {
   var text = isInspectionSummarySameAsPreviousSituation_(item.currentSituation)
     ? String(item.firstSituation || "")
     : String(item.currentSituation || "");
+  if (item.suppressCompletionLabel) {
+    return text.replace(/\n[　 ]*［完了］\s*$/, "").trimEnd();
+  }
   if (!text || !/済み/.test(text) || /［完了］\s*$/.test(text)) return text;
   return text.trim() + "\n［完了］";
 }
