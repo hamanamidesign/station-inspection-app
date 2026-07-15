@@ -3944,13 +3944,31 @@ if (mode === 'exist_select') return (
                     <div key={column} className="flex min-h-12 items-center justify-center border-r border-slate-500 px-3 py-2 last:border-r-0 whitespace-pre-line">{renderSummaryHeader(column)}</div>
                   ))}
                 </div>
-                {rows.map((row, rowIndex) => (
-                  <div key={`${evaluation}-${row.id}-${rowIndex}`} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: evaluationWidths }}>
-                    {[row.photoNo, '', row.buildingName, row.inspectionPlace, row.finishType, getInspectionSummarySituationText(row)].map((value, columnIndex) => (
-                      <div key={columnIndex} className={`flex items-center border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'justify-start text-left' : 'justify-center text-center'} ${columnIndex === 5 && isSameAsPreviousSituation(row.currentSituation) ? 'bg-[#d9eaf7]' : ''}`}>{value}</div>
-                    ))}
-                  </div>
-                ))}
+                {rows.map((row, rowIndex) => {
+                  const situationText = getInspectionSummarySituationText(row);
+                  const situationBody = stripCompletionLabel(situationText);
+                  const showCompletionLabel = /［完了］\s*$/.test(situationText);
+
+                  return (
+                    <div key={`${evaluation}-${row.id}-${rowIndex}`} className="grid min-h-14 border-t border-slate-400 bg-white" style={{ gridTemplateColumns: evaluationWidths }}>
+                      {[row.photoNo, '', row.buildingName, row.inspectionPlace, row.finishType, situationText].map((value, columnIndex) => (
+                        <div
+                          key={columnIndex}
+                          className={`flex border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'flex-col items-stretch justify-center text-left' : 'items-center justify-center text-center'} ${columnIndex === 5 && isSameAsPreviousSituation(row.currentSituation) ? 'bg-[#d9eaf7]' : ''}`}
+                        >
+                          {columnIndex === 5 ? (
+                            <>
+                              <div>{situationBody}</div>
+                              {showCompletionLabel && (
+                                <div className="text-right text-blue-600">［完了］</div>
+                              )}
+                            </>
+                          ) : value}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

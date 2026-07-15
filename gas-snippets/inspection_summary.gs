@@ -310,7 +310,11 @@ function writeInspectionSummaryReportRow_(sheet, row, item) {
   ];
   cells.forEach(function(cell, index) {
     var range = mergeInspectionSummaryRange_(sheet, row, cell[0], cell[1]);
-    setInspectionSummaryValue_(range, cell[2], 10, index === 5 ? "left" : "center", false);
+    if (index === 5) {
+      setInspectionSummaryCompletionValue_(range, cell[2], 10);
+    } else {
+      setInspectionSummaryValue_(range, cell[2], 10, "center", false);
+    }
     if (index === 5 && currentSituationIsSame) {
       range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
     }
@@ -328,6 +332,53 @@ function getInspectionSummarySituationText_(item) {
     : String(item.currentSituation || "");
   if (!text || !/済み/.test(text) || /［完了］\s*$/.test(text)) return text;
   return text.trim() + "\n［完了］";
+}
+
+function setInspectionSummaryCompletionValue_(range, value, fontSize) {
+  var text = String(value === null || value === undefined ? "" : value);
+  var completionMarker = "［完了］";
+  var completionPattern = /\n[　 ]*［完了］\s*$/;
+
+  setInspectionSummaryValue_(range, text, fontSize, "left", false);
+  if (!completionPattern.test(text)) return;
+
+  var body = text.replace(completionPattern, "").trimEnd();
+  var sheet = range.getSheet();
+  var mergedCellWidth = 0;
+  for (var column = range.getColumn(); column < range.getColumn() + range.getNumColumns(); column += 1) {
+    mergedCellWidth += sheet.getColumnWidth(column);
+  }
+  var estimatedFullWidthCharacterWidth = Math.max(fontSize, 1) * 1.45;
+  var lineCharacterCount = Math.max(
+    completionMarker.length,
+    Math.floor((mergedCellWidth - 16) / estimatedFullWidthCharacterWidth)
+  );
+  var completionLine =
+    "　".repeat(Math.max(0, lineCharacterCount - completionMarker.length)) +
+    completionMarker;
+  var richText = body + "\n" + completionLine;
+  var markerStart = richText.length - completionMarker.length;
+  var baseTextStyle = SpreadsheetApp.newTextStyle()
+    .setFontFamily(INSPECTION_SUMMARY_FONT_)
+    .setFontSize(fontSize)
+    .setForegroundColor("#000000")
+    .build();
+  var completionTextStyle = SpreadsheetApp.newTextStyle()
+    .setFontFamily(INSPECTION_SUMMARY_FONT_)
+    .setFontSize(fontSize)
+    .setForegroundColor("#0000ff")
+    .build();
+  var richTextValue = SpreadsheetApp.newRichTextValue()
+    .setText(richText)
+    .setTextStyle(baseTextStyle)
+    .setTextStyle(markerStart, richText.length, completionTextStyle)
+    .build();
+
+  range.getCell(1, 1).setRichTextValue(richTextValue);
+  range
+    .setHorizontalAlignment("left")
+    .setVerticalAlignment("middle")
+    .setWrap(true);
 }
 
 function writeInspectionSummarySlopeHeader_(sheet, row) {
