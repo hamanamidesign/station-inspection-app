@@ -439,7 +439,10 @@ const getScaledImageSize = (width: number, height: number, maxPixels: number) =>
   };
 };
 
-const MAP_OUTPUT_MAX_PIXELS = 2500000;
+const MAP_EDITOR_MAX_PIXELS = 2500000;
+// Google Sheets insertImage accepts at most 1 million pixels. Keep enough
+// headroom for integer rounding and any server-side image decoding differences.
+const MAP_UPLOAD_MAX_PIXELS = 900000;
 const MAP_OUTPUT_MAX_BYTES = 1850000;
 
 const getDataUrlByteSize = (dataUrl: string) => {
@@ -501,10 +504,14 @@ const getCanvasMapJpegDataUrlUnderLimit = (
 };
 
 const getCanvasMapDataUrl = (canvas: HTMLCanvasElement) => {
-  const pngDataUrl = canvas.toDataURL('image/png');
+  const pixelCount = canvas.width * canvas.height;
+  const uploadCanvas = pixelCount > MAP_UPLOAD_MAX_PIXELS
+    ? createScaledCanvas(canvas, Math.sqrt(MAP_UPLOAD_MAX_PIXELS / pixelCount))
+    : canvas;
+  const pngDataUrl = uploadCanvas.toDataURL('image/png');
   if (getDataUrlByteSize(pngDataUrl) <= MAP_OUTPUT_MAX_BYTES) return pngDataUrl;
 
-  return getCanvasMapJpegDataUrlUnderLimit(canvas, MAP_OUTPUT_MAX_BYTES);
+  return getCanvasMapJpegDataUrlUnderLimit(uploadCanvas, MAP_OUTPUT_MAX_BYTES);
 };
 
 const getDataUrlMimeType = (dataUrl: string) =>
@@ -9105,7 +9112,7 @@ if (mode === 'inclination_menu') {
         throw new Error("点検リスト_マスタから駅No.を取得できませんでした");
       }
 
-      const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, MAP_OUTPUT_MAX_PIXELS);
+      const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, MAP_UPLOAD_MAX_PIXELS);
       canvas.width = outputSize.width;
       canvas.height = outputSize.height;
       const ctx = canvas.getContext('2d');
@@ -9252,7 +9259,7 @@ if (mode === 'editor') {
               await new Promise((resolve) => { img.onload = resolve; });
               const canvas = document.createElement('canvas');
               const cp = croppedAreaPixels;
-              const cropOutputSize = getScaledImageSize(cp.width, cp.height, MAP_OUTPUT_MAX_PIXELS);
+              const cropOutputSize = getScaledImageSize(cp.width, cp.height, MAP_EDITOR_MAX_PIXELS);
               canvas.width = cropOutputSize.width; canvas.height = cropOutputSize.height;
               const ctx = canvas.getContext('2d');
               if (ctx) {
