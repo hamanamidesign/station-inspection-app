@@ -69,6 +69,24 @@ function uploadInspectionSummary(data) {
   return { success: true, lastRow: row };
 }
 
+function getInspectionSummaryComment(data) {
+  var ss = SpreadsheetApp.openById(data.spreadsheetId);
+  var sheet = ss.getSheetByName(INSPECTION_SUMMARY_SHEET_NAME_);
+  if (!sheet) throw new Error("点検結果総括表 シートが見つかりません");
+
+  var titleCell = sheet
+    .createTextFinder("Ⅳ.申し入れ等")
+    .matchEntireCell(true)
+    .findNext();
+  if (!titleCell) return { success: true, comment: "" };
+
+  var commentText = String(sheet.getRange(titleCell.getRow() + 1, 2).getDisplayValue() || "");
+  return {
+    success: true,
+    comment: commentText.replace(/^・/, "").trim(),
+  };
+}
+
 function hasInspectionSummarySignificantSlopeDifference_(row) {
   return [
     inspectionSummarySlopeDifference_(row && row.firstEwValue, row && row.currentEwValue),

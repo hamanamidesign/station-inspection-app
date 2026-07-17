@@ -16,6 +16,7 @@ const RETRYABLE_ACTIONS = new Set([
   "getSlopeTableData",
   "getInclinationKarteSheets",
   "getInspectionReportData",
+  "getInspectionSummaryComment",
   "getMapBase64",
   "getMapEditorData",
 ]);

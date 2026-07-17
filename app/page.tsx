@@ -1861,7 +1861,12 @@ useEffect(() => {
   let active = true;
   setIsSummaryLoading(true);
 
-  Promise.all([loadInspectionReport(), loadSlopeTable()])
+  const loadSummaryComment = gasApi("getInspectionSummaryComment", { spreadsheetId })
+    .then(result => {
+      if (active) setInspectionSummaryRequestComment(String(result.comment || ''));
+    });
+
+  Promise.all([loadInspectionReport(), loadSlopeTable(), loadSummaryComment])
     .catch(error => console.error(error))
     .finally(() => {
       if (active) setIsSummaryLoading(false);
