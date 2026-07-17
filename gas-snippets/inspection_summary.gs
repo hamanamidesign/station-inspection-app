@@ -24,7 +24,7 @@ function uploadInspectionSummary(data) {
   var reportRows = Array.isArray(data.reportRows) ? data.reportRows : [];
   var slopeRows = (Array.isArray(data.slopeRows) ? data.slopeRows : [])
     .filter(hasInspectionSummarySignificantSlopeDifference_);
-  var requestComment = String(data.requestComment || "").trim() || "特になし";
+  var requestComment = String(data.requestComment || "").trim();
   var reportCount = Math.max(0, Number(data.reportInspectionCount) || 0);
   var slopeCount = Math.max(0, Number(data.slopeInspectionCount) || 0);
   var totalCount = reportCount + slopeCount;
@@ -53,8 +53,10 @@ function uploadInspectionSummary(data) {
   );
   row += 1;
   row = writeInspectionSummarySlopeSection_(sheet, row, slopeRows);
-  row += 1;
-  row = writeInspectionSummaryRequestSection_(sheet, row, requestComment);
+  if (requestComment) {
+    row += 1;
+    row = writeInspectionSummaryRequestSection_(sheet, row, requestComment);
+  }
 
   ensureInspectionSummaryRows_(sheet, row);
   var endRange = sheet.getRange(row, 27, 1, 2); // AA:AB
@@ -293,9 +295,15 @@ function writeInspectionSummaryRequestSection_(sheet, row, comment) {
   row += 1;
 
   var commentRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
-  setInspectionSummaryValue_(commentRange, "・" + String(comment || ""), 10, "left", false);
-  sheet.setRowHeight(row, 42);
+  var commentText = "・" + String(comment || "");
+  setInspectionSummaryValue_(commentRange, commentText, 10, "left", false);
+  sheet.setRowHeight(row, getInspectionSummaryRequestCommentHeight_(commentText));
   return row + 1;
+}
+
+function getInspectionSummaryRequestCommentHeight_(text) {
+  var lineCount = String(text || "").split(/\r?\n/).length;
+  return Math.max(20, lineCount * 20);
 }
 
 function writeInspectionSummaryReportHeader_(sheet, row) {
@@ -659,7 +667,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows, requestComment) 
   function itemHeight_(item) {
     if (!item) return 0;
     if (item.type === "reportRow" || item.type === "slopeRow") return 38;
-    if (item.type === "requestComment") return 42;
+    if (item.type === "requestComment") return getInspectionSummaryRequestCommentHeight_(item.text);
     if (item.type === "reportHeader" || item.type === "slopeHeader") return 32;
     if (item.type === "title" || item.type === "evaluation") return 22;
     return 21;
@@ -843,11 +851,15 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows, requestComment) 
     currentPage_().push({ type: "note", text: "・上記の初回点検と比較して±2.0mm以上の測定値を確認しました。" });
   }
 
-  var requestSectionHeight = 85; // 表題22 + コメント42 + 以上21
-  if (remaining_() < requestSectionHeight && currentPage_().length) newPage_();
-  if (remaining_() >= requestSectionHeight + 21) currentPage_().push({ type: "blank" });
-  currentPage_().push({ type: "title", title: "Ⅳ.申し入れ等" });
-  currentPage_().push({ type: "requestComment", text: "・" + String(requestComment || "") });
+  var normalizedRequestComment = String(requestComment || "").trim();
+  if (normalizedRequestComment) {
+    var requestCommentText = "・" + normalizedRequestComment;
+    var requestSectionHeight = 43 + getInspectionSummaryRequestCommentHeight_(requestCommentText); // 表題22 + コメント + 以上21
+    if (remaining_() < requestSectionHeight && currentPage_().length) newPage_();
+    if (remaining_() >= requestSectionHeight + 21) currentPage_().push({ type: "blank" });
+    currentPage_().push({ type: "title", title: "Ⅳ.申し入れ等" });
+    currentPage_().push({ type: "requestComment", text: requestCommentText });
+  }
 
   if (remaining_() < 21) newPage_();
   currentPage_().push({ type: "end" });
@@ -925,7 +937,7 @@ function renderInspectionSummaryPdfItem_(sheet, row, item) {
   if (item.type === "requestComment") {
     var requestRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
     setInspectionSummaryValue_(requestRange, item.text, 10, "left", false);
-    sheet.setRowHeight(row, 42);
+    sheet.setRowHeight(row, getInspectionSummaryRequestCommentHeight_(item.text));
     return row + 1;
   }
 

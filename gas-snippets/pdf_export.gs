@@ -1212,7 +1212,9 @@ function getGenericPdfSettings_(data, sheetNames) {
       fileSuffix: "点検結果総括表",
       portrait: false,
       horizontalAlignment: "CENTER",
-      scale: 2,
+      // 現場ごとの列幅・行高差でフッターだけが次ページへ送られないよう、
+      // PDF用に分割済みの各シートを必ず1ページへ収める。
+      scale: 4,
       top_margin: 1.5 / 2.54,
       bottom_margin: 1.2 / 2.54,
       left_margin: 1.7 / 2.54,
