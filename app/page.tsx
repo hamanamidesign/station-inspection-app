@@ -1271,6 +1271,7 @@ useEffect(() => {
   const [selectedPdfSheets, setSelectedPdfSheets] = useState<string[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [slopeRows, setSlopeRows] = useState<SlopeTableRow[]>(() => createEmptySlopeRows());
+  const [inspectionSummaryRequestComment, setInspectionSummaryRequestComment] = useState('');
   const [evalType, setEvalType] = useState('');
   const [inspectList, setInspectList] = useState<string[]>([]);
   const [inclinationPageIndex, setInclinationPageIndex] = useState(0);
@@ -1288,6 +1289,10 @@ useEffect(() => {
   const existingDataLoadedRouteRef = useRef('');
   const existingDataRef = useRef<ExistingStation[]>([]);
   const existingDataLoadingRouteRef = useRef('');
+
+  useEffect(() => {
+    setInspectionSummaryRequestComment('');
+  }, [spreadsheetId]);
   const routesLoadedRef = useRef(false);
   const routesLoadingRef = useRef(false);
   const inspectionReportLoadIdRef = useRef(0);
@@ -4134,6 +4139,25 @@ if (mode === 'exist_select') return (
               note="上記の初回点検と比較して±2.0mm以上の測定値を確認しました。"
               tone="emerald"
             />
+            <section className="overflow-hidden rounded-2xl border-2 border-slate-800 bg-white shadow-sm">
+              <div className="border-b-2 border-slate-700 bg-slate-50 px-4 py-3">
+                <h2 className="text-lg font-black text-black">Ⅳ.申し入れ等</h2>
+              </div>
+              <div className="p-4">
+                <label htmlFor="inspection-summary-request-comment" className="mb-2 block text-sm font-bold text-black">
+                  ・コメント入力
+                </label>
+                <textarea
+                  id="inspection-summary-request-comment"
+                  value={inspectionSummaryRequestComment}
+                  onChange={event => setInspectionSummaryRequestComment(event.target.value)}
+                  maxLength={200}
+                  rows={3}
+                  placeholder="コメントを入力してください"
+                  className="w-full resize-y rounded-xl border-2 border-slate-500 bg-white px-3 py-2 text-base text-black outline-none focus:border-blue-700"
+                />
+              </div>
+            </section>
           </div>
 
           <div className="mt-7 flex justify-center">
@@ -4943,6 +4967,7 @@ async function sendInspectionSummary() {
         suppressCompletionLabel: hiddenInspectionReportCompletionIds.has(row.id),
       })),
       slopeRows: overLimitSlopeRows,
+      requestComment: inspectionSummaryRequestComment.trim(),
     });
 
     if (result.success) {

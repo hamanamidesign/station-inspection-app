@@ -23,6 +23,7 @@ function uploadInspectionSummary(data) {
   var reportRows = Array.isArray(data.reportRows) ? data.reportRows : [];
   var slopeRows = (Array.isArray(data.slopeRows) ? data.slopeRows : [])
     .filter(hasInspectionSummarySignificantSlopeDifference_);
+  var requestComment = String(data.requestComment || "").trim();
   var reportCount = Math.max(0, Number(data.reportInspectionCount) || 0);
   var slopeCount = Math.max(0, Number(data.slopeInspectionCount) || 0);
   var totalCount = reportCount + slopeCount;
@@ -51,13 +52,15 @@ function uploadInspectionSummary(data) {
   );
   row += 1;
   row = writeInspectionSummarySlopeSection_(sheet, row, slopeRows);
+  row += 1;
+  row = writeInspectionSummaryRequestSection_(sheet, row, requestComment);
 
   ensureInspectionSummaryRows_(sheet, row);
   var endRange = sheet.getRange(row, 27, 1, 2); // AA:AB
   endRange.merge().setValue("以上");
   formatInspectionSummaryRange_(endRange, 10, "center", false);
 
-  createInspectionSummaryPdfSheets_(ss, sheet, data, reportRows, slopeRows);
+  createInspectionSummaryPdfSheets_(ss, sheet, data, reportRows, slopeRows, requestComment);
 
   sheet.setHiddenGridlines(true);
   return { success: true, lastRow: row };
@@ -278,6 +281,19 @@ function writeInspectionSummarySlopeSection_(sheet, row, rows) {
 
   var noteRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
   setInspectionSummaryValue_(noteRange, "・上記の初回点検と比較して±2.0mm以上の測定値を確認しました。", 10, "left", false);
+  return row + 1;
+}
+
+function writeInspectionSummaryRequestSection_(sheet, row, comment) {
+  ensureInspectionSummaryRows_(sheet, row + 1);
+  var titleRange = mergeInspectionSummaryRange_(sheet, row, 2, 7);
+  setInspectionSummaryValue_(titleRange, "Ⅳ.申し入れ等", 10, "left", true);
+  sheet.setRowHeight(row, 22);
+  row += 1;
+
+  var commentRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
+  setInspectionSummaryValue_(commentRange, "・" + String(comment || ""), 10, "left", false);
+  sheet.setRowHeight(row, 42);
   return row + 1;
 }
 
@@ -537,9 +553,9 @@ function ensureInspectionSummaryRows_(sheet, requiredRow) {
   }
 }
 
-function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRows) {
+function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRows, requestComment) {
   deleteInspectionSummaryPdfSheets_(ss);
-  var pages = buildInspectionSummaryPdfPages_(reportRows, slopeRows);
+  var pages = buildInspectionSummaryPdfPages_(reportRows, slopeRows, requestComment);
   var totalPages = pages.length;
   var reportCount = Math.max(0, Number(data.reportInspectionCount) || 0);
   var slopeCount = Math.max(0, Number(data.slopeInspectionCount) || 0);
@@ -621,7 +637,7 @@ function getInspectionSummaryColumnsWidth_(sheet, startColumn, endColumn) {
   return width;
 }
 
-function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
+function buildInspectionSummaryPdfPages_(reportRows, slopeRows, requestComment) {
   var pages = [[]];
 
   function currentPage_() {
@@ -637,6 +653,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   function itemHeight_(item) {
     if (!item) return 0;
     if (item.type === "reportRow" || item.type === "slopeRow") return 38;
+    if (item.type === "requestComment") return 42;
     if (item.type === "reportHeader" || item.type === "slopeHeader") return 32;
     if (item.type === "title" || item.type === "evaluation") return 22;
     return 21;
@@ -742,20 +759,6 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
   if (remaining_() >= 21) currentPage_().push({ type: "blank" });
 
   var slopeTitle = "Ⅲ.傾斜測定";
-  var emptySlopeTailHeight = 64; // 表題22 + 該当なし21 + 以上21
-  if (
-    !slopeRows.length &&
-    currentPage_().length &&
-    remaining_() < emptySlopeTailHeight &&
-    remaining_() >= emptySlopeTailHeight - 30
-  ) {
-    // 通常行約1行分以内の不足なら、独立した最終ページを作らず前ページへ収める。
-    currentPage_().push({ type: "title", title: slopeTitle });
-    currentPage_().push({ type: "slopeEmpty" });
-    currentPage_().push({ type: "end" });
-    return pages.filter(function(page) { return page.length > 0; });
-  }
-
   addSectionTitle_(slopeTitle, slopeRows.length ? 4 : 2);
   if (!slopeRows.length) {
     if (remaining_() < 21) {
@@ -796,6 +799,12 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows) {
     }
     currentPage_().push({ type: "note", text: "・上記の初回点検と比較して±2.0mm以上の測定値を確認しました。" });
   }
+
+  var requestSectionHeight = 85; // 表題22 + コメント42 + 以上21
+  if (remaining_() < requestSectionHeight && currentPage_().length) newPage_();
+  if (remaining_() >= requestSectionHeight + 21) currentPage_().push({ type: "blank" });
+  currentPage_().push({ type: "title", title: "Ⅳ.申し入れ等" });
+  currentPage_().push({ type: "requestComment", text: "・" + String(requestComment || "") });
 
   if (remaining_() < 21) newPage_();
   currentPage_().push({ type: "end" });
@@ -866,6 +875,13 @@ function renderInspectionSummaryPdfItem_(sheet, row, item) {
   if (item.type === "note") {
     var noteRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
     setInspectionSummaryValue_(noteRange, item.text, 10, "left", false);
+    return row + 1;
+  }
+
+  if (item.type === "requestComment") {
+    var requestRange = mergeInspectionSummaryRange_(sheet, row, 2, 29);
+    setInspectionSummaryValue_(requestRange, item.text, 10, "left", false);
+    sheet.setRowHeight(row, 42);
     return row + 1;
   }
 
