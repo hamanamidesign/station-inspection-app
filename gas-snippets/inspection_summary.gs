@@ -12,6 +12,7 @@ var INSPECTION_SUMMARY_BLUE_ = "#9dc3e6";
 var INSPECTION_SUMMARY_SAME_FILL_ = "#d9eaf7";
 var INSPECTION_SUMMARY_FIRST_PAGE_FOOTER_POSITION_RATIO_ = 0.64;
 var INSPECTION_SUMMARY_FOLLOWING_PAGE_FOOTER_POSITION_RATIO_ = 0.66;
+var INSPECTION_SUMMARY_MAX_FOOTER_SHIFT_ = 60;
 
 function uploadInspectionSummary(data) {
   var ss = SpreadsheetApp.openById(data.spreadsheetId);
@@ -23,7 +24,7 @@ function uploadInspectionSummary(data) {
   var reportRows = Array.isArray(data.reportRows) ? data.reportRows : [];
   var slopeRows = (Array.isArray(data.slopeRows) ? data.slopeRows : [])
     .filter(hasInspectionSummarySignificantSlopeDifference_);
-  var requestComment = String(data.requestComment || "").trim();
+  var requestComment = String(data.requestComment || "").trim() || "特になし";
   var reportCount = Math.max(0, Number(data.reportInspectionCount) || 0);
   var slopeCount = Math.max(0, Number(data.slopeInspectionCount) || 0);
   var totalCount = reportCount + slopeCount;
@@ -589,6 +590,11 @@ function createInspectionSummaryPdfSheets_(ss, source, data, reportRows, slopeRo
     var footerPositionOffset = pageIndex === 0 ? 30 : 18;
     var footerTopHeight = Math.round(pdfSheetWidth * footerPositionRatio) + footerPositionOffset;
     var usedHeight = getInspectionSummaryRowsHeight_(pageSheet, 1, row - 1);
+    var footerOverflow = usedHeight - footerTopHeight;
+    if (footerOverflow > 0 && footerOverflow <= INSPECTION_SUMMARY_MAX_FOOTER_SHIFT_) {
+      // 最終ページが短い末尾項目だけの場合は、改ページを避けるためフッターを下へずらす。
+      footerTopHeight = usedHeight;
+    }
     var spacerHeight = Math.round(footerTopHeight - usedHeight);
     if (spacerHeight < 0) {
       throw new Error(
@@ -668,6 +674,43 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows, requestComment) 
 
   function newPage_() {
     pages.push([]);
+  }
+
+  function compactShortFinalPage_() {
+    if (pages.length < 2) return;
+
+    var previousPage = pages[pages.length - 2];
+    var finalPage = pages[pages.length - 1];
+    var compactableTypes = {
+      blank: true,
+      title: true,
+      slopeEmpty: true,
+      note: true,
+      requestComment: true,
+      end: true,
+    };
+    if (!finalPage.length || finalPage.some(function(item) { return !compactableTypes[item.type]; })) return;
+
+    var compactPreviousPage = previousPage.filter(function(item) { return item.type !== "blank"; });
+    var compactFinalPage = finalPage.filter(function(item) { return item.type !== "blank"; });
+
+    var previousHeight = compactPreviousPage.reduce(function(total, item) {
+      return total + itemHeight_(item);
+    }, 0);
+    var finalHeight = compactFinalPage.reduce(function(total, item) {
+      return total + itemHeight_(item);
+    }, 0);
+    var previousCapacity = pages.length - 2 === 0 ? 582 : 712;
+
+    if (
+      finalHeight <= 148 &&
+      previousHeight + finalHeight <= previousCapacity + INSPECTION_SUMMARY_MAX_FOOTER_SHIFT_
+    ) {
+      previousPage.length = 0;
+      Array.prototype.push.apply(previousPage, compactPreviousPage);
+      Array.prototype.push.apply(previousPage, compactFinalPage);
+      pages.pop();
+    }
   }
 
   function addSectionTitle_(title, minimumRows) {
@@ -808,6 +851,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows, requestComment) 
 
   if (remaining_() < 21) newPage_();
   currentPage_().push({ type: "end" });
+  compactShortFinalPage_();
   return pages.filter(function(page) { return page.length > 0; });
 }
 

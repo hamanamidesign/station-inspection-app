@@ -4967,7 +4967,7 @@ async function sendInspectionSummary() {
         suppressCompletionLabel: hiddenInspectionReportCompletionIds.has(row.id),
       })),
       slopeRows: overLimitSlopeRows,
-      requestComment: inspectionSummaryRequestComment.trim(),
+      requestComment: inspectionSummaryRequestComment.trim() || '特になし',
     });
 
     if (result.success) {
