@@ -54,6 +54,9 @@ function getInspectionReportData(data) {
     const reportCurrentSituation = useFirstSituationAsCurrent
       ? joinInspectionReportText_(currentSituation, firstSituation)
       : currentSituation;
+    const reportCompletionSource = useFirstSituationAsCurrent
+      ? joinInspectionReportText_(currentSituationText, firstSituation)
+      : currentSituationText;
 
     return {
     buildingName: getInspectionReportCell_(values, 1, 12),
@@ -66,7 +69,7 @@ function getInspectionReportData(data) {
     firstSituation: useFirstSituationAsCurrent ? "" : firstSituation,
     firstEval: extractInspectionReportYear_(firstDate),
     previousYearEval: getInspectionReportCell_(values, 3, 17),
-    currentSituation: appendInspectionReportCompletion_(reportCurrentSituation, currentSituationText),
+    currentSituation: appendInspectionReportCompletion_(reportCurrentSituation, reportCompletionSource),
     structEval: getInspectionReportCell_(values, 3, 6),
     impactEval: getInspectionReportCell_(values, 3, 9),
     totalEval: getInspectionReportCell_(values, 3, 12),
@@ -180,6 +183,7 @@ function uploadInspectionReport(data) {
 
   const rows = Array.isArray(data.rows)
     ? data.rows.filter(row => inspectionReportRowHasValue_(row))
+        .map(row => normalizeInspectionReportCompletion_(row))
     : [];
 
   sheet.getRange("M2").setNumberFormat("@").setValue(inspectionReportText_(data.contractor));
@@ -282,6 +286,23 @@ function appendInspectionReportCompletion_(value, completionSource) {
     return text;
   }
   return text + "\n［完了］";
+}
+
+function stripInspectionReportCompletion_(value) {
+  return String(value || "")
+    .replace(/\n[　 ]*［完了］\s*$/, "")
+    .trimEnd();
+}
+
+function normalizeInspectionReportCompletion_(row) {
+  const normalizedRow = Object.assign({}, row);
+  normalizedRow.currentSituation = normalizedRow.suppressCompletionLabel === true
+    ? stripInspectionReportCompletion_(normalizedRow.currentSituation)
+    : appendInspectionReportCompletion_(
+        normalizedRow.currentSituation,
+        normalizedRow.currentSituation
+      );
+  return normalizedRow;
 }
 
 function applyInspectionReportCompletionStyles_(sheet, startRow, rowCount) {

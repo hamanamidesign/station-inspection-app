@@ -4921,6 +4921,10 @@ async function sendInspectionReport() {
       blankSlashesEnabled: inspectionReportBlankSlashesEnabled,
       rows: rows.map(row => ({
         ...row,
+        currentSituation: hiddenInspectionReportCompletionIds.has(row.id)
+          ? stripCompletionLabel(row.currentSituation)
+          : appendCompletionLabel(row.currentSituation),
+        suppressCompletionLabel: hiddenInspectionReportCompletionIds.has(row.id),
         evalFontColors: {
           structEval: getEvalFontColor('structEval', row.structEval),
           totalEval: getEvalFontColor('totalEval', row.totalEval),
