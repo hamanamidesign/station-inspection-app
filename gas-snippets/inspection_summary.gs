@@ -358,7 +358,7 @@ function writeInspectionSummaryReportRow_(sheet, row, item) {
     } else {
       setInspectionSummaryValue_(range, cell[2], 10, "center", false);
     }
-    if (index === 5 && currentSituationIsSame) {
+    if (index === 5 && (currentSituationIsSame || /（経過観察）/.test(String(cell[2] || "")))) {
       range.setBackground(INSPECTION_SUMMARY_SAME_FILL_);
     }
     setInspectionSummaryTableBorder_(range);

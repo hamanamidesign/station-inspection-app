@@ -3992,7 +3992,7 @@ if (mode === 'exist_select') return (
                       {[row.photoNo, '', row.buildingName, row.inspectionPlace, row.finishType, situationText].map((value, columnIndex) => (
                         <div
                           key={columnIndex}
-                          className={`flex border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'flex-col items-stretch justify-center text-left text-black' : 'items-center justify-center text-center'} ${columnIndex === 5 && isInspectionSummarySameSituation(row) ? 'bg-[#d9eaf7]' : ''}`}
+                          className={`flex border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'flex-col items-stretch justify-center text-left text-black' : 'items-center justify-center text-center'} ${columnIndex === 5 && /（経過観察）/.test(situationText) ? 'bg-[#d9eaf7]' : ''}`}
                         >
                           {columnIndex === 5 ? (
                             <>
