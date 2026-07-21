@@ -342,7 +342,7 @@ function writeInspectionSummaryReportHeader_(sheet, row) {
 }
 
 function writeInspectionSummaryReportRow_(sheet, row, item) {
-  var currentSituationIsSame = isInspectionSummarySameAsPreviousSituation_(item.currentSituation);
+  var currentSituationIsSame = isInspectionSummarySameSituation_(item);
   var cells = [
     [2, 3, item.photoNo || ""],
     [4, 5, ""],
@@ -369,10 +369,32 @@ function isInspectionSummarySameAsPreviousSituation_(value) {
   return /前回(?:と(?:同じ|おなじ|同様)|同様)/.test(String(value || ""));
 }
 
+function stripInspectionSummaryObservation_(value) {
+  return String(value || "")
+    .replace(/\n[　 ]*［完了］\s*$/, "")
+    .replace(/\n[　 ]*（経過観察）\s*$/, "")
+    .trimEnd();
+}
+
+function isInspectionSummarySameSituation_(item) {
+  var currentSituation = stripInspectionSummaryObservation_(item.currentSituation);
+  var firstSituation = stripInspectionSummaryObservation_(item.firstSituation);
+  return isInspectionSummarySameAsPreviousSituation_(currentSituation) || (
+    !!currentSituation &&
+    !!firstSituation &&
+    currentSituation === firstSituation
+  );
+}
+
 function getInspectionSummarySituationText_(item) {
-  var text = isInspectionSummarySameAsPreviousSituation_(item.currentSituation)
-    ? String(item.firstSituation || "")
-    : String(item.currentSituation || "");
+  var sameAsPrevious = isInspectionSummarySameSituation_(item);
+  var text = sameAsPrevious
+    ? stripInspectionSummaryObservation_(item.firstSituation) ||
+      stripInspectionSummaryObservation_(item.currentSituation)
+    : String(item.currentSituation || "").replace(/\n[　 ]*［完了］\s*$/, "").trimEnd();
+  if (sameAsPrevious && text) {
+    text += "\n（経過観察）";
+  }
   if (item.suppressCompletionLabel) {
     return text.replace(/\n[　 ]*［完了］\s*$/, "").trimEnd();
   }

@@ -912,10 +912,36 @@ const appendObservationNoteToPhotoSituation = (currentValue: unknown, firstValue
   return `${currentSituation}\n${observationNote}`;
 };
 
-const getInspectionSummarySituationText = (row: Pick<InspectionReportRow, 'firstSituation' | 'currentSituation'>) =>
-  appendCompletionLabel(
-    isSameAsPreviousSituation(row.currentSituation) ? row.firstSituation : row.currentSituation
+const stripInspectionSummaryObservation = (value: unknown) =>
+  stripCompletionLabel(value)
+    .replace(/\n[　 ]*（経過観察）\s*$/, '')
+    .trimEnd();
+
+const isInspectionSummarySameSituation = (
+  row: Pick<InspectionReportRow, 'firstSituation' | 'currentSituation'>
+) => {
+  const currentSituation = stripInspectionSummaryObservation(row.currentSituation);
+  const firstSituation = stripInspectionSummaryObservation(row.firstSituation);
+  return isSameAsPreviousSituation(currentSituation) || (
+    Boolean(currentSituation) &&
+    Boolean(firstSituation) &&
+    currentSituation === firstSituation
   );
+};
+
+const getInspectionSummarySituationText = (
+  row: Pick<InspectionReportRow, 'firstSituation' | 'currentSituation'>
+) => {
+  const sameAsPrevious = isInspectionSummarySameSituation(row);
+  const situation = sameAsPrevious
+    ? stripInspectionSummaryObservation(row.firstSituation) ||
+      stripInspectionSummaryObservation(row.currentSituation)
+    : stripCompletionLabel(row.currentSituation);
+  const situationWithObservation = sameAsPrevious && situation
+    ? `${situation}\n（経過観察）`
+    : situation;
+  return appendCompletionLabel(situationWithObservation);
+};
 
 type InspectionReportSortKey = 'buildingName' | 'inspectionPlace' | 'photoNo' | 'totalEval';
 type SortDirection = 'asc' | 'desc';
@@ -3966,7 +3992,7 @@ if (mode === 'exist_select') return (
                       {[row.photoNo, '', row.buildingName, row.inspectionPlace, row.finishType, situationText].map((value, columnIndex) => (
                         <div
                           key={columnIndex}
-                          className={`flex border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'flex-col items-stretch justify-center text-left' : 'items-center justify-center text-center'} ${columnIndex === 5 && isSameAsPreviousSituation(row.currentSituation) ? 'bg-[#d9eaf7]' : ''}`}
+                          className={`flex border-r border-slate-300 px-3 py-2 last:border-r-0 whitespace-pre-wrap ${columnIndex === 5 ? 'flex-col items-stretch justify-center text-left text-black' : 'items-center justify-center text-center'} ${columnIndex === 5 && isInspectionSummarySameSituation(row) ? 'bg-[#d9eaf7]' : ''}`}
                         >
                           {columnIndex === 5 ? (
                             <>
