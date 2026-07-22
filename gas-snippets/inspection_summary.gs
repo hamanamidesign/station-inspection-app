@@ -78,6 +78,12 @@ function getInspectionSummaryComment(data) {
     .createTextFinder("Ⅳ.追記")
     .matchEntireCell(true)
     .findNext();
+  if (!titleCell) {
+    titleCell = sheet
+      .createTextFinder("Ⅳ.申し入れ等")
+      .matchEntireCell(true)
+      .findNext();
+  }
   if (!titleCell) return { success: true, comment: "" };
 
   var commentText = String(sheet.getRange(titleCell.getRow() + 1, 2).getDisplayValue() || "");
