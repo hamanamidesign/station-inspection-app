@@ -75,7 +75,7 @@ function getInspectionSummaryComment(data) {
   if (!sheet) throw new Error("点検結果総括表 シートが見つかりません");
 
   var titleCell = sheet
-    .createTextFinder("Ⅳ.申し入れ等")
+    .createTextFinder("Ⅳ.追記")
     .matchEntireCell(true)
     .findNext();
   if (!titleCell) return { success: true, comment: "" };
@@ -308,7 +308,7 @@ function writeInspectionSummarySlopeSection_(sheet, row, rows) {
 function writeInspectionSummaryRequestSection_(sheet, row, comment) {
   ensureInspectionSummaryRows_(sheet, row + 1);
   var titleRange = mergeInspectionSummaryRange_(sheet, row, 2, 7);
-  setInspectionSummaryValue_(titleRange, "Ⅳ.申し入れ等", 10, "left", true);
+  setInspectionSummaryValue_(titleRange, "Ⅳ.追記", 10, "left", true);
   sheet.setRowHeight(row, 22);
   row += 1;
 
@@ -897,7 +897,7 @@ function buildInspectionSummaryPdfPages_(reportRows, slopeRows, requestComment) 
     var requestSectionHeight = 43 + getInspectionSummaryRequestCommentHeight_(requestCommentText); // 表題22 + コメント + 以上21
     if (remaining_() < requestSectionHeight && currentPage_().length) newPage_();
     if (remaining_() >= requestSectionHeight + 21) currentPage_().push({ type: "blank" });
-    currentPage_().push({ type: "title", title: "Ⅳ.申し入れ等" });
+    currentPage_().push({ type: "title", title: "Ⅳ.追記" });
     currentPage_().push({ type: "requestComment", text: requestCommentText });
   }
 

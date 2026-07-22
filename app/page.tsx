@@ -4172,7 +4172,7 @@ if (mode === 'exist_select') return (
             />
             <section className="overflow-hidden rounded-2xl border-2 border-slate-800 bg-white shadow-sm">
               <div className="border-b-2 border-slate-700 bg-slate-50 px-4 py-3">
-                <h2 className="text-lg font-black text-black">Ⅳ.申し入れ等</h2>
+                <h2 className="text-lg font-black text-black">Ⅳ.追記</h2>
               </div>
               <div className="p-4">
                 <label htmlFor="inspection-summary-request-comment" className="mb-2 block text-sm font-bold text-black">
