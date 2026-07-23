@@ -1381,7 +1381,10 @@ function applyPhotoKarteLocationDetailStyle_(sheet, value) {
       mergedRange.getLastColumn() >= standardRange.getLastColumn();
   });
   const displayWidth = getPhotoKarteLocationDetailTextWidth_(text);
-  const fontSize =
+  const isExtendedToColumnV =
+    existingLocationRange &&
+    existingLocationRange.getLastColumn() === sheet.getRange("V1").getColumn();
+  const fontSize = isExtendedToColumnV ? 11 :
     displayWidth >= 14 ? 7 :
     displayWidth >= 12 ? 9 :
     displayWidth >= 11 ? 10 :
