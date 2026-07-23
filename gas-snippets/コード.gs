@@ -1372,7 +1372,14 @@ function applyKarteHeaderTextStyle_(range, value) {
 
 function applyPhotoKarteLocationDetailStyle_(sheet, value) {
   const text = value === null || value === undefined ? "" : String(value);
-  const range = sheet.getRange("Q1:T1");
+  const standardRange = sheet.getRange("Q1:T1");
+  const mergedRanges = standardRange.getMergedRanges();
+  const existingLocationRange = mergedRanges.find(function(mergedRange) {
+    return mergedRange.getRow() === standardRange.getRow() &&
+      mergedRange.getColumn() === standardRange.getColumn() &&
+      mergedRange.getNumRows() === 1 &&
+      mergedRange.getLastColumn() >= standardRange.getLastColumn();
+  });
   const displayWidth = getPhotoKarteLocationDetailTextWidth_(text);
   const fontSize =
     displayWidth >= 14 ? 7 :
@@ -1380,9 +1387,16 @@ function applyPhotoKarteLocationDetailStyle_(sheet, value) {
     displayWidth >= 11 ? 10 :
     11;
 
-  range
-    .breakApart()
-    .merge()
+  // Q1:V1 などへ広げられた結合範囲は解除せず、その幅のまま更新する。
+  // 想定外の結合が一部だけ重なる場合は範囲全体を解除し、標準の Q1:T1 へ戻す。
+  if (!existingLocationRange) {
+    mergedRanges.forEach(function(mergedRange) {
+      mergedRange.breakApart();
+    });
+  }
+  const targetRange = existingLocationRange || standardRange.merge();
+
+  targetRange
     .setValue(text)
     .setBorder(true, false, true, true, false, false)
     .setHorizontalAlignment("left")
