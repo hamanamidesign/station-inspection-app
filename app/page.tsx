@@ -83,13 +83,20 @@ interface MapEditorPage {
   markers: Marker[];
   texts: MapTextAnnotation[];
   lines: MapLineAnnotation[];
+  markerSize: number;
+  textSize: number;
 }
 
-const createEmptyMapEditorPage = (): MapEditorPage => ({
+const createEmptyMapEditorPage = (
+  markerSize = 24,
+  textSize = 10
+): MapEditorPage => ({
   finalImage: null,
   markers: [],
   texts: [],
   lines: [],
+  markerSize,
+  textSize,
 });
 
 interface ExistingStation { 
@@ -9089,6 +9096,18 @@ if (mode === 'inclination_menu') {
 
     return {
       finalImage: typeof data.finalImage === 'string' && data.finalImage ? data.finalImage : null,
+      markerSize: normalizeMapEditorSize(
+        data.markerSize,
+        MIN_MAP_MARKER_SIZE,
+        MAX_MAP_MARKER_SIZE,
+        mapMarkerSize
+      ),
+      textSize: normalizeMapEditorSize(
+        data.textSize,
+        MIN_MAP_TEXT_SIZE,
+        MAX_MAP_TEXT_SIZE,
+        mapTextSize
+      ),
       markers: restoredMarkers
         .map((marker: Partial<Marker>, index: number) => ({
           id: Number(marker.id) || Date.now() + index,
@@ -9124,6 +9143,8 @@ if (mode === 'inclination_menu') {
     markers: [...markers],
     texts: [...mapTexts],
     lines: [...mapLines],
+    markerSize: mapMarkerSize,
+    textSize: mapTextSize,
   });
 
   const showMapEditorPage = (page: MapEditorPage) => {
@@ -9132,6 +9153,8 @@ if (mode === 'inclination_menu') {
     setMarkers(page.markers);
     setMapTexts(page.texts);
     setMapLines(page.lines);
+    setMapMarkerSize(page.markerSize);
+    setMapTextSize(page.textSize);
     setSelectedLineId(null);
     setMapDisplaySize({ width: 0, height: 0 });
   };
@@ -9160,7 +9183,7 @@ if (mode === 'inclination_menu') {
     const nextPages = mapPages.map((page, index) =>
       index === activeMapPageIndex ? captureCurrentMapPage() : page
     );
-    nextPages.push(createEmptyMapEditorPage());
+    nextPages.push(createEmptyMapEditorPage(mapMarkerSize, mapTextSize));
     setMapPages(nextPages);
     setActiveMapPageIndex(nextPages.length - 1);
     showMapEditorPage(nextPages[nextPages.length - 1]);
@@ -9322,7 +9345,7 @@ if (mode === 'inclination_menu') {
       const previousFontSize = Math.max(12, Math.round(16 * outputSize.scale));
       const fontSize = Math.max(
         8,
-        Math.round(previousFontSize * 0.88 * (mapTextSize / DEFAULT_MAP_TEXT_SIZE))
+        Math.round(previousFontSize * 0.88 * (page.textSize / DEFAULT_MAP_TEXT_SIZE))
       );
 
       ctx.fillStyle = item.color;
@@ -9342,7 +9365,7 @@ if (mode === 'inclination_menu') {
       const previousBaseSize = Math.max(28, Math.round(34 * outputSize.scale));
       const baseSize = Math.max(
         16,
-        Math.round(previousBaseSize * 0.88 * (mapMarkerSize / DEFAULT_MAP_MARKER_SIZE))
+        Math.round(previousBaseSize * 0.88 * (page.markerSize / DEFAULT_MAP_MARKER_SIZE))
       );
       const size = marker.color === '#0070c0' && marker.shape === 'square'
         ? Math.max(14, Math.round(baseSize * 0.82))
@@ -9415,6 +9438,8 @@ if (mode === 'inclination_menu') {
           markers: nextPages[0].markers,
           texts: nextPages[0].texts,
           lines: nextPages[0].lines,
+          markerSize: nextPages[0].markerSize,
+          textSize: nextPages[0].textSize,
           pages: nextPages,
           routeName: selectedRoute,
           station: stationName,
