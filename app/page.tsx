@@ -77,6 +77,21 @@ interface MapLineAnnotation {
   y2: number;
   color: MapColor;
 }
+
+interface MapEditorPage {
+  finalImage: string | null;
+  markers: Marker[];
+  texts: MapTextAnnotation[];
+  lines: MapLineAnnotation[];
+}
+
+const createEmptyMapEditorPage = (): MapEditorPage => ({
+  finalImage: null,
+  markers: [],
+  texts: [],
+  lines: [],
+});
+
 interface ExistingStation { 
   stationNo?: string;
   stationName: string; 
@@ -1220,6 +1235,8 @@ useEffect(() => {
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [mapTexts, setMapTexts] = useState<MapTextAnnotation[]>([]);
   const [mapLines, setMapLines] = useState<MapLineAnnotation[]>([]);
+  const [mapPages, setMapPages] = useState<MapEditorPage[]>(() => [createEmptyMapEditorPage()]);
+  const [activeMapPageIndex, setActiveMapPageIndex] = useState(0);
   const [draggingMarkerId, setDraggingMarkerId] = useState<number | null>(null);
   const [draggingTextId, setDraggingTextId] = useState<number | null>(null);
   const [draggingLineHandle, setDraggingLineHandle] = useState<{ id: number; endpoint: 'start' | 'end' } | null>(null);
@@ -3063,6 +3080,10 @@ const resetAllState = () => {
   setFirstPhotoMarks(createEmptyPhotoMarkSets());
   setSourceImage(null);
   setFinalImage(null);
+  setMapTexts([]);
+  setMapLines([]);
+  setMapPages([createEmptyMapEditorPage()]);
+  setActiveMapPageIndex(0);
   setExistingKartes([]);
   setIsEditMode(false);
   setFirstKarteNo("");
@@ -9060,6 +9081,91 @@ if (mode === 'inclination_menu') {
     return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : 0;
   };
 
+  const normalizeMapEditorPage = (value: unknown): MapEditorPage => {
+    const data = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+    const restoredMarkers = Array.isArray(data.markers) ? data.markers : [];
+    const restoredTexts = Array.isArray(data.texts) ? data.texts : [];
+    const restoredLines = Array.isArray(data.lines) ? data.lines : [];
+
+    return {
+      finalImage: typeof data.finalImage === 'string' && data.finalImage ? data.finalImage : null,
+      markers: restoredMarkers
+        .map((marker: Partial<Marker>, index: number) => ({
+          id: Number(marker.id) || Date.now() + index,
+          x: clampPercent(marker.x),
+          y: clampPercent(marker.y),
+          label: String(marker.label || index + 1),
+          color: normalizeMapColor(marker.color),
+          shape: marker.shape === 'square' ? 'square' as const : 'circle' as const,
+        }))
+        .filter((marker: Marker) => Number.isFinite(marker.x) && Number.isFinite(marker.y)),
+      texts: restoredTexts
+        .map((text: Partial<MapTextAnnotation>, index: number) => ({
+          id: Number(text.id) || Date.now() + 10000 + index,
+          x: clampPercent(text.x),
+          y: clampPercent(text.y),
+          text: String(text.text || ''),
+          color: normalizeMapColor(text.color),
+        }))
+        .filter((text: MapTextAnnotation) => text.text.trim()),
+      lines: restoredLines.map((line: Partial<MapLineAnnotation>, index: number) => ({
+        id: Number(line.id) || Date.now() + 20000 + index,
+        x1: clampPercent(line.x1),
+        y1: clampPercent(line.y1),
+        x2: clampPercent(line.x2),
+        y2: clampPercent(line.y2),
+        color: normalizeMapColor(line.color),
+      })),
+    };
+  };
+
+  const captureCurrentMapPage = (): MapEditorPage => ({
+    finalImage,
+    markers: [...markers],
+    texts: [...mapTexts],
+    lines: [...mapLines],
+  });
+
+  const showMapEditorPage = (page: MapEditorPage) => {
+    setSourceImage(null);
+    setFinalImage(page.finalImage);
+    setMarkers(page.markers);
+    setMapTexts(page.texts);
+    setMapLines(page.lines);
+    setSelectedLineId(null);
+    setMapDisplaySize({ width: 0, height: 0 });
+  };
+
+  const switchMapEditorPage = (pageIndex: number) => {
+    if (pageIndex === activeMapPageIndex || pageIndex < 0 || pageIndex >= mapPages.length) return;
+    if (sourceImage && !finalImage) {
+      alert("画像の範囲を確定してからページを切り替えてください");
+      return;
+    }
+
+    const nextPages = mapPages.map((page, index) =>
+      index === activeMapPageIndex ? captureCurrentMapPage() : page
+    );
+    setMapPages(nextPages);
+    setActiveMapPageIndex(pageIndex);
+    showMapEditorPage(nextPages[pageIndex]);
+  };
+
+  const addMapEditorPage = () => {
+    if (sourceImage && !finalImage) {
+      alert("画像の範囲を確定してからページを追加してください");
+      return;
+    }
+
+    const nextPages = mapPages.map((page, index) =>
+      index === activeMapPageIndex ? captureCurrentMapPage() : page
+    );
+    nextPages.push(createEmptyMapEditorPage());
+    setMapPages(nextPages);
+    setActiveMapPageIndex(nextPages.length - 1);
+    showMapEditorPage(nextPages[nextPages.length - 1]);
+  };
+
   const getNextMapMarkerLabel = (
     color: Marker['color'],
     shape: Marker['shape']
@@ -9132,52 +9238,18 @@ if (mode === 'inclination_menu') {
     try {
       const result = await gasApi("getMapEditorData", { spreadsheetId });
       const data = result.data || {};
-      const restoredFinalImage = typeof data.finalImage === 'string' ? data.finalImage : '';
-      const restoredMarkers = Array.isArray(data.markers) ? data.markers : [];
-      const restoredTexts = Array.isArray(data.texts) ? data.texts : [];
-      const restoredLines = Array.isArray(data.lines) ? data.lines : [];
+      const restoredPages = Array.isArray(data.pages) && data.pages.length > 0
+        ? data.pages.map((page: unknown) => normalizeMapEditorPage(page))
+        : [normalizeMapEditorPage(data)];
 
-      if (!restoredFinalImage) {
+      if (!restoredPages.some((page: MapEditorPage) => page.finalImage)) {
         if (!silent) alert("保存済みの位置図編集データはありません");
         return;
       }
 
-      setSourceImage(null);
-      setFinalImage(restoredFinalImage);
-      setMarkers(
-        restoredMarkers
-          .map((marker: Partial<Marker>, index: number) => ({
-            id: Number(marker.id) || Date.now() + index,
-            x: clampPercent(marker.x),
-            y: clampPercent(marker.y),
-            label: String(marker.label || index + 1),
-            color: normalizeMapColor(marker.color),
-            shape: marker.shape === 'square' ? 'square' : 'circle',
-          }))
-          .filter((marker: Marker) => Number.isFinite(marker.x) && Number.isFinite(marker.y))
-      );
-      setMapTexts(
-        restoredTexts
-          .map((text: Partial<MapTextAnnotation>, index: number) => ({
-            id: Number(text.id) || Date.now() + 10000 + index,
-            x: clampPercent(text.x),
-            y: clampPercent(text.y),
-            text: String(text.text || ''),
-            color: normalizeMapColor(text.color),
-          }))
-          .filter((text: MapTextAnnotation) => text.text.trim())
-      );
-      setMapLines(
-        restoredLines
-          .map((line: Partial<MapLineAnnotation>, index: number) => ({
-            id: Number(line.id) || Date.now() + 20000 + index,
-            x1: clampPercent(line.x1),
-            y1: clampPercent(line.y1),
-            x2: clampPercent(line.x2),
-            y2: clampPercent(line.y2),
-            color: normalizeMapColor(line.color),
-          }))
-      );
+      setMapPages(restoredPages);
+      setActiveMapPageIndex(0);
+      showMapEditorPage(restoredPages[0]);
 
       if (!silent) alert("保存済みの位置図を読み込みました");
     } catch (e) {
@@ -9190,6 +9262,94 @@ if (mode === 'inclination_menu') {
     }
   };
 
+  const renderMapPageForUpload = async (page: MapEditorPage) => {
+    if (!page.finalImage) throw new Error("位置図画像を読み込めていません");
+
+    const img = new Image();
+    img.src = page.finalImage;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("位置図画像を読み込めませんでした"));
+    });
+
+    const canvas = document.createElement('canvas');
+    const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, MAP_UPLOAD_MAX_PIXELS);
+    canvas.width = outputSize.width;
+    canvas.height = outputSize.height;
+    const ctx = canvas.getContext('2d');
+    if (!canvas.width || !canvas.height) throw new Error("位置図画像のサイズを取得できません");
+    if (!ctx) throw new Error("画像処理を開始できません");
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    page.lines.forEach(line => {
+      ctx.beginPath();
+      ctx.lineWidth = Math.max(1, 1.4 * outputSize.scale);
+      ctx.strokeStyle = line.color;
+      ctx.moveTo((line.x1 / 100) * canvas.width, (line.y1 / 100) * canvas.height);
+      ctx.lineTo((line.x2 / 100) * canvas.width, (line.y2 / 100) * canvas.height);
+      ctx.stroke();
+    });
+
+    page.texts.forEach(item => {
+      const x = (item.x / 100) * canvas.width;
+      const y = (item.y / 100) * canvas.height;
+      const previousFontSize = Math.max(12, Math.round(16 * outputSize.scale));
+      const fontSize = Math.max(
+        8,
+        Math.round(previousFontSize * 0.88 * (mapTextSize / DEFAULT_MAP_TEXT_SIZE))
+      );
+
+      ctx.fillStyle = item.color;
+      ctx.font = `${fontSize}px "MS Gothic", "ＭＳ ゴシック", monospace`;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      const textLines = item.text.split(/\r?\n/);
+      const lineHeight = fontSize * 1.25;
+      const textBlockHeight = fontSize + Math.max(0, textLines.length - 1) * lineHeight;
+      const startY = y - textBlockHeight / 2;
+      textLines.forEach((line, index) => ctx.fillText(line, x, startY + index * lineHeight));
+    });
+
+    page.markers.forEach(marker => {
+      const x = (marker.x / 100) * canvas.width;
+      const y = (marker.y / 100) * canvas.height;
+      const previousBaseSize = Math.max(28, Math.round(34 * outputSize.scale));
+      const baseSize = Math.max(
+        16,
+        Math.round(previousBaseSize * 0.88 * (mapMarkerSize / DEFAULT_MAP_MARKER_SIZE))
+      );
+      const size = marker.color === '#0070c0' && marker.shape === 'square'
+        ? Math.max(14, Math.round(baseSize * 0.82))
+        : marker.shape === 'circle' && (marker.color === 'red' || marker.color === 'black')
+          ? Math.max(15, Math.round(baseSize * 0.9))
+          : baseSize;
+      ctx.beginPath();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = marker.color;
+      ctx.fillStyle = "white";
+      if (marker.shape === 'circle') ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+      else ctx.rect(x - size / 2, y - size / 2, size, size);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = marker.color;
+      ctx.font = `bold ${size * 0.6}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(marker.label, x, y);
+    });
+
+    const outputDataUrl = getCanvasMapDataUrl(canvas);
+    const imageMimeType = getDataUrlMimeType(outputDataUrl) || 'image/jpeg';
+    return {
+      imageData: outputDataUrl.split(',')[1],
+      imageMimeType,
+      imageFileName: imageMimeType === 'image/png' ? 'marked_map.png' : 'marked_map.jpg',
+    };
+  };
+
   const handleSaveMap = async () => {
     if (!finalImage || isSending) return;
     if (!spreadsheetId) {
@@ -9198,105 +9358,41 @@ if (mode === 'inclination_menu') {
     }
     setIsSending(true);
     try {
-      const canvas = document.createElement('canvas');
-      const img = imageRef.current;
-      if (!img) throw new Error("位置図画像を読み込めていません");
       const mapStationNo = await fetchMapStationNo();
       if (!mapStationNo) {
         throw new Error("点検リスト_マスタから駅No.を取得できませんでした");
       }
 
-      const outputSize = getScaledImageSize(img.naturalWidth, img.naturalHeight, MAP_UPLOAD_MAX_PIXELS);
-      canvas.width = outputSize.width;
-      canvas.height = outputSize.height;
-      const ctx = canvas.getContext('2d');
-      if (!canvas.width || !canvas.height) {
-        throw new Error("位置図画像のサイズを取得できません");
+      const nextPages = mapPages.map((page, index) =>
+        index === activeMapPageIndex ? captureCurrentMapPage() : page
+      );
+      const incompletePageIndex = nextPages.findIndex(page => !page.finalImage);
+      if (incompletePageIndex >= 0) {
+        throw new Error(`${incompletePageIndex + 1}ページ目の位置図画像が未設定です`);
       }
-      if (!ctx) throw new Error("画像処理を開始できません");
 
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      mapLines.forEach(line => {
-        ctx.beginPath();
-        ctx.lineWidth = Math.max(1, 1.4 * outputSize.scale);
-        ctx.strokeStyle = line.color;
-        ctx.moveTo((line.x1 / 100) * canvas.width, (line.y1 / 100) * canvas.height);
-        ctx.lineTo((line.x2 / 100) * canvas.width, (line.y2 / 100) * canvas.height);
-        ctx.stroke();
-      });
-
-      mapTexts.forEach(item => {
-        const x = (item.x / 100) * canvas.width;
-        const y = (item.y / 100) * canvas.height;
-        const previousFontSize = Math.max(12, Math.round(16 * outputSize.scale));
-        const fontSize = Math.max(
-          8,
-          Math.round(previousFontSize * 0.88 * (mapTextSize / DEFAULT_MAP_TEXT_SIZE))
-        );
-
-        ctx.fillStyle = item.color;
-        ctx.font = `${fontSize}px "MS Gothic", "ＭＳ ゴシック", monospace`;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        const lines = item.text.split(/\r?\n/);
-        const lineHeight = fontSize * 1.25;
-        const textBlockHeight = fontSize + Math.max(0, lines.length - 1) * lineHeight;
-        const startY = y - textBlockHeight / 2;
-
-        lines.forEach((line, index) => {
-          ctx.fillText(line, x, startY + index * lineHeight);
-        });
-      });
-
-      markers.forEach(m => {
-        const x = (m.x / 100) * canvas.width;
-        const y = (m.y / 100) * canvas.height;
-        const previousBaseSize = Math.max(28, Math.round(34 * outputSize.scale));
-        const baseSize = Math.max(
-          16,
-          Math.round(previousBaseSize * 0.88 * (mapMarkerSize / DEFAULT_MAP_MARKER_SIZE))
-        );
-        const size = m.color === '#0070c0' && m.shape === 'square'
-          ? Math.max(14, Math.round(baseSize * 0.82))
-          : m.shape === 'circle' && (m.color === 'red' || m.color === 'black')
-            ? Math.max(15, Math.round(baseSize * 0.9))
-          : baseSize;
-        ctx.beginPath();
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = m.color;
-        ctx.fillStyle = "white";
-        if (m.shape === 'circle') { ctx.arc(x, y, size/2, 0, Math.PI * 2); } 
-        else { ctx.rect(x - size/2, y - size/2, size, size); }
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = m.color;
-        ctx.font = `bold ${size * 0.6}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(m.label, x, y);
-      });
-
-      const outputDataUrl = getCanvasMapDataUrl(canvas);
-      const combinedBase64 = outputDataUrl.split(',')[1];
-      const imageMimeType = getDataUrlMimeType(outputDataUrl) || 'image/jpeg';
+      const uploadPages = await Promise.all(nextPages.map(async (page, index) => ({
+        pageNumber: index + 1,
+        ...(await renderMapPageForUpload(page)),
+      })));
+      const firstPage = uploadPages[0];
       const payload = {
         spreadsheetId,
-        imageData: combinedBase64,
-        imageMimeType,
-        imageFileName: imageMimeType === 'image/png' ? 'marked_map.png' : 'marked_map.jpg',
+        imageData: firstPage.imageData,
+        imageMimeType: firstPage.imageMimeType,
+        imageFileName: firstPage.imageFileName,
+        pages: uploadPages,
         stationNo: mapStationNo,
         masterSpreadsheetId: INSPECTION_LIST_MASTER_ID,
         routeName: selectedRoute,
         station: stationName,
         year: selectedYear,
         editorData: {
-          finalImage,
-          markers,
-          texts: mapTexts,
-          lines: mapLines,
+          finalImage: nextPages[0].finalImage,
+          markers: nextPages[0].markers,
+          texts: nextPages[0].texts,
+          lines: nextPages[0].lines,
+          pages: nextPages,
           routeName: selectedRoute,
           station: stationName,
           year: selectedYear,
@@ -9306,7 +9402,10 @@ if (mode === 'inclination_menu') {
       };
 
       await gasApi("uploadPhotos", payload);
-      alert("位置図を保存しました。");
+      setMapPages(nextPages);
+      alert(nextPages.length === 1
+        ? "位置図を保存しました。"
+        : `位置図を${nextPages.length}ページ保存しました。`);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       console.error("位置図保存エラー", e);
@@ -9334,6 +9433,31 @@ if (mode === 'editor') {
       )}
       <div className="flex min-h-0 flex-1 flex-col items-center p-2 sm:p-3">
         <Nav />
+
+        <div className="mt-2 flex w-full shrink-0 items-center gap-2 overflow-x-auto rounded-lg bg-white p-2 shadow-sm">
+          {mapPages.map((_, pageIndex) => (
+            <button
+              key={pageIndex}
+              type="button"
+              onClick={() => switchMapEditorPage(pageIndex)}
+              className={`shrink-0 rounded-md px-4 py-2 text-sm font-black ${
+                pageIndex === activeMapPageIndex
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {pageIndex + 1}ページ目
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={addMapEditorPage}
+            disabled={Boolean(sourceImage && !finalImage)}
+            className="shrink-0 rounded-md bg-emerald-600 px-4 py-2 text-sm font-black text-white disabled:bg-slate-300"
+          >
+            ＋ ページを追加
+          </button>
+        </div>
 
         {/* 上部操作パネル */}
   <div className="my-2 flex w-full shrink-0 gap-2 rounded-lg bg-white p-2 shadow-sm">

@@ -7,18 +7,60 @@
 
 function uploadPhotos(data) {
   const ss = SpreadsheetApp.openById(data.spreadsheetId);
-  const sheet =
+  const firstSheet =
     ss.getSheetByName("写真カルテ番号位置") ||
     ss.getSheetByName("写真カルテ番号位置図");
 
-  if (!sheet) throw new Error("貼り付け先シートが見つかりません");
-  if (!data.imageData) throw new Error("位置図画像データがありません");
+  if (!firstSheet) throw new Error("貼り付け先シートが見つかりません");
 
+  const pages = Array.isArray(data.pages) && data.pages.length > 0
+    ? data.pages
+    : [{
+        pageNumber: 1,
+        imageData: data.imageData,
+        imageMimeType: data.imageMimeType,
+        imageFileName: data.imageFileName,
+      }];
+  const stationNo = getMapStationNo_(data);
+
+  pages.forEach(function(page, index) {
+    if (!page.imageData) {
+      throw new Error((index + 1) + "ページ目の位置図画像データがありません");
+    }
+
+    const pageNumber = index + 1;
+    const sheet = getOrCreateMapPageSheet_(ss, firstSheet, pageNumber);
+    writeMapPageImage_(sheet, page, stationNo);
+  });
+
+  if (data.editorData) {
+    saveMapEditorData_(ss, data.editorData);
+  }
+
+  SpreadsheetApp.flush();
+  return createJsonResponse({
+    success: true,
+    pageCount: pages.length,
+  });
+}
+
+function getOrCreateMapPageSheet_(ss, firstSheet, pageNumber) {
+  if (pageNumber === 1) return firstSheet;
+
+  const sheetName = "写真カルテ番号位置_" + pageNumber;
+  const existing = ss.getSheetByName(sheetName);
+  if (existing) return existing;
+
+  const master = ss.getSheetByName("写真カルテ番号位置図_マスタ");
+  const source = master || firstSheet;
+  return source.copyTo(ss).setName(sheetName).showSheet();
+}
+
+function writeMapPageImage_(sheet, page, stationNo) {
   if (sheet.isSheetHidden()) {
     sheet.showSheet();
   }
 
-  const stationNo = getMapStationNo_(data);
   if (stationNo) {
     sheet.getRange("D2").setValue(stationNo);
   }
@@ -27,10 +69,10 @@ function uploadPhotos(data) {
     img.remove();
   });
 
-  const mimeType = String(data.imageMimeType || "image/jpeg");
-  const fileName = String(data.imageFileName || "marked_map.jpg");
+  const mimeType = String(page.imageMimeType || "image/jpeg");
+  const fileName = String(page.imageFileName || "marked_map.jpg");
   const mapBlob = Utilities.newBlob(
-    Utilities.base64Decode(data.imageData),
+    Utilities.base64Decode(page.imageData),
     mimeType,
     fileName
   );
@@ -77,15 +119,6 @@ function uploadPhotos(data) {
       .setWidth(hanreiImage.getWidth() * 0.65)
       .setHeight(hanreiImage.getHeight() * 0.65);
   }
-
-  if (data.editorData) {
-    saveMapEditorData_(ss, data.editorData);
-  }
-
-  SpreadsheetApp.flush();
-  return createJsonResponse({
-    success: true,
-  });
 }
 
 function getMapEditorData(data) {

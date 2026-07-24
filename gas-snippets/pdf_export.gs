@@ -85,6 +85,9 @@ function getPdfSheetOptions(data) {
   });
 
   groups.photo.sort((a, b) => Number(a.name) - Number(b.name));
+  groups.photoPositionMap.sort((a, b) =>
+    getPhotoPositionMapPdfPageNumber_(a.name) - getPhotoPositionMapPdfPageNumber_(b.name)
+  );
   groups.slope.sort((a, b) => getSlopeTablePdfPageNumber_(a.name) - getSlopeTablePdfPageNumber_(b.name));
   groups.inclination.sort((a, b) => a.name.localeCompare(b.name, "ja", { numeric: true }));
   if (hasInspectionReportPdfPages) {
@@ -1170,7 +1173,18 @@ function isInclinationPdfSheetName_(sheetName) {
 }
 
 function isPhotoPositionMapPdfSheetName_(sheetName) {
-  return sheetName === "写真カルテ番号位置図" || sheetName === "写真カルテ番号位置";
+  return (
+    sheetName === "写真カルテ番号位置図" ||
+    sheetName === "写真カルテ番号位置" ||
+    /^写真カルテ番号位置_\d+$/.test(sheetName)
+  );
+}
+
+function getPhotoPositionMapPdfPageNumber_(sheetName) {
+  const name = String(sheetName || "").trim();
+  if (name === "写真カルテ番号位置図" || name === "写真カルテ番号位置") return 1;
+  const match = name.match(/^写真カルテ番号位置_(\d+)$/);
+  return match ? Number(match[1]) : 9999;
 }
 
 function isSlopeTablePdfSheetName_(sheetName) {
