@@ -33,6 +33,10 @@ function uploadPhotos(data) {
     writeMapPageImage_(sheet, page, stationNo);
   });
 
+  if (Array.isArray(data.pages)) {
+    removeExtraMapPageSheets_(ss, pages.length);
+  }
+
   if (data.editorData) {
     saveMapEditorData_(ss, data.editorData);
   }
@@ -41,6 +45,15 @@ function uploadPhotos(data) {
   return createJsonResponse({
     success: true,
     pageCount: pages.length,
+  });
+}
+
+function removeExtraMapPageSheets_(ss, pageCount) {
+  ss.getSheets().forEach(function(sheet) {
+    const match = sheet.getName().match(/^写真カルテ番号位置_(\d+)$/);
+    if (match && Number(match[1]) > pageCount) {
+      ss.deleteSheet(sheet);
+    }
   });
 }
 

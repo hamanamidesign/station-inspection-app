@@ -9166,6 +9166,29 @@ if (mode === 'inclination_menu') {
     showMapEditorPage(nextPages[nextPages.length - 1]);
   };
 
+  const deleteMapEditorPage = (pageIndex: number) => {
+    if (pageIndex <= 0 || pageIndex >= mapPages.length) return;
+    if (sourceImage && !finalImage) {
+      alert("画像の範囲を確定してからページを削除してください");
+      return;
+    }
+    if (!window.confirm(`${pageIndex + 1}ページ目を削除しますか？`)) return;
+
+    const currentPages = mapPages.map((page, index) =>
+      index === activeMapPageIndex ? captureCurrentMapPage() : page
+    );
+    const nextPages = currentPages.filter((_, index) => index !== pageIndex);
+    const nextActivePageIndex = pageIndex === activeMapPageIndex
+      ? Math.max(0, pageIndex - 1)
+      : pageIndex < activeMapPageIndex
+        ? activeMapPageIndex - 1
+        : activeMapPageIndex;
+
+    setMapPages(nextPages);
+    setActiveMapPageIndex(nextActivePageIndex);
+    showMapEditorPage(nextPages[nextActivePageIndex]);
+  };
+
   const getNextMapMarkerLabel = (
     color: Marker['color'],
     shape: Marker['shape']
@@ -9436,18 +9459,33 @@ if (mode === 'editor') {
 
         <div className="mt-2 flex w-full shrink-0 items-center gap-2 overflow-x-auto rounded-lg bg-white p-2 shadow-sm">
           {mapPages.map((_, pageIndex) => (
-            <button
-              key={pageIndex}
-              type="button"
-              onClick={() => switchMapEditorPage(pageIndex)}
-              className={`shrink-0 rounded-md px-4 py-2 text-sm font-black ${
-                pageIndex === activeMapPageIndex
-                  ? "bg-indigo-600 text-white"
-                  : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              {pageIndex + 1}ページ目
-            </button>
+            <div key={pageIndex} className="relative shrink-0 pt-1 pr-1">
+              <button
+                type="button"
+                onClick={() => switchMapEditorPage(pageIndex)}
+                className={`rounded-md px-4 py-2 text-sm font-black ${
+                  pageIndex === activeMapPageIndex
+                    ? "bg-indigo-600 text-white"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {pageIndex + 1}ページ目
+              </button>
+              {pageIndex > 0 && (
+                <button
+                  type="button"
+                  aria-label={`${pageIndex + 1}ページ目を削除`}
+                  title={`${pageIndex + 1}ページ目を削除`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    deleteMapEditorPage(pageIndex);
+                  }}
+                  className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-black leading-none text-white shadow"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           ))}
           <button
             type="button"
