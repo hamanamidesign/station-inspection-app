@@ -209,6 +209,13 @@ function doGet(e) {
 
   switch (action) {
 
+    case "getMapBase64":
+      try {
+        return handleGetMapBase64(e.parameter.id);
+      } catch (error) {
+        return createJsonResponse({ success: false, error: String(error) });
+      }
+
     case "getRouteList":
       return createJsonResponse(getRouteList());
 

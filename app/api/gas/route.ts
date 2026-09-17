@@ -274,16 +274,23 @@ export async function POST(req: Request) {
     validateGasUrl();
     const startedAt = Date.now();
     const timeoutMs = getGasTimeoutMs(action);
-    let result = await fetchGasTextWithRetry(GAS_URL, { method: "POST", body }, timeoutMs);
-    // Only known read-only actions may fall back to GET. Never resend a save.
-    if (action && LEGACY_GET_ACTIONS.has(action) && (result.status === 404 || result.status >= 500 || /unknown action/i.test(result.text))) {
+    const readUrl = new URL(GAS_URL);
+    if (action === 'getMapBase64' || (action && LEGACY_GET_ACTIONS.has(action))) {
+      for (const [key, value] of Object.entries(JSON.parse(body))) {
+        if (value !== null && value !== undefined) readUrl.searchParams.set(key, String(value));
+      }
+    }
+    // Image reads carry action/id in the URL, including through GET redirects.
+    // Old deployments without the GET handler can still use their POST handler.
+    const imageRead = action === 'getMapBase64';
+    let result = await fetchGasTextWithRetry(imageRead ? readUrl.toString() : GAS_URL,
+      imageRead ? undefined : { method: "POST", body }, timeoutMs);
+    const canFallback = imageRead || (action && LEGACY_GET_ACTIONS.has(action));
+    if (canFallback && (result.status === 404 || result.status >= 500 || /unknown action/i.test(result.text))) {
       const remainingMs = timeoutMs - (Date.now() - startedAt);
       if (remainingMs > 1000) {
-        const url = new URL(GAS_URL);
-        for (const [key, value] of Object.entries(JSON.parse(body))) {
-          if (value !== null && value !== undefined) url.searchParams.set(key, String(value));
-        }
-        result = await fetchGasTextWithRetry(url.toString(), undefined, remainingMs);
+        result = await fetchGasTextWithRetry(imageRead ? GAS_URL : readUrl.toString(),
+          imageRead ? { method: "POST", body } : undefined, remainingMs);
       }
     }
     return upstreamResponse(result, action);
