@@ -1,4 +1,4 @@
-const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL!;
+const GAS_URL = (process.env.GAS_URL || process.env.NEXT_PUBLIC_GAS_URL || "").trim();
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -43,10 +43,12 @@ const getGasTimeoutMs = (action?: string | null) => {
     case "getMaps":
       return 30000;
     case "getKarteData":
+      return 120000;
+    case "getMapBase64":
+      return 90000;
     case "getSlopeTableData":
     case "getInclinationKarteSheets":
     case "getInspectionReportData":
-    case "getMapBase64":
     case "getMapEditorData":
       return 45000;
     case "createNew":
@@ -86,10 +88,13 @@ const fetchGas = async (url: string, init: RequestInit | undefined, timeoutMs: n
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(url, {
+    const response = await fetch(url, {
       ...init,
       signal: controller.signal,
+      cache: "no-store",
     });
+    const text = await response.text();
+    return { status: response.status, text };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -115,7 +120,7 @@ const fetchGasTextWithRetry = async (url: string, init: RequestInit | undefined,
 
   for (let attempt = 0; attempt <= GAS_RETRY_COUNT; attempt += 1) {
     const res = await fetchGas(url, init, timeoutMs);
-    const text = await res.text();
+    const text = res.text;
 
     lastStatus = res.status;
     lastText = text;
@@ -203,6 +208,24 @@ const normalizeMapBase64Response = (text: string, status: number) => {
   }
 };
 
+const LEGACY_GET_ACTIONS = new Set(['getRouteList', 'getExistingData', 'getKarteList', 'getPulldownLists', 'getMaps']);
+const validateGasUrl = () => {
+  if (!GAS_URL) throw new Error('GAS_URL または NEXT_PUBLIC_GAS_URL が未設定です。');
+  const url = new URL(GAS_URL);
+  if (url.protocol !== 'https:' || url.hostname !== 'script.google.com' || !url.pathname.endsWith('/exec')) throw new Error('GASの接続先にはWebアプリの /exec URLを設定してください。');
+};
+const upstreamResponse = (result: {status: number; text: string}, action: string | null) => {
+  let parsed;
+  try { parsed = JSON.parse(result.text); } catch { /* image responses may be raw base64 */ }
+  if (/unknown action/i.test(String(parsed?.error || ''))) return jsonResponse({success: false, code: 'GAS_DEPLOYMENT_MISMATCH', error: withActionLabel('接続先GASがこの処理に対応していません。GASのデプロイ版と接続先URLを確認してください。', action)}, 502);
+  if (result.status >= 400 || /<!doctype html|<html/i.test(result.text)) {
+    console.warn('GAS upstream failure', {action, upstreamStatus: result.status});
+    return jsonResponse({success: false, code: 'GAS_UPSTREAM_ERROR', upstreamStatus: result.status, error: withActionLabel('GAS接続先から正常な応答を取得できませんでした。HTTP ' + result.status + '。繰り返す場合はGASのデプロイURLとアクセス設定を確認してください。', action)}, 502);
+  }
+  if (action === 'getMapBase64') return normalizeMapBase64Response(result.text, result.status);
+  return new Response(result.text, {status: result.status, headers: {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}});
+};
+
 // ===============================
 // GET (一覧取得など)
 // ===============================
@@ -216,14 +239,9 @@ export async function GET(req: Request) {
   const url = `${GAS_URL}?${params.toString()}`;
 
   try {
-    const { status, text } = await fetchGasTextWithRetry(url, undefined, getGasTimeoutMs(action));
-
-    return new Response(text, {
-      status,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    validateGasUrl();
+    const result = await fetchGasTextWithRetry(url, undefined, getGasTimeoutMs(action));
+    return upstreamResponse(result, action);
   } catch (error) {
     return jsonResponse({
       success: false,
@@ -232,7 +250,7 @@ export async function GET(req: Request) {
         : error instanceof Error
           ? withActionLabel(error.message, action)
           : String(error),
-    }, 504);
+    }, error instanceof Error && error.name === "AbortError" ? 504 : 502);
   }
 
 }
@@ -253,21 +271,22 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { status, text } = await fetchGasTextWithRetry(GAS_URL, {
-      method: "POST",
-      body,
-    }, getGasTimeoutMs(action));
-
-    if (action === "getMapBase64") {
-      return normalizeMapBase64Response(text, status);
+    validateGasUrl();
+    const startedAt = Date.now();
+    const timeoutMs = getGasTimeoutMs(action);
+    let result = await fetchGasTextWithRetry(GAS_URL, { method: "POST", body }, timeoutMs);
+    // Only known read-only actions may fall back to GET. Never resend a save.
+    if (action && LEGACY_GET_ACTIONS.has(action) && (result.status === 404 || result.status >= 500 || /unknown action/i.test(result.text))) {
+      const remainingMs = timeoutMs - (Date.now() - startedAt);
+      if (remainingMs > 1000) {
+        const url = new URL(GAS_URL);
+        for (const [key, value] of Object.entries(JSON.parse(body))) {
+          if (value !== null && value !== undefined) url.searchParams.set(key, String(value));
+        }
+        result = await fetchGasTextWithRetry(url.toString(), undefined, remainingMs);
+      }
     }
-
-    return new Response(text, {
-      status,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    return upstreamResponse(result, action);
   } catch (error) {
     if (
       action === "uploadInspectionReport" &&
@@ -288,7 +307,7 @@ export async function POST(req: Request) {
         : error instanceof Error
           ? withActionLabel(error.message, action)
           : String(error),
-    }, 504);
+    }, error instanceof Error && error.name === "AbortError" ? 504 : 502);
   }
 
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { gasApi } from "./lib/gasApi";
+import { loadPhotoKarte } from "./lib/photoKarteLoad";
 import Cropper from 'react-easy-crop';
 import TaskSelect from "./components/TaskSelect";
 
@@ -1345,6 +1346,10 @@ useEffect(() => {
   const routesLoadedRef = useRef(false);
   const routesLoadingRef = useRef(false);
   const inspectionReportLoadIdRef = useRef(0);
+  const photoKarteLoadIdRef = useRef(0);
+  useEffect(() => {
+    photoKarteLoadIdRef.current += 1;
+  }, [spreadsheetId, stationName, selectedYear, routeFolderId]);
   const createNewInFlightRef = useRef(false);
 
 const updateMapDisplaySize = useCallback(() => {
@@ -2716,6 +2721,7 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
 // --- 指定したNoのカルテデータを読み込む関数 ---
   const loadKarteData = async (no: string) => {
   if (!spreadsheetId) return;
+  const loadId = ++photoKarteLoadIdRef.current;
   const unsaved = unsavedPhotoKartes.find(item => item.spreadsheetId === spreadsheetId && String(item.karteNo) === String(no));
   if (unsaved && confirm('この端末に一時保存したカルテがあります。\n「OK」で一時保存を開き、「キャンセル」でスプレッドシートの保存済みデータを読み込みます。')) {
     applyPhotoKarteData(unsaved.payload, false);
@@ -2725,7 +2731,7 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
   setIsLoading(true);
   try {
     const [result, registrations, masterDates] = await Promise.all([
-      gasApi("getKarteData", {
+      loadPhotoKarte({
         spreadsheetId,
         karteNo: no,
         station: stationName,
@@ -2739,6 +2745,7 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
       }),
     ]);
     
+    if (photoKarteLoadIdRef.current !== loadId) return;
     if (result.success) {
       const data = toRecord(result.data);
       const registration = registrations.find(item =>
@@ -2781,9 +2788,10 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
       applyPhotoKarteData(completeData, true);
     }
   } catch (e) {
+    if (photoKarteLoadIdRef.current !== loadId) return;
     alert(`読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    setIsLoading(false);
+    if (photoKarteLoadIdRef.current === loadId) setIsLoading(false);
   }
 };
 

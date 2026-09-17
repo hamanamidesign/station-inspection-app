@@ -736,79 +736,45 @@ function handleGetKarteData(params) {
 
 const photos = Array(4).fill(null);
 const firstPhotos = Array(4).fill(null);
-
+const photoSources = [];
+const referencesOnly = params.photoMode === "references";
 try {
-  const photoFolderId = getPhotoFolderId(
-    params.station,
-    params.year,
-    params.routeFolderId
-  );
-
-  if (photoFolderId) {
-    const parentFolder = DriveApp.getFolderById(photoFolderId);
-    const subFolders = parentFolder.getFoldersByName(sheetName);
-
-    if (subFolders.hasNext()) {
-      const files = subFolders.next().getFiles();
-
-      while (files.hasNext()) {
-        const f = files.next();
-        const name = f.getName();
-
-        if (name.startsWith("編集元_初回点検_")) {
-          const idx = getPhotoIndexFromFileName_(name);
-
-          if (idx >= 0 && idx < 4) {
-            firstPhotos[idx] =
-              "data:image/jpeg;base64," +
-              Utilities.base64Encode(f.getBlob().getBytes());
-          }
-        } else if (name.startsWith("_編集元_初回点検_")) {
-          const idx = getPhotoIndexFromFileName_(name);
-
-          if (idx >= 0 && idx < 4 && !firstPhotos[idx]) {
-            firstPhotos[idx] =
-              "data:image/jpeg;base64," +
-              Utilities.base64Encode(f.getBlob().getBytes());
-          }
-        } else if (name.startsWith("編集元_")) {
-          const idx = getPhotoIndexFromFileName_(name);
-
-          if (idx >= 0 && idx < 4) {
-            photos[idx] =
-              "data:image/jpeg;base64," +
-              Utilities.base64Encode(f.getBlob().getBytes());
-          }
-        } else if (name.startsWith("_編集元_")) {
-          const idx = getPhotoIndexFromFileName_(name);
-
-          if (idx >= 0 && idx < 4 && !photos[idx]) {
-            photos[idx] =
-              "data:image/jpeg;base64," +
-              Utilities.base64Encode(f.getBlob().getBytes());
-          }
-        } else if (name.startsWith("初回点検_")) {
-          const idx = getPhotoIndexFromFileName_(name);
-
-          if (idx >= 0 && idx < 4 && !firstPhotos[idx]) {
-            firstPhotos[idx] =
-              "data:image/jpeg;base64," +
-              Utilities.base64Encode(f.getBlob().getBytes());
-          }
-        } else {
-          const idx = getPhotoIndexFromFileName_(name);
-
-          if (idx >= 0 && idx < 4 && !photos[idx]) {
-            photos[idx] =
-              "data:image/jpeg;base64," +
-              Utilities.base64Encode(f.getBlob().getBytes());
-          }
-        }
-      }
+  const photoFolderId = getPhotoFolderId(params.station, params.year, params.routeFolderId);
+  if (!photoFolderId) throw new Error("現場管理台帳の写真フォルダが見つかりません。");
+  const subFolders = DriveApp.getFolderById(photoFolderId).getFoldersByName(sheetName);
+  if (subFolders.hasNext()) {
+    const folder = subFolders.next();
+    if (subFolders.hasNext()) throw new Error("同じカルテ番号の写真フォルダが複数あります。");
+    const files = folder.getFiles();
+    const selected = {};
+    const seen = {};
+    while (files.hasNext()) {
+      const file = files.next();
+      const name = file.getName();
+      const index = getPhotoIndexFromFileName_(name);
+      if (index < 0 || index >= 4) continue;
+      const target = /^(?:_?編集元_)?初回点検_/.test(name) ? "first" : "current";
+      const priority = name.startsWith("編集元_") ? 3 : name.startsWith("_編集元_") ? 2 : 1;
+      const slot = target + ":" + index;
+      const key = slot + ":" + priority;
+      if (seen[key]) throw new Error("同じ写真枠のファイルが重複しています: " + name);
+      seen[key] = true;
+      if (!selected[slot] || selected[slot].priority < priority) selected[slot] = { file: file, target: target, index: index, priority: priority };
     }
+    Object.keys(selected).sort().forEach(function(slot) {
+      const item = selected[slot];
+      if (referencesOnly) {
+        photoSources.push({ id: item.file.getId(), target: item.target, index: item.index });
+      } else {
+        const photo = "data:image/jpeg;base64," + Utilities.base64Encode(item.file.getBlob().getBytes());
+        (item.target === "first" ? firstPhotos : photos)[item.index] = photo;
+      }
+    });
+  } else if (sheet.getImages().length > 0) {
+    throw new Error("カルテの写真フォルダが見つかりません。");
   }
-} catch (e) {
-  Logger.log(e);
+} catch (error) {
+  throw new Error("写真を読み込めませんでした。 " + String(error));
 }
 
     const photoKarteEditorData = getPhotoKarteEditorData_(ss, sheetName);
@@ -817,36 +783,41 @@ try {
     // データ取得
     // =========================
 
+    // 個別セルへの往復をまとめ、値と表示文字列をそれぞれ一度で取得する。
+    const range = sheet.getRange("A1:V16");
+    const values = range.getValues();
+    const display = range.getDisplayValues();
     const data = {
 
-      karteNo: sheet.getRange("D1").getValue(),
-      stationName: sheet.getRange("I1").getValue(),
+      karteNo: values[0][3],
+      stationName: values[0][8],
 
-      structEval: sheet.getRange("F3").getValue(),
-      impactEval: sheet.getRange("I3").getValue(),
-      totalEval: sheet.getRange("L3").getValue(),
-      prevYearEval: sheet.getRange("Q3").getValue(),
+      structEval: values[2][5],
+      impactEval: values[2][8],
+      totalEval: values[2][11],
+      prevYearEval: values[2][16],
 
-      firstKarteNo: sheet.getRange("D8").getDisplayValue(),
-      firstDate: sheet.getRange("F5").getDisplayValue(),
-      firstInspector: sheet.getRange("F6").getValue(),
+      firstKarteNo: display[7][3],
+      firstDate: display[4][5],
+      firstInspector: values[5][5],
 
-      firstFinish: sheet.getRange("J10").getValue(),
-      firstSituation: sheet.getRange("J13").getValue(),
-      firstDetail: sheet.getRange("J16").getValue(),
+      firstFinish: values[9][9],
+      firstSituation: values[12][9],
+      firstDetail: values[15][9],
 
-      inspectDate: sheet.getRange("R5").getDisplayValue(),
+      inspectDate: display[4][17],
 
-      contractor: sheet.getRange("V3").getValue(),
-      buildingCategory: sheet.getRange("L1").getValue(),
-      inspectionPlace: sheet.getRange("P1").getValue(),
-      locationDetail: sheet.getRange("Q1").getValue(),
-      inspector: sheet.getRange("R6").getValue(),
+      contractor: values[2][21],
+      buildingCategory: values[0][11],
+      inspectionPlace: values[0][15],
+      locationDetail: values[0][16],
+      inspector: values[5][17],
 
-      remarks1: sheet.getRange("V10").getValue(),
-      remarks2: sheet.getRange("V13").getValue(),
-      remarks3: sheet.getRange("V16").getValue(),
+      remarks1: values[9][21],
+      remarks2: values[12][21],
+      remarks3: values[15][21],
 
+      ...(referencesOnly ? { photoSources: photoSources } : {}),
       photos: photos,
       firstPhotos: firstPhotos,
       photoMarks: photoKarteEditorData.photoMarks || [[], [], [], []],

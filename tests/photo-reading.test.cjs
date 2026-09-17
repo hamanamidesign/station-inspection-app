@@ -1,0 +1,72 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const root = path.join(__dirname, '..');
+function moduleFor(file, globals = {}, extra = '') {
+  const ctx = vm.createContext({ exports: {}, console, Response, Request, URL, URLSearchParams, AbortController, Error, setTimeout, clearTimeout, ...globals });
+  const source = fs.readFileSync(path.join(root, file), 'utf8') + extra;
+  vm.runInContext(ts.transpile(source, {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}), ctx);
+  return ctx;
+}
+const json = (data, status = 200) => new Response(JSON.stringify(data), {status});
+const tick = () => new Promise(setImmediate);
+(async () => {
+  let calls = 0, release;
+  const api = moduleFor('app/lib/gasApi.ts', { fetch: () => { calls++; return new Promise(resolve => { release = () => resolve(json({success:true})); }); } });
+  const a = api.exports.gasApi('getKarteData', {karteNo:'1'});
+  const b = api.exports.gasApi('getKarteData', {karteNo:'1'});
+  assert.equal(calls, 1); release(); await Promise.all([a,b]);
+  const c = api.exports.gasApi('getKarteData', {karteNo:'1'}); assert.equal(calls,2); release(); await c;
+  calls=0; api.fetch=async()=>{calls++;return json({success:false,error:'タイムアウト'},504);};
+  await assert.rejects(api.exports.gasApi('getKarteData'),/action=getKarteData/); assert.equal(calls,1);
+  await assert.rejects(api.exports.gasApi('getKarteData'),/action=getKarteData/); assert.equal(calls,2);
+  calls=0; api.fetch=async()=>{calls++;return json({success:true});};
+  await Promise.all([api.exports.gasApi('uploadKarte'),api.exports.gasApi('uploadKarte')]);assert.equal(calls,2);
+  api.fetch=async()=>new Response('<html>Not Found</html>',{status:404});
+  await assert.rejects(api.exports.gasApi('uploadKarte'),/action=uploadKarte/);
+  let attempts=[];
+  const route=moduleFor('app/api/gas/route.ts',{process:{env:{GAS_URL:'https://script.google.com/macros/s/test/exec'}},fetch:async(url,init)=>{attempts.push({url:String(url),method:init?.method||'GET'}); return attempts.length===1?new Response('<html>Google Drive</html>',{status:404}):json({success:true,list:[]});}},'\nexports.testFetch=fetchGas; exports.getTimeout=getGasTimeoutMs;');
+  const request=action=>new Request('https://app.test/api/gas',{method:'POST',body:JSON.stringify({action,routeFolderId:'a&b'})});
+  let response=await route.exports.POST(request('getExistingData'));assert.equal(response.status,200);assert.equal((await response.json()).success,true);
+  assert.deepEqual(attempts.map(x=>x.method),['POST','GET']);assert.equal(new URL(attempts[1].url).searchParams.get('routeFolderId'),'a&b');
+  attempts=[];response=await route.exports.POST(request('uploadKarte'));assert.equal(response.status,502);assert.equal(attempts.length,1);assert.equal((await response.json()).upstreamStatus,404);
+  route.fetch=async()=>json({success:false,error:'unknown action'});
+  response=await route.exports.POST(request('getRouteList'));assert.equal((await response.json()).code,'GAS_DEPLOYMENT_MISMATCH');
+  let abort, cleared=false;
+  route.setTimeout=fn=>{abort=fn;return 1;};route.clearTimeout=()=>{cleared=true;};
+  route.fetch=async(_url,init)=>({status:200,text:()=>new Promise((resolve,reject)=>init.signal.addEventListener('abort',()=>reject(new Error('body timeout'))))});
+  const body=route.exports.testFetch('https://test',{},1);await tick();assert.equal(cleared,false);abort();await assert.rejects(body,/body timeout/);assert.equal(cleared,true);
+  assert.equal(route.exports.getTimeout('getKarteData'),120000);assert.equal(route.exports.getTimeout('uploadKarte'),240000);
+
+  let active=0, peak=0, downloaded=0, fail=false;
+  const sources=Array.from({length:8},(_,i)=>({id:String(i),target:i<4?'first':'current',index:i%4}));
+  const photo=moduleFor('app/lib/photoKarteLoad.ts',{require:()=>({gasApi:async action=>{
+    if(action==='getKarteData')return {success:true,data:{photoSources:sources}};
+    active++;peak=Math.max(peak,active);await tick();active--;downloaded++;
+    if(fail)throw new Error('network failure');
+    return {base64:'/9j/IMAGE',mimeType:'image/jpeg'};
+  }})});
+  let result=await photo.exports.loadPhotoKarte({});assert.equal(peak,2);assert.equal(downloaded,8);assert.equal(result.data.photos.filter(Boolean).length,4);assert.equal(result.data.firstPhotos.filter(Boolean).length,4);
+  fail=true;downloaded=0;await assert.rejects(photo.exports.loadPhotoKarte({}),/写真.*取得に失敗/);assert.ok(downloaded<=2);
+  const old=moduleFor('app/lib/photoKarteLoad.ts',{require:()=>({gasApi:async()=>({success:true,data:{photos:['old']}})})});assert.equal((await old.exports.loadPhotoKarte({})).data.photos[0],'old');
+  const bad=moduleFor('app/lib/photoKarteLoad.ts',{require:()=>({gasApi:async()=>({success:true,data:{photoSources:[sources[0],sources[0]]}})})});await assert.rejects(bad.exports.loadPhotoKarte({}),/写真番号/);
+
+  const gas=vm.createContext({});vm.runInContext(fs.readFileSync(path.join(root,'gas-snippets/コード.gs'),'utf8'),gas);
+  const iterator=items=>{let n=0;return {hasNext:()=>n<items.length,next:()=>items[n++]};};
+  let blobCalls=0, rangeCalls=0;
+  const file=(name,id)=>({getName:()=>name,getId:()=>id,getBlob:()=>{blobCalls++;return {getBytes:()=>'/9j/'+id};}});
+  let files=[file('2026_4_3.jpg','rendered'),file('編集元_2026_4_3.jpg','original'),file('初回点検_2026_4_4.jpg','first')];
+  const values=Array.from({length:16},()=>Array(22).fill(''));values[0][3]=4;values[4][5]='first date';
+  gas.SpreadsheetApp={openById:()=>({getSheetByName:()=>({getRange:()=>{rangeCalls++;return {getValues:()=>values,getDisplayValues:()=>values};},getImages:()=>[]})})};
+  gas.getPhotoFolderId=()=> 'folder';gas.getPhotoKarteEditorData_=()=>({});gas.createJsonResponse=x=>x;gas.Utilities={base64Encode:x=>x};
+  gas.DriveApp={getFolderById:()=>({getFoldersByName:()=>iterator([{getFiles:()=>iterator(files)}])})};
+  const params={spreadsheetId:'ss',karteNo:'4'};
+  result=gas.handleGetKarteData({...params,photoMode:'references'});assert.equal(result.success,true);assert.equal(result.data.photoSources.length,2);assert.equal(result.data.karteNo,4);assert.equal(result.data.firstDate,'first date');assert.equal(blobCalls,0);assert.equal(rangeCalls,1);
+  result=gas.handleGetKarteData(params);assert.equal(blobCalls,2);assert.equal(result.data.photos[2],'data:image/jpeg;base64,/9j/original');assert.equal(result.data.firstPhotos[3],'data:image/jpeg;base64,/9j/first');
+  files.reverse();blobCalls=0;result=gas.handleGetKarteData(params);assert.equal(blobCalls,2);assert.equal(result.data.photos[2],'data:image/jpeg;base64,/9j/original');
+  files=[file('2026_4_1.jpg','a'),file('2026_4_1.jpg','b')];assert.equal(gas.handleGetKarteData(params).success,false);
+  gas.DriveApp={getFolderById:()=>{throw new Error('Drive failed');}};assert.equal(gas.handleGetKarteData(params).success,false);
+  console.log('PASS: read deduplication and cleanup, no write retry, timeout cleanup, 404 GET fallback, deployment mismatch, bounded image downloads, failed-image blocking, legacy compatibility, GAS reference-only reads and bulk cell reads.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
