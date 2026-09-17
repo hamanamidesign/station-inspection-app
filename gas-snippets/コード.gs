@@ -712,13 +712,6 @@ function getExistingData(routeFolderId) {
 
 // --- データの読み取り用関数（末尾などに追加） ---
 function handleGetKarteData(params) {
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(1000)) return createJsonResponse({ success: false, error: "写真を保存中です。少し待ってから読み直してください。" });
-  try { return handleGetKarteDataUnlocked_(params); }
-  finally { lock.releaseLock(); }
-}
-
-function handleGetKarteDataUnlocked_(params) {
 
   try {
 
@@ -748,35 +741,19 @@ try {
   const photoFolderId = getPhotoFolderId(
     params.station,
     params.year,
-    params.routeFolderId,
-    params.spreadsheetId
+    params.routeFolderId
   );
 
-  if (!photoFolderId) throw new Error("現場管理台帳に写真フォルダが登録されていません。");
   if (photoFolderId) {
     const parentFolder = DriveApp.getFolderById(photoFolderId);
     const subFolders = parentFolder.getFoldersByName(sheetName);
 
     if (subFolders.hasNext()) {
-      const photoFolder = subFolders.next();
-      if (subFolders.hasNext()) throw new Error("同じカルテ番号の写真フォルダが複数あります。管理者に確認してください。");
-      const files = photoFolder.getFiles();
-      const seen = {};
-      const selected = {};
+      const files = subFolders.next().getFiles();
 
       while (files.hasNext()) {
         const f = files.next();
         const name = f.getName();
-        if (!/^(?:(?:_?編集元_)?初回点検_|_?編集元_)?[^_]+_[^_]+_[1-4]\.jpg$/i.test(name)) continue;
-        if (seen[name]) throw new Error("写真ファイルが重複しています: " + name);
-        seen[name] = true;
-        const slot = (name.includes('初回点検_') ? 'first:' : 'current:') + getPhotoIndexFromFileName_(name);
-        const priority = name.startsWith('編集元_') ? 3 : name.startsWith('_編集元_') ? 2 : 1;
-        if (selected[slot] && selected[slot].priority === priority) throw new Error("同じ写真枠のファイルが複数あります: " + name);
-        if (selected[slot] && selected[slot].priority > priority) continue;
-        selected[slot] = { priority: priority };
-        if (slot.startsWith('first:')) firstPhotos[getPhotoIndexFromFileName_(name)] = null;
-        else photos[getPhotoIndexFromFileName_(name)] = null;
 
         if (name.startsWith("編集元_初回点検_")) {
           const idx = getPhotoIndexFromFileName_(name);
@@ -828,12 +805,10 @@ try {
           }
         }
       }
-    } else if (sheet.getImages().length > 0) {
-      throw new Error("写真カルテに画像がありますが、写真フォルダが見つかりません。");
     }
   }
 } catch (e) {
-  throw new Error("写真の読み込みに失敗しました。空欄のまま編集せず、再読み込みしてください。 " + String(e));
+  Logger.log(e);
 }
 
     const photoKarteEditorData = getPhotoKarteEditorData_(ss, sheetName);
@@ -1131,7 +1106,7 @@ logSheet.appendRow([
     lock.releaseLock();
 
   }
-
+  
 }
 
 function getPhotoNumberSheet(ss) {
@@ -1478,13 +1453,6 @@ function showPhotoKarteSheets_(ss) {
 }
 
 function uploadKarte(data, templateName) {
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(1000)) throw new Error("他の保存処理を実行中です。少し待ってから保存してください。");
-  try { return uploadKarteUnlocked_(data, templateName); }
-  finally { lock.releaseLock(); }
-}
-
-function uploadKarteUnlocked_(data, templateName) {
   const ss = SpreadsheetApp.openById(data.spreadsheetId);
   const templateSheet = ss.getSheetByName(templateName);
 
@@ -1499,49 +1467,7 @@ function uploadKarteUnlocked_(data, templateName) {
       .replaceAllWith("① 形状評価");
   }
 
-  if (templateName === "写真カルテ_マスタ") {
-    [data.photoFiles || [], data.firstPhotoFiles || []].forEach(function(files) {
-      if (!Array.isArray(files)) throw new Error("写真データの形式が不正です。");
-      const seen = {};
-      files.forEach(function(file) {
-        const no = file && Number(file.no);
-        if (!Number.isInteger(no) || no < 1 || no > 4 || seen[no] || typeof file.base64 !== "string" || !file.base64.trim()) {
-          throw new Error("写真番号または写真データが不正です。保存を中止しました。");
-        }
-        seen[no] = true;
-      });
-    });
-  }
   const newSheetName = (data.karteNo || data.no || "1").toString(); 
-  // 2. 写真保存エリア内の写真カルテ番号フォルダを準備
-  const hasPhotoFiles =
-    (data.photoFiles && data.photoFiles.length > 0) ||
-    (data.firstPhotoFiles && data.firstPhotoFiles.length > 0);
-  const shouldPreparePhotoFolder =
-    templateName === "写真カルテ_マスタ" || hasPhotoFiles;
-  let karteSubFolder = null;
-  let previousPhotoFolder = null;
-
-  if (shouldPreparePhotoFolder) {
-
-    const photoFolderId = getPhotoFolderId(
-    data.station,
-    data.year,
-    data.routeFolderId,
-    data.spreadsheetId
-    );
-
-    const parentPhotoFolder = getAccessiblePhotoFolder_(data, photoFolderId);
-    const subFolders = parentPhotoFolder.getFoldersByName(newSheetName);
-
-    if (subFolders.hasNext()) {
-      previousPhotoFolder = subFolders.next();
-      if (subFolders.hasNext()) throw new Error("同じカルテ番号の写真フォルダが複数あります。");
-    }
-    karteSubFolder = parentPhotoFolder.createFolder("_保存準備_" + newSheetName + "_" + Utilities.getUuid());
-  }
-
-
   let sheet = ss.getSheetByName(newSheetName);
 
   if (sheet) {
@@ -1648,12 +1574,46 @@ if (data.totalEval === "AA" || data.totalEval === "A1" || data.totalEval === "A2
     });
   }
 
+  // 2. 写真保存エリア内の写真カルテ番号フォルダを準備
+  const hasPhotoFiles =
+    (data.photoFiles && data.photoFiles.length > 0) ||
+    (data.firstPhotoFiles && data.firstPhotoFiles.length > 0);
+  const shouldPreparePhotoFolder =
+    templateName === "写真カルテ_マスタ" || hasPhotoFiles;
+  let karteSubFolder = null;
+
+  if (shouldPreparePhotoFolder) {
+
+    const photoFolderId = getPhotoFolderId(
+    data.station,
+    data.year,
+    data.routeFolderId
+    );
+
+    const parentPhotoFolder = getAccessiblePhotoFolder_(data, photoFolderId);
+    const subFolders = parentPhotoFolder.getFoldersByName(newSheetName);
+    
+    if (subFolders.hasNext()) {
+      karteSubFolder = subFolders.next();
+    } else {
+      karteSubFolder = parentPhotoFolder.createFolder(newSheetName);
+    }
+  }
+
   // 3. 写真の保存と配置処理
   if (hasPhotoFiles) {
     if (!karteSubFolder) {
       throw new Error("写真カルテ番号フォルダを作成できませんでした");
     }
 
+    const files = karteSubFolder.getFiles();
+    while (files.hasNext()) {
+      try {
+        files.next().setTrashed(true);
+      } catch (e) {
+        Logger.log("既存写真の削除をスキップしました: " + e);
+      }
+    }
 
 const savedBlobs = {};
 
@@ -1930,16 +1890,6 @@ if (lowerPhotos.length === 1) {
 
   SpreadsheetApp.flush();
 
-  // 写真がすべて保存されてから公開する。旧写真は復旧用に保持する。
-  if (karteSubFolder) {
-    if (previousPhotoFolder) previousPhotoFolder.setName("_保存前_" + newSheetName + "_" + Utilities.getUuid());
-    try { karteSubFolder.setName(newSheetName); }
-    catch (error) {
-      if (previousPhotoFolder) previousPhotoFolder.setName(newSheetName);
-      throw error;
-    }
-  }
-
   // 戻り値を JSON 形式で返す（React 側の判定に合わせる）
   const result = { success: true, message: "Success: No." + newSheetName };
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
@@ -2139,24 +2089,24 @@ function insertImageToRange(sheet, blob, rangeA1) {
 // 4. サポート関数
 // ==========================================
 
-function getPhotoFolderId(stationName, year, routeFolderId, spreadsheetId) {
+function getPhotoFolderId(stationName, year, routeFolderId) {
   const rows = SpreadsheetApp
     .openById(CONFIG.TEMPLATE_SS_ID)
     .getSheetByName("現場管理台帳")
     .getDataRange()
     .getValues();
 
-  const matches = [];
   for (let i = 1; i < rows.length; i++) {
     const sameStation = rows[i][1].toString() === stationName;
     const sameYear = rows[i][2].toString() === String(year);
     const sameRoute = !routeFolderId || rows[i][9].toString() === String(routeFolderId);
 
-    const sameSpreadsheet = !spreadsheetId || String(rows[i][3]).trim() === String(spreadsheetId).trim();
-    if (sameStation && sameYear && sameRoute && sameSpreadsheet) matches.push(rows[i][5]);
+    if (sameStation && sameYear && sameRoute) {
+      return rows[i][5];
+    }
   }
-  if (matches.length > 1) throw new Error("現場管理台帳の該当行が重複しています。");
-  return matches.length ? matches[0] : null;
+
+  return null;
 }
 
 function getAccessiblePhotoFolder_(data, photoFolderId) {
