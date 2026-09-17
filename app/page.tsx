@@ -396,13 +396,8 @@ const normalizePhotoSrc = (value: unknown): string | null => {
   if (typeof value === 'object') {
     const record = value as Record<string, unknown>;
     return normalizePhotoSrc(
-      record.url ??
-      record.src ??
-      record.dataUrl ??
-      record.originalBase64 ??
-      record.base64 ??
-      record.fileId ??
-      record.id
+      [record.url, record.src, record.dataUrl, record.originalBase64, record.base64, record.fileId, record.id]
+        .find(value => typeof value === 'string' && value.trim() !== '')
     );
   }
 
@@ -791,7 +786,11 @@ const normalizePhotoArray = (
 
   if (source) {
     source.slice(0, 4).forEach((value, index) => {
-      photos[index] = normalizePhotoSrc(value);
+      const record = value && typeof value === 'object' ? value as Record<string, unknown> : null;
+      const slot = record?.no !== undefined ? Number(record.no) - 1 : index;
+      if (Number.isInteger(slot) && slot >= 0 && slot < 4) {
+        photos[slot] = normalizePhotoSrc(value);
+      }
     });
   }
 
@@ -1953,12 +1952,15 @@ useEffect(() => {
     return;
   }
 
+  let active = true;
+  setUnsavedPhotoKartes([]);
   getUnsavedPhotoKartesFromDb(spreadsheetId)
-    .then(setUnsavedPhotoKartes)
+    .then(rows => { if (active) setUnsavedPhotoKartes(rows); })
     .catch(e => {
       console.error(e);
-      setUnsavedPhotoKartes([]);
+      if (active) setUnsavedPhotoKartes([]);
     });
+  return () => { active = false; };
 }, [spreadsheetId]);
 
 const refreshUnsavedPhotoKartes = async () => {
@@ -2714,8 +2716,8 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
 // --- 指定したNoのカルテデータを読み込む関数 ---
   const loadKarteData = async (no: string) => {
   if (!spreadsheetId) return;
-  const unsaved = unsavedPhotoKartes.find(item => String(item.karteNo) === String(no));
-  if (unsaved) {
+  const unsaved = unsavedPhotoKartes.find(item => item.spreadsheetId === spreadsheetId && String(item.karteNo) === String(no));
+  if (unsaved && confirm('この端末に一時保存したカルテがあります。\n「OK」で一時保存を開き、「キャンセル」でスプレッドシートの保存済みデータを読み込みます。')) {
     applyPhotoKarteData(unsaved.payload, false);
     return;
   }
@@ -2779,7 +2781,7 @@ const applyPhotoKarteData = (data: Record<string, unknown>, editMode: boolean) =
       applyPhotoKarteData(completeData, true);
     }
   } catch (e) {
-    alert("読み込みエラーが発生しました");
+    alert(`読み込みに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     setIsLoading(false);
   }
